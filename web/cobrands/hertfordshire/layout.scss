@@ -1,0 +1,44 @@
+@import "_variables";
+@import "../sass/layout";
+
+/* NAVBAR */
+#site-logo {
+  background-image: url("/cobrands/hertfordshire/images/logo.svg");
+  background-size: auto 80%;
+  height: $mappage-header-height;
+  width: 7rem;
+}
+
+.nav-menu--main {
+    a {
+        &:hover {
+            color: $primary;
+        }
+    }
+
+    span {
+        color: $primary_text;
+    }
+}
+
+/* FRONTPAGE */
+
+#front-main {
+    padding: 4rem 1rem;
+}
+
+/* MAP PAGE */
+
+/* FOOTER */
+.cobrand-footer {
+    padding: 40px 0;
+
+    .cobrand-footer-inner {
+        flex-direction: row;
+
+        .cobrand-footer-col {
+            flex-basis: 30%;
+        }
+    }
+}
+
