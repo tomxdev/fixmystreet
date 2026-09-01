@@ -70,9 +70,19 @@ sub intro {
 
             $form_data->{_direct_debit_internal} = 1 if $c->cobrand->direct_debit_collection_method eq 'internal';
 
+            my $current_min = 1;
+            $current_min = 0 if $c->cobrand->moniker eq 'bexley'; # Bexley can say they have no bins when renewing
+
             return {
-                current_bins => { %bin_params, $edit_current_allowed ? (disabled=>0) : () },
-                bins_wanted => { %bin_params, $bins_wanted_disabled ? (disabled=>1) : () },
+                current_bins => {
+                    %bin_params,
+                    range_start => $current_min,
+                    $edit_current_allowed ? (disabled=>0) : ()
+                },
+                bins_wanted => {
+                    %bin_params,
+                    $bins_wanted_disabled ? (disabled=>1) : ()
+                },
             };
         },
         next => sub {
@@ -94,7 +104,6 @@ has_field current_bins => (
     tags => { number => 1 },
     required => 1,
     disabled => 1,
-    range_start => 1,
 );
 
 has_field bins_wanted => (
