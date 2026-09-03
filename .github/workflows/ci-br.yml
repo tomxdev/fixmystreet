@@ -1,31 +1,65 @@
 # Workflow do fork brasileiro.
 #
-# Substitui os workflows do upstream (CI/Coverage/Cypress), que sao desabilitados
-# neste fork. Arquivo NOVO de proposito: nunca conflita ao sincronizar com o
-# upstream, ao contrario de editar o default.yml.
+# Substitui os workflows do upstream (CI/Coverage/Cypress), desabilitados neste
+# fork. Arquivo NOVO de proposito: nunca conflita ao sincronizar com o upstream,
+# ao contrario de editar o default.yml.
 #
 # Diferencas em relacao ao upstream, e porque:
 #  - Uma unica versao de Perl (5.32.1). O upstream testa 5.26-5.32 porque quem
 #    instala o FixMyStreet usa distros variadas. Nos controlamos o runtime: e
 #    Docker com 5.32.1 fixo. Testar as outras e custo sem retorno.
-#  - paths-ignore para documentacao: PR que so mexe em .md nao roda a suite.
-#  - Roda tambem em push para main/develop, para que o cache fique disponivel
-#    a todas as PRs (cache de branch nao e visivel entre branches irmas).
+#  - Push so em main/develop. O upstream usa `on: [push, pull_request]`, o que
+#    dispara os DOIS eventos para branch do mesmo repositorio - dobrando o custo.
+#  - Rodar em push para main/develop tambem popula o cache: no GitHub Actions o
+#    cache de uma branch nao e visivel para branches irmas, so o da branch padrao.
+#
+# ATENCAO ao mexer nos gatilhos:
+# O job `gate` existe para ser o unico check obrigatorio. NAO use `paths-ignore`
+# no nivel do workflow: um workflow que nao dispara nao produz check, e a PR fica
+# travada para sempre esperando um check que nunca chega. Por isso o workflow
+# sempre roda, e quem decide pular o trabalho pesado e o job `changes`.
 
 name: CI BR
 
 on:
   push:
     branches: [ main, develop ]
-    paths-ignore: [ 'docs/**', '**.md', 'notes/**' ]
   pull_request:
-    paths-ignore: [ 'docs/**', '**.md', 'notes/**' ]
 
 jobs:
-  test:
-    name: Testes (perl 5.32.1)
+  changes:
+    name: Detectar mudancas
     runs-on: ubuntu-22.04
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Ha mudanca fora de documentacao?
+      id: filter
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          BASE="origin/${{ github.base_ref }}"
+          git fetch origin "${{ github.base_ref }}" --depth=50 --quiet || true
+          FILES=$(git diff --name-only "$BASE"...HEAD || echo "unknown")
+        else
+          FILES=$(git diff --name-only HEAD~1 HEAD || echo "unknown")
+        fi
+        echo "Arquivos alterados:"; echo "$FILES"
+        if echo "$FILES" | grep -qvE '^(docs/|notes/|.*\.md$)'; then
+          echo "code=true" >> $GITHUB_OUTPUT
+          echo ">> ha codigo alterado: suite sera executada"
+        else
+          echo "code=false" >> $GITHUB_OUTPUT
+          echo ">> apenas documentacao: suite sera pulada"
+        fi
 
+  test:
+    name: Suite (perl 5.32.1)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
       with:
@@ -62,3 +96,25 @@ jobs:
 
     - name: Suite de testes
       run: ~/perl5/perlbrew/bin/perlbrew exec script/test --jobs 3 t
+
+  gate:
+    # ESTE e o unico check que deve ser marcado como obrigatorio na protecao de
+    # branch. Roda sempre (`if: always()`), inclusive quando a suite e pulada por
+    # ser mudanca so de documentacao - garantindo que o check exista e nao trave a PR.
+    name: CI BR
+    needs: [ changes, test ]
+    if: always()
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Avaliar resultado
+      run: |
+        echo "changes.code = ${{ needs.changes.outputs.code }}"
+        echo "test.result  = ${{ needs.test.result }}"
+        if [ "${{ needs.changes.result }}" != "success" ]; then
+          echo "Deteccao de mudancas falhou."; exit 1
+        fi
+        case "${{ needs.test.result }}" in
+          success)  echo "Suite passou.";        exit 0 ;;
+          skipped)  echo "Mudanca apenas de documentacao - suite pulada."; exit 0 ;;
+          *)        echo "Suite falhou ou foi cancelada."; exit 1 ;;
+        esac
