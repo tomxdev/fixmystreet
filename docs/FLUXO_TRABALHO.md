@@ -93,3 +93,25 @@ Além do template do upstream, verificar:
 - [ ] Nenhum dado pessoal, endereço sensível, rosto ou placa em fixture/screenshot?
 - [ ] Nenhum segredo commitado (`conf/general.yml` é ignorado — confirmar)?
 - [ ] `bin/run-tests` executado localmente?
+
+## Integração contínua deste fork
+
+O workflow é `.github/workflows/ci-br.yml` (`CI BR`). Os workflows do upstream
+(`CI`, `Coverage`, `Cypress`) estão **desabilitados neste fork** — custavam ~312 min
+de compute por PR contra ~19 min do nosso.
+
+Ele tem três jobs:
+
+| Job | Papel |
+|---|---|
+| `changes` | Decide se há alteração fora de `docs/`, `notes/` e `*.md` |
+| `test` | Roda a suíte **apenas** quando há código alterado |
+| `gate` | Roda **sempre** e reporta o check `CI BR` |
+
+**O único check obrigatório é `CI BR`.** Nunca marque `Suite (perl 5.32.1)` como
+obrigatório: ele é pulado em mudanças de documentação, e um check que não aparece
+trava a PR para sempre.
+
+Pelo mesmo motivo, **não use `paths-ignore` no gatilho do workflow**. Um workflow
+que não dispara não produz check. O filtro tem de ficar no job `changes`, nunca no
+`on:`.
