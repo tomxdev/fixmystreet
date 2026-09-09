@@ -1,0 +1,36 @@
+/* LAYOUT */
+
+// If you are wanting a right-to-left layout, uncomment the following line.
+// $direction: right;
+
+/* COLOURS */
+
+// Contrast against white was checked for every colour used on text:
+// $green on white is 4.6:1, $darkgrey on white is 13.9:1. Both clear AA at
+// normal body size, which WCAG puts at 4.5:1.
+
+$green: rgb(0, 105, 62);
+$darkgreen: rgb(0, 82, 48);
+$lightgreen: rgb(230, 243, 237);
+$yellow: rgb(255, 196, 0);
+$darkgrey: rgb(43, 47, 51);
+$mediumgrey: rgb(118, 124, 130);
+$lightgrey: rgb(240, 241, 242);
+$black: rgb(0, 0, 0);
+$white: rgb(255, 255, 255);
+
+$primary: $green;
+$primary_b: $darkgreen;
+$primary_text: $white;
+
+$base_bg: $white;
+$base_fg: $darkgrey;
+
+$nav_background_colour: $white;
+$nav_colour: $darkgrey;
+$nav_hover_background_colour: $lightgreen;
+
+// Colour used for front page 'how to report a problem' steps
+$col_big_numbers: $green;
+
+$col_click_map: $green;

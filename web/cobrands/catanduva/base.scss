@@ -1,0 +1,13 @@
+@import "../sass/h5bp";
+@import "./_colours";
+@import "../sass/mixins";
+
+@import "../sass/base";
+
+.btn--primary {
+    @include button-variant(
+        $bg-top: #00693e, $bg-bottom: #005230, $border: #005230, $text: #fff,
+        $hover-bg-top: #005230, $hover-bg-bottom: #00693e, $hover-border: #005230, $hover-text: #fff,
+        $focus-bg-top: #005230, $focus-bg-bottom: #00693e, $focus-border: #005230, $focus-text: #fff
+    );
+}
