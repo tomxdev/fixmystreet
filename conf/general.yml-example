@@ -232,9 +232,17 @@ SMTP_PASSWORD: ''
 # Have I Been Pwned dataset
 CHECK_HAVEIBEENPWNED: 0
 
-# Gaze is a world-wide service for population density lookups. You can leave
-# this as is.
+# Gaze is a world-wide service for population density lookups, used to pick the
+# radius of "nearby reports". You can leave this as is.
+#
+# The lookup is a synchronous HTTP request made while rendering every map page,
+# so an install in a country Gaze holds no data for pays that latency for
+# nothing. Set this to '' to skip the lookup and use GAZE_DEFAULT_RADIUS.
 GAZE_URL: 'https://gaze.mysociety.org/gaze'
+
+# Radius in km used when Gaze is disabled or unreachable - number, optional,
+# default 10.
+GAZE_DEFAULT_RADIUS: 10
 
 # Memcached host
 # This can be safely left out and will default to '127.0.0.1' even if not present.
