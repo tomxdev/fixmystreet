@@ -413,7 +413,19 @@ privacidade precisa dizer. É o ponto do documento que mais precisa de advogado.
 | Backup | Diário, **com teste real de restauração** |
 | Atualizações | Acompanhar correções do upstream |
 | Antiabuso | Limite de cadastros por IP e por e-mail |
-| Acesso administrativo | Senha forte e 2FA onde houver suporte |
+| Acesso administrativo | ✅ **2FA obrigatório** para superusuário e para quem está vinculado ao órgão (`SEC-003`) |
+
+✅ **IMPLEMENTADO (SEC-003).** O mecanismo de segundo fator já vinha do upstream; faltava
+dizer **a quem se aplica**. Agora vale para superusuário e para qualquer conta vinculada ao
+órgão.
+
+A assimetria é o argumento: a conta de um cidadão guarda as ocorrências dele, enquanto uma
+conta de equipe pode esconder ocorrências, ler dados de contato e moderar. Uma senha que
+vaze custa coisas muito diferentes nos dois casos.
+
+⚠️ **Consequência operacional.** Quem já tiver conta de equipe precisa cadastrar o
+autenticador **antes** de o site abrir — do contrário fica trancado para fora no primeiro
+login. Desenvolvimento local fica de fora pela flag de staging.
 
 ✅ **FATO.** Backup sem restauração testada não é backup. O plano exige **executar** uma
 restauração completa antes do lançamento — tarefa **SEC-005**.
@@ -738,7 +750,7 @@ Identificadores conforme o padrão do prompt original.
 | **LGPD-007** | **Rotina de expurgo automático aos 5 anos** | ✅ **Concluída** — PR #18 | Backend |
 | SEC-001 | HTTPS obrigatório e HSTS | Depende de INF-003 | DevOps |
 | SEC-002 | Antiabuso por IP e e-mail | Não iniciada | Backend |
-| SEC-003 | 2FA nas contas administrativas | Não iniciada | DevOps |
+| SEC-003 | 2FA nas contas administrativas | ✅ **Concluída** — PR #25 | DevOps |
 | SEC-004 | Revisar dependências e correções do upstream | ✅ **Concluída** — PR #22 | DevOps |
 | **SEC-005** | **Testar restauração real do backup** | Depende de INF-007 | DevOps |
 | MOD-001 | Definir política de moderação | **Pronta** — decisões 3 e 4 tomadas | PO |

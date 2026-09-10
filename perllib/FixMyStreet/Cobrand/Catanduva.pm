@@ -241,6 +241,32 @@ sub report_moderate_after {
     $problem->update;
 }
 
+=head2 must_have_2fa
+
+SEC-003. Any account that can act on other people's data - a superuser, or
+anyone attached to the body - has to carry a second factor. The mechanism is
+already in the upstream; what was missing was saying who it applies to.
+
+The asymmetry is the argument: a citizen's account holds their own reports, while
+a staff account can hide reports, read contact details and moderate. A password
+that leaks in either case costs very different things.
+
+Development on a laptop is left out through the staging flag - demanding an
+authenticator app to bring the site up locally costs more than it protects.
+
+=cut
+
+sub must_have_2fa {
+    my ($self, $user) = @_;
+
+    return 0 if FixMyStreet->staging_flag('skip_must_have_2fa');
+
+    return 1 if $user->is_superuser;
+    return 1 if $user->from_body;
+
+    return 0;
+}
+
 =head2 show_hidden_reports_to_author
 
 MOD-005. A report hidden by moderation stays readable to the person who wrote
