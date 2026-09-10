@@ -182,13 +182,21 @@ reversa a partir do pino no mapa**, com o campo visível e editável.
 É a escolha que preserva o dado sem transferir ao cidadão a obrigação de saber o CEP da
 rua onde está — a causa provável de abandono no meio do cadastro.
 
-**Consequência de implementação:** `UX-003` sai de bloqueada e vira executável. Restam
-dois detalhes a decidir na hora de codificar, ambos técnicos:
+**Consequência de implementação:** `UX-003` saiu de bloqueada e foi entregue. Os dois
+detalhes técnicos que faltavam ficaram assim:
 
-- qual serviço de geocodificação reversa atende ao Brasil (o FixMyStreet já abstrai isso
-  em `Geocode/`, com implementações para Bing, Google, OSM e Zurich);
-- o que gravar quando o serviço não devolver CEP algum — a coluna é `NOT NULL`, então
-  ainda é preciso um valor de fallback.
+- ✔️ **Serviço de geocodificação reversa: OSM/Nominatim**, que já é o padrão do
+  `get_reverse_geocoder`. Cobre o Brasil, devolve `address.postcode`, não exige chave de
+  API nem faturamento — o que importa enquanto `INF-001` não tem orçamento. Bing e Google
+  continuam disponíveis trocando uma linha de configuração.
+- ✔️ **Sem CEP, grava string vazia.** Satisfaz o `NOT NULL` sem inventar um número que
+  seguiria a ocorrência até quem um dia for recebê-la.
+
+**Achado durante a implementação:** o problema era maior que a lacuna. `problem.postcode`
+recebia `$params{pc}`, o texto livre da caixa de busca — que em pt-BR convida a digitar
+"um CEP próximo, **ou o nome da rua e o bairro**". A coluna guardava "Rua São Paulo,
+Centro" com a mesma naturalidade com que guardava um CEP. Agora só entra ali o que casa
+com o formato de CEP.
 
 
 ### 3.3 Performance em conexão lenta
@@ -551,7 +559,7 @@ Identificadores conforme o padrão do prompt original.
 |---|---|---|---|
 | **UX-001** | **Revisar tradução pt-BR** — já existe, não é do zero | ✅ **Concluída** — PRs #10 e #11 | Frontend |
 | UX-002 | Criar cobrand `catanduva` | ✅ **Concluída** — PR #9 | Frontend |
-| **UX-003** | **CEP por geocodificação reversa**, campo visível e editável | **Pronta** — decidida | Backend |
+| **UX-003** | **CEP por geocodificação reversa**, campo visível e editável | ✅ **Concluída** — PR #13 | Backend |
 | UX-004 | Adequar vocabulário (bairro, CEP, protocolo, prefeitura) | ✅ **Concluída** — PR #12 | Frontend |
 | UX-005 | Validar fluxo em celular e rede lenta | Não iniciada | QA |
 | UX-006 | Auditoria de acessibilidade (WCAG/eMAG) | Não iniciada | Frontend |
@@ -736,12 +744,20 @@ foram entregues:
 3. ✅ **UX-001** — tradução pt-BR revisada
 4. ✅ **UX-004** — vocabulário adequado ao contexto municipal brasileiro
 
-**A próxima tarefa é UX-003** (CEP por geocodificação reversa), agora desbloqueada e
-pré-requisito de R1: sem ela o cadastro quebra no Brasil, porque `problem.postcode` é
-`NOT NULL` (seção 3.2).
+5. ✅ **UX-003** — CEP por geocodificação reversa, campo visível e editável (seção 3.2)
 
-Em paralelo, e sem depender de código: escolher **provedor de cloud** e **provedor de
-e-mail** (seção 13.2). São as duas únicas decisões que travam R1.
+**O que resta em R1 depende agora de decisão, não de código.** As tarefas de código
+restantes (`INF-002`, `INF-005`, `INF-006`, `SEC-001`) todas dependem de `INF-001`
+e `INF-003`, que por sua vez esperam duas escolhas: **provedor de cloud** e **provedor de
+e-mail** (seção 13.2).
+
+Executáveis desde já, sem depender dessas escolhas:
+
+- **RD-005** — fechar as categorias iniciais (4 definidas, faltam de 1 a 4)
+- **UX-007** — spec Cypress do cobrand, que hoje é o único caminho para testar o
+  formulário de ponta a ponta
+- **MOD-002** — aprovação prévia de foto, requisito de lançamento
+- **INT-005** — caixa postal do projeto como destino de demonstração
 
 ---
 

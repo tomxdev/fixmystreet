@@ -5,6 +5,12 @@ use strict;
 use warnings;
 use utf8;
 
+use FixMyStreet::Geocode;
+
+=encoding utf-8
+
+=cut
+
 sub site_key { 'catanduva' }
 
 sub country { 'BR' }
@@ -46,5 +52,86 @@ sub geocoded_string_check {
 sub send_questionnaires { 0 }
 
 sub suggest_duplicates { 1 }
+
+=head2 CEP
+
+C<problem.postcode> is C<NOT NULL> and was modelled on the British postcode: the
+column is filled from C<$params{pc}>, which is whatever went into the location
+search box. In the UK that is usually a postcode. Here the box invites "um CEP
+próximo, ou o nome da rua e o bairro", so the column happily stores "Rua São
+Paulo, Centro" - and stores nothing at all when the reporter drops the pin
+straight onto the map, which is what broke the very first report with a
+constraint violation.
+
+So this is not only about filling the gap. It is about keeping anything that is
+not a CEP out of the column.
+
+=cut
+
+# Five digits, optional hyphen, three digits. Accepts either form on the way in
+# and always returns the hyphenated one, so the column does not end up holding
+# both spellings of the same CEP.
+sub normalise_cep {
+    my ($self, $value) = @_;
+
+    return '' unless defined $value;
+    return '' unless $value =~ /^\s*(\d{5})-?(\d{3})\s*$/;
+
+    return "$1-$2";
+}
+
+=head2 cep_from_pin
+
+The CEP of the point marked on the map, by reverse geocoding, or the empty
+string when the service cannot answer.
+
+Falls back to the stashed coordinates so the form template can call it with no
+arguments while the report is still being filled in.
+
+Never dies: a geocoder that is down, slow or unparseable must cost the reporter
+an empty field, not a failed submission.
+
+=cut
+
+sub cep_from_pin {
+    my ($self, $lat, $lon) = @_;
+
+    if ( my $c = $self->{c} ) {
+        $lat = $c->stash->{latitude}  unless defined $lat;
+        $lon = $c->stash->{longitude} unless defined $lon;
+    }
+
+    return '' unless defined $lat && defined $lon;
+
+    my $result = eval { FixMyStreet::Geocode::reverse($self, $lat, $lon) };
+    return '' unless ref $result eq 'HASH';
+
+    return $self->normalise_cep($result->{address}{postcode});
+}
+
+=head2 report_new_munge_before_insert
+
+Settles C<problem.postcode> just before the row is written, when the coordinates
+are already on the report.
+
+Order of preference: what the reporter typed in the CEP field, then the CEP of
+the pin, then the search box if it happens to hold a CEP, and failing all three
+the empty string. We never store text that is not a CEP, and we never invent a
+number to satisfy the constraint - an empty field is honest, a made-up CEP would
+follow the report all the way to whoever eventually receives it.
+
+=cut
+
+sub report_new_munge_before_insert {
+    my ($self, $report) = @_;
+
+    # ||= short-circuits, so the geocoder is only called when the reporter left
+    # the field alone.
+    my $cep = $self->normalise_cep( $self->{c}->get_param('cep') );
+    $cep ||= $self->cep_from_pin( $report->latitude, $report->longitude );
+    $cep ||= $self->normalise_cep( $report->postcode );
+
+    $report->postcode($cep);
+}
 
 1;

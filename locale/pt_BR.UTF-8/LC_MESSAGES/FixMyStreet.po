@@ -1885,6 +1885,11 @@ msgstr ""
 msgid "Fill in your details manually."
 msgstr "Preencha seus detalhes manualmente."
 
+#: templates/web/catanduva/report/new/after_title.html:22
+msgid "Filled in from the point marked on the map. Correct it if it is wrong."
+msgstr ""
+"Preenchido a partir do ponto marcado no mapa. Corrija se estiver errado."
+
 #. ("JS")
 #: templates/web/base/js/translation_strings.html:69
 msgid "Filter"
