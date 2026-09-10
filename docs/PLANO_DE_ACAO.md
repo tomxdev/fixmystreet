@@ -374,8 +374,16 @@ Fotografia é o maior risco. Uma foto de buraco pode conter, sem intenção:
 - interior de residência
 - pessoa em situação de rua
 
-💡 **PROPOSTA:** fotografia **não aparece publicamente antes de aprovação humana** durante
-todo o piloto. Automatizar depois, com volume conhecido.
+✅ **IMPLEMENTADO (MOD-002).** Fotografia **não aparece publicamente antes de aprovação
+humana**. O cobrand nega por padrão; quem pode moderar enxerga a foto (não dá para julgar
+o que não se vê); e passar o relatório pela moderação marca a foto como aprovada — o
+formulário de moderação já exibe a foto com caixa de manter/remover, então submetê-lo é
+uma decisão sobre ela. Automatizar depois, com volume conhecido.
+
+⚠️ **Consequência operacional a não esquecer.** Com `MOD-003` ainda pendente (ninguém
+nomeado), **nenhuma foto será aprovada por conta própria**. Isso é correto e proposital,
+mas significa que numa demonstração à prefeitura as fotos só aparecem se alguém da equipe,
+com permissão de moderação, aprovar antes. Não é bug; é o portão fazendo seu trabalho.
 
 **Situação das quatro decisões de moderação:**
 
@@ -582,7 +590,7 @@ Identificadores conforme o padrão do prompt original.
 | SEC-004 | Revisar dependências e correções do upstream | Pronta | DevOps |
 | **SEC-005** | **Testar restauração real do backup** | Depende de INF-007 | DevOps |
 | MOD-001 | Definir política de moderação | **Pronta** — decisões 3 e 4 tomadas | PO |
-| MOD-002 | Configurar aprovação prévia de fotografia | Pronta | Backend |
+| MOD-002 | Configurar aprovação prévia de fotografia | ✅ **Concluída** — PR #15 | Backend |
 | MOD-003 | Treinar moderador | ❓ Pendente por RD-007 | PO |
 | **MOD-004** | **Fixar prazo de moderação em horas** (proposta: 24h) | ❓ Pendente | PO |
 | **MOD-005** | **Canal automatizado de contestação de remoção** | Pronta | Backend |
@@ -662,7 +670,7 @@ delas dependeu de decisão pendente, como previsto.
 | INF-005 — e-mail autenticado | O e-mail de confirmação faz parte do fluxo |
 | INF-006 — fotos em armazenamento de objetos | Decidido; mais barato fazer agora que migrar depois |
 | INT-005 — destino de demonstração | Fecha o fluxo sem depender da prefeitura |
-| MOD-002 — aprovação prévia de foto | Requisito de lançamento, não melhoria |
+| ✅ MOD-002 — aprovação prévia de foto | Requisito de lançamento, não melhoria. Entregue |
 
 ⚠️ **R1 não abre ao público.** Ver seção 1.1. É demonstração, e a diferença entre as duas
 coisas é o que mantém o risco existencial adiado.
@@ -757,7 +765,6 @@ Executáveis desde já, sem depender dessas escolhas:
   negócio, não de código: depende de quais serviços a prefeitura atende.
 - ✅ **UX-007** — spec Cypress do cobrand, entregue: o formulário passou a ser exercitado
   de ponta a ponta, do mapa até a confirmação por e-mail.
-- **MOD-002** — aprovação prévia de foto, requisito de lançamento
 - **INT-005** — caixa postal do projeto como destino de demonstração
 
 **Achado em UX-007:** o cobrand `catanduva` não declarava `area_types`, então herdava o

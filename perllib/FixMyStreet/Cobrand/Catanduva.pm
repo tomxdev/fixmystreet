@@ -5,6 +5,9 @@ use strict;
 use warnings;
 use utf8;
 
+use JSON::MaybeXS;
+use Scalar::Util 'blessed';
+
 use FixMyStreet::Geocode;
 
 =encoding utf-8
@@ -148,6 +151,94 @@ sub report_new_munge_before_insert {
     $cep ||= $self->normalise_cep( $report->postcode );
 
     $report->postcode($cep);
+}
+
+=head2 Aprovação prévia de fotografia (MOD-002)
+
+A photograph of a pothole can carry, with no intent at all, a face, a number
+plate, the inside of someone's home, or a person sleeping rough. None of that
+can be undone once it is published, so during the pilot no photograph reaches
+the public before a human has looked at it.
+
+The default cobrand shows every photo; Zurich is the upstream precedent for the
+opposite, and this follows its C<publish_photo> metadata shape so the two stay
+recognisable to each other.
+
+Note the asymmetry that justifies defaulting to deny: a photo wrongly withheld
+costs the reporter a little detail on their report, while a photo wrongly
+published can expose someone who never agreed to be in it.
+
+=cut
+
+# The moderation form shows the photo with a keep/remove checkbox, so a
+# moderator submitting that form has made a decision about it - that is what
+# marks the photo approved. Reads straight from `extra` when handed a plain
+# hashref, which is how the RSS and Open311 paths pass reports through.
+sub photo_approved {
+    my ($self, $r) = @_;
+
+    return 0 unless $r;
+
+    my $flag;
+    if ( blessed $r ) {
+        $flag = $r->get_extra_metadata('publish_photo');
+    }
+    else {
+        my $extra = $r->{extra};
+        $extra = eval { JSON::MaybeXS->new->decode($extra) } if $extra && !ref $extra;
+        $flag = ref $extra eq 'HASH' ? $extra->{publish_photo} : undef;
+    }
+
+    return $flag ? 1 : 0;
+}
+
+=head2 allow_photo_display
+
+False until the photo is approved, with one exception: whoever can moderate the
+report can see the photo, because they cannot judge what they cannot see.
+
+Returns 1 rather than a bare true value so the callers that treat the result as
+a 1-indexed photo number - C<Rss.pm> does - get a usable one. Approval is per
+report, not per photo: at pilot volume, a moderator deciding photo by photo
+would be precision nobody asked for.
+
+=cut
+
+sub allow_photo_display {
+    my ($self, $r, $num) = @_;
+
+    return 0 unless $r;
+    return 1 if $self->photo_approved($r);
+
+    my $c = $self->{c};
+    return 1 if $c && blessed $r && $c->user_exists && $c->user->can_moderate($r);
+
+    return 0;
+}
+
+=head2 report_moderate_after
+
+Marks the photo approved once a moderator has been through the report.
+
+Only ever sets the flag when a photo survived moderation: if the moderator
+removed it, there is nothing to approve, and we must not leave an approval
+behind for a photo that might be replaced later.
+
+=cut
+
+sub report_moderate_after {
+    my ($self, $problem) = @_;
+
+    if ( $problem->photo ) {
+        return if $problem->get_extra_metadata('publish_photo');
+        $problem->set_extra_metadata( publish_photo => 1 );
+    }
+    else {
+        return unless $problem->get_extra_metadata('publish_photo');
+        $problem->unset_extra_metadata('publish_photo');
+    }
+
+    $problem->update;
 }
 
 1;

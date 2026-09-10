@@ -127,6 +127,8 @@ sub moderate_report : Chained('report') : PathPart('') : Args(0) {
         }
     }
 
+    $c->cobrand->call_hook( report_moderate_after => $problem, \@types );
+
     $c->detach( 'report_moderate_audit', \@types );
 }
 
