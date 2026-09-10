@@ -259,3 +259,5 @@ rotina.
 | Miniaturas quebradas em todo o site, de repente | Os arquivos de `/var/www/upload` sumiram numa recriação de container. Falta o volume da seção 3 |
 | Painel de debug grande na lateral | `FIXMYSTREET_APP_DEBUG: "0"` na seção 3 |
 | Painel de Controle "parou de exibir os dados" | Não é o painel: o login não completa. Falta `skip_must_have_2fa` — rode o `bin/catanduva/ambiente-local` |
+| Ao abrir "Todas as ocorrências" você parece ter sido deslogado | Não foi: `/reports` responde `max-age=3600` **sem `Vary: Cookie`**, e o navegador serve a cópia anônima em cache. O `ambiente-local` põe `CACHE_TIMEOUT: 0`; force uma recarga (Ctrl+F5) para descartar o que já está guardado |
+| Ocorrências novas demoram a aparecer na página inicial | Mesmo `CACHE_TIMEOUT` — ele cacheia as estatísticas e a lista de recentes |

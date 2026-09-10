@@ -96,6 +96,22 @@ echo "orgao e categorias prontos"
 docker exec "$APP" bin/createsuperuser admin@catanduva.local senha123456 >/dev/null 2>&1 || true
 echo "superusuario: admin@catanduva.local / senha123456"
 
+# ------------------------------------------------------------------ cache
+# /reports responde com Cache-Control: max-age=3600 e SEM Vary: Cookie
+# (Reports.pm:81). O navegador guarda a pagina por uma hora e nao distingue
+# visitante de quem esta autenticado - entao quem viu a pagina deslogado e
+# depois entra continua recebendo a copia antiga, e parece ter sido deslogado.
+#
+# O mesmo valor cacheia as estatisticas e a lista de recentes da pagina inicial
+# (Problem.pm:83), que e por que ocorrencias novas as vezes demoram a aparecer.
+#
+# Em producao o cache e desejavel; em desenvolvimento so confunde.
+if grep -qE '^CACHE_TIMEOUT: *[1-9]' conf/general.yml 2>/dev/null; then
+    msg "Desligando o cache de /reports e da pagina inicial"
+    perl -i -pe 's/^CACHE_TIMEOUT: .*/CACHE_TIMEOUT: 0/' conf/general.yml
+    REINICIAR=1
+fi
+
 # ------------------------------------------------------------------ 2FA
 # SEC-003 exige segundo fator de superusuario e de conta vinculada ao orgao. Em
 # producao e o que se quer; localmente tranca a propria pessoa para fora do
@@ -107,7 +123,12 @@ echo "superusuario: admin@catanduva.local / senha123456"
 if ! grep -q 'skip_must_have_2fa' conf/general.yml 2>/dev/null; then
     msg "Liberando o login administrativo local (skip_must_have_2fa)"
     perl -i -pe 's/^(STAGING_FLAGS:.*)$/$1\n  skip_must_have_2fa: 1/' conf/general.yml
-    echo "flag acrescentada - reiniciando a aplicacao"
+    REINICIAR=1
+fi
+
+# Um unico reinicio para as duas mudancas acima, se alguma ocorreu.
+if [ "${REINICIAR:-0}" = "1" ]; then
+    echo "configuracao alterada - reiniciando a aplicacao"
     "${COMPOSE[@]}" restart fixmystreet >/dev/null 2>&1
     for _ in $(seq 1 60); do
         curl -sf -o /dev/null http://localhost:3000/ && break
