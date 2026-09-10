@@ -385,6 +385,16 @@ nomeado), **nenhuma foto será aprovada por conta própria**. Isso é correto e 
 mas significa que numa demonstração à prefeitura as fotos só aparecem se alguém da equipe,
 com permissão de moderação, aprovar antes. Não é bug; é o portão fazendo seu trabalho.
 
+✔️ **DECIDIDO — a aprovação é implícita, e isso deve ser revisitado.** Hoje aprovar é um
+efeito de passar o relatório pela moderação, não um ato separado. A escolha evita construir
+uma tela de aprovação para um moderador que ainda não existe.
+
+O custo é conhecido: **um moderador que entre só para corrigir um título aprova a foto de
+carona.** No volume de um MVP de demonstração isso é irrelevante. No dia em que o serviço
+abrir ao público, provavelmente não é — então a troca para aprovação explícita, com campo
+próprio, deve entrar junto de `MOD-003`, quando existir um moderador de verdade e a tela
+dele fizer sentido.
+
 **Situação das quatro decisões de moderação:**
 
 | # | Questão | Decisão |
@@ -571,7 +581,7 @@ Identificadores conforme o padrão do prompt original.
 | UX-004 | Adequar vocabulário (bairro, CEP, protocolo, prefeitura) | ✅ **Concluída** — PR #12 | Frontend |
 | UX-005 | Validar fluxo em celular e rede lenta | Não iniciada | QA |
 | UX-006 | Auditoria de acessibilidade (WCAG/eMAG) | Não iniciada | Frontend |
-| UX-007 | Spec Cypress do cobrand e reativação no CI | ✅ **Concluída** — PR #14 | QA |
+| UX-007 | Spec Cypress do cobrand e reativação no CI | ✅ **Concluída** — PRs #14 e #15 | QA |
 
 ### Fase 4 — LGPD, segurança e moderação
 
@@ -719,6 +729,7 @@ tê-la respondido antes de chegar lá.
 | — | Fotografias | Armazenamento de objetos | INF-006 |
 | — | Exclusão de dados | Anonimizar preservando a ocorrência | LGPD-004 |
 | — | Contestação e denúncia de crime | Canal automatizado + redirecionamento | MOD-005, MOD-006 |
+| — | Como a foto é aprovada | **Implicitamente, ao moderar** — a revisitar em MOD-003 | MOD-002 |
 
 ### 13.2 Ainda abertas
 
