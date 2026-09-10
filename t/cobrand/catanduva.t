@@ -213,17 +213,24 @@ subtest 'reports arriving as plain hashrefs, as RSS and Open311 pass them' => su
 subtest 'whoever moderates can see the photo they are judging' => sub {
     my $unapproved = FakeProblem->new(photo => 'abc');
 
-    my $as_moderator = FixMyStreet::Cobrand::Catanduva->new(
-        { c => FakeContext->new(user => FakeUser->new(can => 1)) });
+    # Each context has to be held in a variable of its own. Cobrand::Base::new
+    # weakens $self->{c}, so a context built inline as an argument is collected
+    # the moment new returns, and the cobrand is left believing nobody is
+    # signed in - which silently turns "a moderator can see it" into "nobody
+    # can", and would let the two negative cases below pass for the wrong
+    # reason.
+    my $moderator_context = FakeContext->new(user => FakeUser->new(can => 1));
+    my $as_moderator = FixMyStreet::Cobrand::Catanduva->new({ c => $moderator_context });
     is $as_moderator->allow_photo_display($unapproved), 1,
         'a moderator sees the unapproved photo';
 
-    my $as_user = FixMyStreet::Cobrand::Catanduva->new(
-        { c => FakeContext->new(user => FakeUser->new(can => 0)) });
+    my $user_context = FakeContext->new(user => FakeUser->new(can => 0));
+    my $as_user = FixMyStreet::Cobrand::Catanduva->new({ c => $user_context });
     is $as_user->allow_photo_display($unapproved), 0,
         'a signed-in user without the permission does not';
 
-    my $as_visitor = FixMyStreet::Cobrand::Catanduva->new({ c => FakeContext->new });
+    my $visitor_context = FakeContext->new;
+    my $as_visitor = FixMyStreet::Cobrand::Catanduva->new({ c => $visitor_context });
     is $as_visitor->allow_photo_display($unapproved), 0, 'nor an anonymous visitor';
 
     # A hashref has no can_moderate; asking it must not blow up, and must not
