@@ -1,0 +1,34 @@
+[%# UX-003 - campo de CEP.
+
+    O template base inclui este arquivo dentro de [% TRY %]...[% CATCH file %],
+    entao basta ele existir: nenhum template do upstream e sobrescrito, e
+    sincronizar com o mysociety nao gera conflito aqui.
+
+    O CEP vem da geocodificacao reversa do ponto marcado no mapa, mas fica
+    visivel e editavel de proposito. O geocoder erra, e quem esta na rua sabe
+    corrigir - exigir que o cidadao soubesse o CEP de cor era justamente o que
+    fazia abandonar o cadastro no meio.
+
+    O || do Template Toolkit e curto-circuito, entao c.cobrand.cep_from_pin so
+    e chamado quando o campo ainda nao foi preenchido - inclusive ao reexibir o
+    formulario depois de um erro de validacao, quando o que o cidadao digitou
+    tem de sobreviver.
+%]
+[% SET cep = c.req.params.cep || c.cobrand.cep_from_pin %]
+
+<label for="form_cep">[% loc('Postcode') %]</label>
+
+<p class="form-hint" id="cep-hint">
+  [% loc('Filled in from the point marked on the map. Correct it if it is wrong.') %]
+</p>
+
+<input type="text"
+       class="form-control"
+       name="cep"
+       id="form_cep"
+       value="[% cep | html %]"
+       inputmode="numeric"
+       autocomplete="postal-code"
+       maxlength="9"
+       pattern="[0-9]{5}-?[0-9]{3}"
+       aria-describedby="cep-hint">
