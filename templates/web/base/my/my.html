@@ -189,4 +189,13 @@ li .my-account-buttons a {
         </div>
     </div>
 
+[%# Um direito que a pessoa nao consegue encontrar nao e bem um direito, entao o
+    caminho de exclusao fica onde ela ja esta - na propria pagina de conta. So
+    aparece onde o cobrand pediu por ele; ver allow_self_service_erasure. %]
+[% IF c.cobrand.allow_self_service_erasure %]
+    <p class="my-account-erase">
+        <a href="/my/erase">[% loc('Remove my personal details') %]</a>
+    </p>
+[% END %]
+
 [% INCLUDE 'footer.html' %]

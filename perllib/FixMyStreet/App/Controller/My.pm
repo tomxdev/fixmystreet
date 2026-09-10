@@ -371,6 +371,49 @@ sub anonymize : Path('anonymize') {
     }
 }
 
+=head2 erase
+
+Lets a signed-in user remove their own personal details, where the cobrand
+allows it. The reports themselves stay: it is the same anonymisation an
+administrator can already perform, put in the hands of the person it belongs to.
+
+Irreversible, so it asks twice - a POST, and an explicit confirmation within it -
+and it ends the user's other sessions before touching the account, so a session
+opened elsewhere cannot go on acting as someone who has just been erased.
+
+=cut
+
+sub erase : Path('erase') {
+    my ($self, $c) = @_;
+
+    $c->detach('/page_error_404_not_found')
+        unless $c->cobrand->allow_self_service_erasure;
+
+    $c->forward('/auth/get_csrf_token');
+
+    return unless $c->req->method eq 'POST';
+    $c->forward('/auth/check_csrf_token');
+
+    unless ($c->get_param('confirm')) {
+        $c->stash->{erase_error} = _('Please confirm you want your details removed.');
+        return;
+    }
+
+    my $user = $c->user->obj;
+
+    # Before anonymize_account, not after: it clears the password, and a
+    # session elsewhere would otherwise outlive the account it belongs to.
+    my $sessions = $user->get_extra_metadata('sessions') || [];
+    foreach my $session (grep { $_ ne $c->sessionid } @$sessions) {
+        $c->delete_session_data("session:$session");
+    }
+
+    $user->anonymize_account;
+
+    $c->logout;
+    $c->stash->{template} = 'my/erased.html';
+}
+
 sub notify_preference : Local : Args(0) {
     my ( $self, $c ) = @_;
 

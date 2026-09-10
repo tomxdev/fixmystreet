@@ -349,6 +349,17 @@ vez de descobrir isso depois.
 público, a identidade de quem reportou não. Atende ao direito de eliminação sem destruir
 o registro do problema.
 
+✅ **IMPLEMENTADO (LGPD-004) — e o cidadão faz sozinho.** O `anonymize_account` do upstream
+já fazia exatamente isso, mas só era alcançável pelo admin. Um direito que exige escrever
+para um administrador vira favor, então há uma página em `/my/erase`.
+
+Cuidado importante: o `/my/anonymize` que o upstream oferece **não serve** para isto — ele
+apenas esconde o nome na exibição, e a conta continua guardando e-mail, telefone e nome.
+Não é eliminação.
+
+Por ser irreversível, o fluxo pede duas vezes (POST mais confirmação explícita) e encerra
+as demais sessões antes de mexer na conta. Fica desligado por padrão nos outros cobrands.
+
 ❓ **Encarregado (DPO) — continua pendente.** Não bloqueia código, mas **bloqueia a
 publicação da política de privacidade** (`LGPD-001`), que precisa nomear o canal de
 atendimento ao titular. Numa operação de pessoa física, o próprio responsável pode
@@ -624,7 +635,7 @@ Identificadores conforme o padrão do prompt original.
 | LGPD-001 | Redigir política de privacidade | Depende de LGPD-002 (encarregado) | Jurídico |
 | LGPD-002 | Definir controlador e encarregado | **Parcial** — controlador ✔️, encarregado ❓ | Jurídico |
 | LGPD-003 | Definir prazos de retenção | ✔️ **Decidida** — 5 anos | Jurídico |
-| LGPD-004 | Implementar anonimização em pedido de exclusão | **Pronta** — abordagem decidida | Backend |
+| LGPD-004 | Implementar anonimização em pedido de exclusão | ✅ **Concluída** — PR #19 | Backend |
 | LGPD-005 | Revisar campos públicos versus privados | Pronta | Backend |
 | LGPD-006 | Registrar operações de tratamento | **Pronta** — controlador definido | Jurídico |
 | **LGPD-007** | **Rotina de expurgo automático aos 5 anos** | ✅ **Concluída** — PR #18 | Backend |

@@ -241,6 +241,19 @@ sub report_moderate_after {
     $problem->update;
 }
 
+=head2 allow_self_service_erasure
+
+LGPD-004. The right to have one's data erased is the titular's, and making them
+write to an administrator to exercise it turns a right into a favour. On here it
+is a page they can reach themselves.
+
+What it does is anonymise, not delete: the urban problem is of public interest,
+the identity of whoever reported it is not (plano, seção 5, decisão 4).
+
+=cut
+
+sub allow_self_service_erasure { 1 }
+
 =head2 Caixa postal de demonstração (INT-005)
 
 There is no partnership with the city hall, so there is nowhere real to send a

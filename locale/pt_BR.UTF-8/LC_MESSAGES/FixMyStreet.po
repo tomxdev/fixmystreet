@@ -713,6 +713,10 @@ msgstr "Voltar"
 msgid "Back to all reports"
 msgstr "Voltar para todas as ocorrências"
 
+#: templates/web/base/my/erased.html:12
+msgid "Back to the homepage"
+msgstr "Voltar à página inicial"
+
 #: templates/web/base/admin/manifesttheme/index.html:9
 msgid "Background Colour"
 msgstr "Cor de fundo"
@@ -3528,6 +3532,10 @@ msgstr "Por favor escolha uma categoria"
 msgid "Please choose a less commonly-used password"
 msgstr "Por favor, escolha uma senha menos comum"
 
+#: perllib/FixMyStreet/App/Controller/My.pm:388
+msgid "Please confirm you want your details removed."
+msgstr "Confirme que deseja remover seus dados."
+
 #: perllib/FixMyStreet/App/Controller/Admin/Bodies.pm:398
 #: templates/web/base/admin/bodies/add.html:4
 #: templates/web/base/admin/bodies/body.html:12
@@ -4214,6 +4222,10 @@ msgstr "Remover da lista de atalhos"
 #: templates/web/base/report/display_tools.html:7
 msgid "Remove from site"
 msgstr "Remover do site"
+
+#: templates/web/base/my/erase.html:5
+msgid "Remove my personal details"
+msgstr "Remover meus dados pessoais"
 
 #: templates/web/base/admin/extra-metadata-option.html:26
 msgid "Remove option"
@@ -5741,6 +5753,10 @@ msgstr ""
 "Este órgão só receberá ocorrências de problemas localizados na <strong>área de abrangência</strong>.\n"
 "          Um órgão não receberá nenhuma ocorrência a menos que cubra ao menos uma área."
 
+#: templates/web/base/my/erase.html:16
+msgid "This cannot be undone."
+msgstr "Isto não pode ser desfeito."
+
 #. ($b->name)
 #: perllib/FixMyStreet/App/Controller/Admin/Bodies.pm:548
 msgid "This cobrand is already assigned to another body: "
@@ -5814,6 +5830,12 @@ msgstr "Este problema não foi solucionado"
 #: templates/web/base/report/update/form_state_checkbox.html:12
 msgid "This problem is still ongoing"
 msgstr "Esse problema ainda está em andamento"
+
+#: templates/web/base/my/erase.html:12
+msgid ""
+"This removes your name, email address and phone number from your account. Your reports and updates stay on the site, without your name on them."
+msgstr ""
+"Isto remove seu nome, e-mail e telefone da sua conta. Suas ocorrências e atualizações permanecem no site, sem o seu nome."
 
 #. ("JS")
 #: templates/web/base/js/translation_strings.html:47
@@ -6522,6 +6544,11 @@ msgstr "Você gostaria de ser notificado quando o problema for resolvido ou atua
 msgid "Yes"
 msgstr "Sim"
 
+#: templates/web/base/my/erase.html:25
+msgid "Yes, I understand my details will be removed and cannot be restored."
+msgstr ""
+"Sim, entendo que meus dados serão removidos e não poderão ser restaurados."
+
 #: templates/web/base/contact/form.html:33
 msgid "You are complaining that this problem report was unnecessarily moderated:"
 msgstr "Você informou que esta ocorrência foi moderada de forma desnecessária:"
@@ -6646,6 +6673,12 @@ msgstr "Você já anexou fotos para esta atualização. Note que você pode anex
 #: templates/web/zurich/auth/sign_out.html:3
 msgid "You have been signed out"
 msgstr "Você saiu"
+
+#: templates/web/base/my/erased.html:8
+msgid ""
+"You have been signed out. Your reports and updates are still on the site, without your name on them."
+msgstr ""
+"Você foi desconectado. Suas ocorrências e atualizações continuam no site, sem o seu nome."
 
 #: templates/web/zurich/report/new/sidebar.html:7
 msgid "You have located the problem at the point marked with a green pin on the map. If this is not the correct location, simply click on the map again. "
@@ -6792,6 +6825,10 @@ msgstr "Sua senha expirou, por favor, crie uma nova abaixo. Quando você clicar 
 #: templates/web/zurich/auth/general.html:54
 msgid "Your password should include %d or more characters."
 msgstr "Sua senha deve ter %d ou mais caracteres."
+
+#: templates/web/base/my/erased.html:5
+msgid "Your personal details have been removed."
+msgstr "Seus dados pessoais foram removidos."
 
 #: templates/web/base/auth/change_phone.html:19
 #: templates/web/base/contact/enquiry/index.html:24
