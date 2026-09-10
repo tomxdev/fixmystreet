@@ -29,6 +29,13 @@ package FakeUser {
     sub can_moderate { return $_[0]->{can} }
 }
 
+# munge_sendreport_params only ever writes metadata back to the row.
+package FakeRow {
+    sub new { my ($c, %a) = @_; return bless { meta => {}, %a }, $c }
+    sub update_extra_metadata { my ($s, %kv) = @_; @{ $s->{meta} }{ keys %kv } = values %kv }
+    sub extra_metadata { return $_[0]->{meta}{ $_[1] } }
+}
+
 package main;
 
 my $mech = FixMyStreet::TestMech->new;
@@ -261,6 +268,68 @@ subtest 'moderating a report approves its photo' => sub {
     is $removed->get_extra_metadata('publish_photo'), undef,
         'approval withdrawn along with the photo';
     is $removed->{updates}, 1, 'and that withdrawal is written';
+};
+
+# --------------------------------------------------------------------- INT-005
+
+subtest 'with no demonstration mailbox configured, nothing is redirected' => sub {
+    my $row = FakeRow->new;
+    my $params = {
+        To  => [ [ 'obras@prefeitura.example', 'Obras' ] ],
+        Bcc => ['copia@example'],
+    };
+
+    FixMyStreet::override_config { COBRAND_FEATURES => {} }, sub {
+        $cobrand->munge_sendreport_params($row, {}, $params);
+    };
+
+    is_deeply $params->{To}, [ [ 'obras@prefeitura.example', 'Obras' ] ],
+        'recipients left alone';
+    is_deeply $params->{Bcc}, ['copia@example'], 'and so is the blind copy';
+    is $row->extra_metadata('demonstration_redirect'), undef, 'nothing recorded';
+};
+
+subtest 'with the mailbox configured, every report goes there instead' => sub {
+    my $row = FakeRow->new;
+    my $params = {
+        # The sender accepts either shape, so both have to survive the munging.
+        To  => [ [ 'obras@prefeitura.example', 'Obras' ], 'limpeza@prefeitura.example' ],
+        Bcc => ['copia@example'],
+    };
+
+    FixMyStreet::override_config {
+        COBRAND_FEATURES => {
+            demonstration_recipient => { catanduva => 'ocorrencias@example.org' },
+        },
+    }, sub {
+        $cobrand->munge_sendreport_params($row, {}, $params);
+    };
+
+    is_deeply $params->{To}, [ [ 'ocorrencias@example.org', 'FixMyStreet Catanduva' ] ],
+        'the project mailbox is the only recipient';
+    ok !exists $params->{Bcc},
+        'the blind copy is dropped - it would have walked past the redirection';
+    is_deeply $row->extra_metadata('demonstration_redirect'),
+        [ 'obras@prefeitura.example', 'limpeza@prefeitura.example' ],
+        'where it would have gone is kept on the report';
+};
+
+subtest 'no original recipient, nothing invented' => sub {
+    my $row = FakeRow->new;
+    my $params = { To => [] };
+
+    FixMyStreet::override_config {
+        COBRAND_FEATURES => {
+            demonstration_recipient => { catanduva => 'ocorrencias@example.org' },
+        },
+    }, sub {
+        $cobrand->munge_sendreport_params($row, {}, $params);
+    };
+
+    is_deeply $params->{To}, [ [ 'ocorrencias@example.org', 'FixMyStreet Catanduva' ] ],
+        'still goes to the project mailbox';
+    is $row->extra_metadata('demonstration_redirect'), undef,
+        'and records no redirect it cannot describe';
 };
 
 done_testing();
