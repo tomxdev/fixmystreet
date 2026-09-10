@@ -166,6 +166,20 @@ for my $e (@EXEMPLOS) {
     $criadas++;
 }
 
+# Regenera o resumo que a pagina "Todas as ocorrencias" le. Sem isto ela
+# responde com erro, e o menu parece quebrado logo depois de povoar o banco -
+# que foi exatamente como este defeito apareceu.
+#
+# --table e obrigatorio: sem a flag o script gera all-reports-DASHBOARD.json,
+# outro arquivo, e a pagina continua quebrada. A mensagem de erro do proprio
+# FixMyStreet sugere o comando sem a flag.
+if ($criadas) {
+    my $script = FixMyStreet->path_to('bin/update-all-reports')->stringify;
+    system($script, '--table') == 0
+        or warn "aviso: nao consegui regenerar o resumo de /reports\n";
+    say 'resumo de /reports regenerado';
+}
+
 say '';
 say "criadas: $criadas";
 say 'Mapa:      http://127.0.0.1.nip.io:3000/around?lat=-21.1383;lon=-48.9736;zoom=14';

@@ -160,6 +160,10 @@ para dar para diferenciar as miniaturas.
 
 `--limpar` remove o que ele criou. É idempotente: rodar de novo não duplica.
 
+O script **regenera sozinho** o resumo que a página "Todas as ocorrências" lê. Esse arquivo
+é dado derivado e envelhece a cada mudança — se você criar ocorrências por outro caminho,
+rode `bin/update-all-reports --table` depois.
+
 ⚠️ **As fotografias entram já aprovadas**, senão o `MOD-002` as esconderia e o mapa
 apareceria sem miniatura nenhuma. Para ver o portão agindo, limpe o `publish_photo` de uma
 delas pelo `/admin` e recarregue.
@@ -222,3 +226,4 @@ rotina.
 | Página em inglês, mesmo com o cobrand certo | Catálogo `.mo` desatualizado — rode o `gettext-makemo` da seção 5 |
 | "Não temos os dados da prefeitura que cobre este local" | Órgão não vinculado à área 161 do fakemapit, ou `MAPIT_TYPES` diferente de `ZZZ` |
 | Login de equipe pede código e você não tem | `skip_must_have_2fa` na seção 8.1 |
+| "Houve um problema ao tentar mostrar a página de Todas as Ocorrências" | Falta o `data/all-reports.json`. **Rode com `--table`** — sem a flag o script gera outro arquivo e a página continua quebrada: `bin/update-all-reports --table` |

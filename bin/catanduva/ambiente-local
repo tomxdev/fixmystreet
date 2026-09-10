@@ -96,6 +96,18 @@ echo "orgao e categorias prontos"
 docker exec "$APP" bin/createsuperuser admin@catanduva.local senha123456 >/dev/null 2>&1 || true
 echo "superusuario: admin@catanduva.local / senha123456"
 
+# ------------------------------------------------------- resumo de /reports
+# A pagina "Todas as ocorrencias" le um JSON pre-gerado, e sem ele responde com
+# erro. E dado derivado: envelhece a cada mudanca em orgao ou ocorrencia.
+#
+# A flag --table nao e opcional: sem ela o script gera all-reports-DASHBOARD.json,
+# que e outro arquivo, e a pagina continua quebrada. A propria mensagem de erro
+# do FixMyStreet sugere o comando sem a flag - seguir a sugestao ao pe da letra
+# nao resolve.
+msg "Gerando o resumo de /reports"
+docker exec "$APP" bash -lc 'cd /var/www/fixmystreet && bin/update-all-reports --table'
+echo "resumo gerado"
+
 # ------------------------------------------------------------------- testes
 if [ "${1:-}" = "--testes" ]; then
     msg "Rodando a suite do cobrand"
