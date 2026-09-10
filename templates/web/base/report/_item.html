@@ -54,7 +54,10 @@ END;
   [% TRY ~%]
     [% PROCESS 'report/_item_photo_title.html' ~%]
   [% CATCH file ~%]
-    [% IF problem.photo %]
+    [%# The Photo controller already refuses to serve a photo the cobrand will
+        not display, so asking here too is what keeps the list from rendering an
+        img that is bound to fail to load. report/photo.html guards the same way. %]
+    [% IF problem.photo AND c.cobrand.allow_photo_display(problem, 0) %]
         <noscript class="loading-lazy">
             <img loading="lazy" class="img" height="60" width="90" src="[% problem.photos.first.url_fp %]" alt="">
         </noscript>

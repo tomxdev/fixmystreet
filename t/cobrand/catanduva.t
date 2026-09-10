@@ -3,12 +3,30 @@ use FixMyStreet::Cobrand::Catanduva;
 use FixMyStreet::DB;
 use Test::MockModule;
 
-# report_new_munge_before_insert reads a form parameter and the stash, so the
-# cobrand needs a context. Only these two things are ever asked of it.
+# report_new_munge_before_insert reads a form parameter and the stash, and the
+# photo rules ask who is looking. Only these things are ever asked of it.
 package FakeContext {
     sub new { my ($class, %args) = @_; return bless { %args }, $class }
     sub get_param { my ($self, $name) = @_; return $self->{params}{$name} }
     sub stash { my $self = shift; return $self->{stash} ||= {} }
+    sub user_exists { return defined $_[0]->{user} }
+    sub user { return $_[0]->{user} }
+}
+
+# The photo rules are pure logic over a report's extra metadata, so a stand-in
+# keeps these subtests off the database entirely.
+package FakeProblem {
+    sub new { my ($c, %a) = @_; return bless { extra => {}, updates => 0, %a }, $c }
+    sub photo { return $_[0]->{photo} }
+    sub get_extra_metadata { return $_[0]->{extra}{ $_[1] } }
+    sub set_extra_metadata { $_[0]->{extra}{ $_[1] } = $_[2] }
+    sub unset_extra_metadata { delete $_[0]->{extra}{ $_[1] } }
+    sub update { $_[0]->{updates}++ }
+}
+
+package FakeUser {
+    sub new { my ($c, %a) = @_; return bless {%a}, $c }
+    sub can_moderate { return $_[0]->{can} }
 }
 
 package main;
@@ -165,6 +183,77 @@ subtest 'the search box is only trusted when it really holds a CEP' => sub {
         'a street name in the search box is not promoted to CEP';
     is $build->(undef), '',
         'nothing anywhere leaves an empty string - honest, and satisfies NOT NULL';
+};
+
+# --------------------------------------------------------------------- MOD-002
+
+subtest 'a photo stays private until somebody has approved it' => sub {
+    my $unapproved = FakeProblem->new(photo => 'abc');
+    is $cobrand->allow_photo_display($unapproved), 0,
+        'no approval, no photo';
+
+    my $approved = FakeProblem->new(photo => 'abc', extra => { publish_photo => 1 });
+    is $cobrand->allow_photo_display($approved), 1, 'approved photo is shown';
+    is $cobrand->allow_photo_display($approved, 0), 1,
+        'and when asked about a specific photo index';
+
+    is $cobrand->allow_photo_display(undef), 0, 'no report, nothing to show';
+};
+
+subtest 'reports arriving as plain hashrefs, as RSS and Open311 pass them' => sub {
+    is $cobrand->allow_photo_display({ extra => '{"publish_photo":1}' }), 1,
+        'approval read out of the encoded extra';
+    is $cobrand->allow_photo_display({ extra => '{"something_else":1}' }), 0,
+        'no approval in there';
+    is $cobrand->allow_photo_display({ extra => 'not json at all' }), 0,
+        'unreadable extra does not release the photo';
+    is $cobrand->allow_photo_display({}), 0, 'no extra at all';
+};
+
+subtest 'whoever moderates can see the photo they are judging' => sub {
+    my $unapproved = FakeProblem->new(photo => 'abc');
+
+    my $as_moderator = FixMyStreet::Cobrand::Catanduva->new(
+        { c => FakeContext->new(user => FakeUser->new(can => 1)) });
+    is $as_moderator->allow_photo_display($unapproved), 1,
+        'a moderator sees the unapproved photo';
+
+    my $as_user = FixMyStreet::Cobrand::Catanduva->new(
+        { c => FakeContext->new(user => FakeUser->new(can => 0)) });
+    is $as_user->allow_photo_display($unapproved), 0,
+        'a signed-in user without the permission does not';
+
+    my $as_visitor = FixMyStreet::Cobrand::Catanduva->new({ c => FakeContext->new });
+    is $as_visitor->allow_photo_display($unapproved), 0, 'nor an anonymous visitor';
+
+    # A hashref has no can_moderate; asking it must not blow up, and must not
+    # be mistaken for permission either.
+    is $as_moderator->allow_photo_display({ extra => '{}' }), 0,
+        'hashref plus moderator neither dies nor releases the photo';
+};
+
+subtest 'moderating a report approves its photo' => sub {
+    my $problem = FakeProblem->new(photo => 'abc');
+    $cobrand->report_moderate_after($problem);
+    is $problem->get_extra_metadata('publish_photo'), 1, 'approved after moderation';
+    is $problem->{updates}, 1, 'written once';
+
+    $cobrand->report_moderate_after($problem);
+    is $problem->{updates}, 1, 'moderating again does not rewrite for nothing';
+
+    my $photoless = FakeProblem->new;
+    $cobrand->report_moderate_after($photoless);
+    is $photoless->get_extra_metadata('publish_photo'), undef,
+        'no photo, nothing to approve';
+    is $photoless->{updates}, 0, 'and nothing to write';
+
+    # The moderator removed the photo: an old approval must not be left behind
+    # for whatever photo might replace it.
+    my $removed = FakeProblem->new(extra => { publish_photo => 1 });
+    $cobrand->report_moderate_after($removed);
+    is $removed->get_extra_metadata('publish_photo'), undef,
+        'approval withdrawn along with the photo';
+    is $removed->{updates}, 1, 'and that withdrawal is written';
 };
 
 done_testing();

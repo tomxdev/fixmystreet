@@ -25,6 +25,18 @@ describe('Cobrand de Catanduva', function() {
             cy.get('body').should('not.contain', 'sinalizador');
             cy.get('body').should('not.contain', 'AjeitaMinhaRua');
         });
+
+        it('nao publica fotografia sem aprovacao (MOD-002)', function() {
+            // A fixture cria ocorrencias COM foto, e nenhuma delas passou por
+            // moderacao. Nenhuma miniatura pode aparecer na vitrine.
+            //
+            // cy.request pega o HTML como o servidor o produziu, sem o JS que
+            // troca o <noscript> pela imagem - e o guard do template que
+            // queremos verificar, nao o comportamento do navegador.
+            cy.request('http://catanduva.localhost:3001/')
+                .its('body')
+                .should('not.match', /class="img"/);
+        });
     });
 
     describe('registro de uma ocorrencia', function() {
