@@ -784,7 +784,7 @@ Identificadores conforme o padrão do prompt original.
 
 | ID | Tarefa | Situação | Resp. |
 |---|---|---|---|
-| QA-001 | Plano de testes de aceitação | Não iniciada | QA |
+| QA-001 | Plano de testes de aceitação | ✅ **Concluída** — PR #26 | QA |
 | QA-002 | Teste com usuários reais não técnicos | Não iniciada | QA |
 | QA-003 | Teste de carga compatível com a população | Não iniciada | QA |
 | PIL-001 | Definir métricas e instrumentação | Não iniciada | PO |
@@ -947,3 +947,4 @@ próprios tipos, como o `FiksGataMi` faz para a Noruega. Corrigido para `O08`
 - [`FLUXO_TRABALHO.md`](FLUXO_TRABALHO.md) — GitFlow e integração contínua
 - [`LGPD_REGISTRO_TRATAMENTO.md`](LGPD_REGISTRO_TRATAMENTO.md) — registro de operações de
   tratamento (LGPD art. 37)
+- [`PLANO_DE_TESTES.md`](PLANO_DE_TESTES.md) — aceitação manual, e o que nenhum teste alcança
