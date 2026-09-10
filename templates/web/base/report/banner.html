@@ -9,6 +9,20 @@
     </div>
 [% END %]
 
+[%# MOD-005. So aparece para quem escreveu a ocorrencia, e so onde o cobrand
+    liga show_hidden_reports_to_author - o controller ja garantiu as duas
+    coisas antes de chegar aqui. O numero da ocorrencia e a referencia que a
+    pessoa cita ao contestar; nao ha protocolo separado a inventar. %]
+[% IF hidden_for_author %]
+    <div class="banner banner--hidden">
+        <p>[% loc('This report was removed by moderation. Nobody else can see it.') %]</p>
+        <p>
+            [% tprintf(loc('If you believe that was a mistake, you can contest it, quoting report %s.'), problem.id) %]
+            <a href="/contact?id=[% problem.id %]">[% loc('Contest this removal') %]</a>
+        </p>
+    </div>
+[% END %]
+
 [% IF problem.is_open AND date.now - problem.lastupdate.epoch > 8 * 7 * 24 * 60 * 60 %]
     [% INCLUDE banner, id = 'unknown', text = loc('Status unknown') %]
 [% ELSIF problem.is_in_progress %]

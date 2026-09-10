@@ -514,4 +514,39 @@ subtest 'an unapproved photo never reaches the social preview' => sub {
     };
 };
 
+# --------------------------------------------------------------------- MOD-005
+
+subtest 'a hidden report stays readable to its author, and to nobody else' => sub {
+    FixMyStreet::override_config { ALLOWED_COBRANDS => ['catanduva'] }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        my $author = $mech->create_user_ok('autor@example.org', name => 'João Autor');
+        my $someone_else = $mech->create_user_ok('outro@example.org', name => 'Outra Pessoa');
+
+        my ($problem) = $mech->create_problems_for_body(1, $body->id, 'Escondida', {
+            user    => $author,
+            cobrand => 'catanduva',
+        });
+        $problem->update({ state => 'hidden' });
+        my $id = $problem->id;
+
+        $mech->log_out_ok;
+        ok $mech->get("/report/$id"), 'anonymous visitor asks for the hidden report';
+        is $mech->res->code, 410, 'and is told it is gone';
+
+        $mech->log_in_ok($someone_else->email);
+        ok $mech->get("/report/$id"), 'a different signed-in user asks';
+        is $mech->res->code, 410, 'same answer - being signed in is not enough';
+
+        $mech->log_in_ok($author->email);
+        $mech->get_ok("/report/$id");
+        $mech->content_contains('removida pela moderação',
+            'the author is told what happened, instead of meeting a bare 410');
+        $mech->content_contains("/contact?id=$id",
+            'and is given somewhere to contest it');
+        $mech->content_contains("$id",
+            'quoting the report number, which is the reference to cite');
+    };
+};
+
 done_testing();
