@@ -245,6 +245,10 @@ rotina.
 
 ## 10. Diagnóstico rápido
 
+Problemas que vão além do ambiente local estão em
+[`PROBLEMAS_CONHECIDOS.md`](PROBLEMAS_CONHECIDOS.md).
+
+
 | Sintoma | Causa provável |
 |---|---|
 | `command 'docker' could not be found in this WSL distro` | Docker Desktop parado ou integração WSL desligada |
