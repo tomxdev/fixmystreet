@@ -158,6 +158,10 @@ jobs:
         commonlib/bin/gettext-makemo FixMyStreet
         echo "$(npm bin)" >> $GITHUB_PATH
 
+    # O --spec e resolvido a partir do diretorio de trabalho, nao do --project
+    # que o bin/browser-tests passa (.cypress). Por isso o caminho vai completo:
+    # com 'cypress/integration/...' o Cypress procura em '../cypress/...' e nao
+    # acha nada.
     - name: Spec do cobrand
       run: |
         ~/perl5/perlbrew/bin/perlbrew exec bin/browser-tests \
@@ -166,7 +170,7 @@ jobs:
           --area_id 900001 \
           --name 'Prefeitura de Catanduva' \
           --body_cobrand catanduva \
-          run --spec cypress/integration/catanduva.js
+          run --spec .cypress/cypress/integration/catanduva.js
 
     - name: Guardar capturas da falha
       if: failure()
