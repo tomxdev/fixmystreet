@@ -518,6 +518,19 @@ Return a boolean indicating whether the cobrand allows photo uploads
 
 sub allow_photo_upload { return 1; }
 
+=item allow_self_service_erasure
+
+Return a boolean indicating whether a signed-in user may remove their own
+personal details from their account, at /my/erase, without going through an
+administrator.
+
+Off by default: it is irreversible, and an installation should have to ask for
+it rather than discover it.
+
+=cut
+
+sub allow_self_service_erasure { return 0; }
+
 =item allow_photo_display
 
 Return a boolean indicating whether the cobrand allows photo display

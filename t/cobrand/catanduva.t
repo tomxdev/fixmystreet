@@ -401,4 +401,54 @@ subtest 'retention: a resolved report is anonymised once it is five years old' =
         'another cobrand entirely: untouched';
 };
 
+# --------------------------------------------------------------------- LGPD-004
+
+subtest 'self-service erasure is offered here and nowhere else by default' => sub {
+    is $cobrand->allow_self_service_erasure, 1, 'this cobrand offers it';
+    # Via a variable, for the same reason as above: `is Some::Class->method`
+    # parses the class name as an indirect object and takes the file down.
+    my $default = FixMyStreet::Cobrand::Default->allow_self_service_erasure;
+    is $default, 0,
+        'the default does not - it is irreversible, so an install has to ask';
+};
+
+subtest 'a citizen removes their own personal details' => sub {
+    FixMyStreet::override_config { ALLOWED_COBRANDS => ['catanduva'] }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        my $user = $mech->create_user_ok('exclusao@example.org', name => 'Fulano de Tal');
+        my ($problem) = $mech->create_problems_for_body(1, $body->id, 'Buraco', {
+            user    => $user,
+            cobrand => 'catanduva',
+        });
+
+        $mech->log_in_ok($user->email);
+        $mech->get_ok('/my/erase');
+        $mech->content_contains('Remover meus dados pessoais');
+
+        # form_id, not with_fields: the unconfirmed case has no field to select
+        # the form by, and the page carries other forms from the header.
+        $mech->submit_form_ok({ form_id => 'erase-form' });
+        $mech->content_contains('Confirme que deseja remover seus dados');
+
+        $user->discard_changes;
+        is $user->name, 'Fulano de Tal', 'nothing happens without the tick';
+
+        $mech->submit_form_ok({ form_id => 'erase-form', with_fields => { confirm => 1 } });
+        $mech->content_contains('Seus dados pessoais foram removidos');
+
+        $user->discard_changes;
+        is $user->name, '', 'the name is gone';
+        is $user->phone, '', 'so is the phone number';
+        unlike $user->email, qr/exclusao/, 'and the email address is replaced';
+
+        # The whole point of anonymising rather than deleting: the pothole
+        # outlives the person who reported it.
+        $problem->discard_changes;
+        ok $problem->in_storage, 'the report is still there';
+        is $problem->anonymous, 1, 'shown without a name';
+        is $problem->name, '', 'and carries none';
+    };
+};
+
 done_testing();

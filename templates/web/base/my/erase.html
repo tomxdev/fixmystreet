@@ -1,0 +1,33 @@
+[% INCLUDE 'header.html',
+    title = loc('Remove my personal details')
+%]
+
+<h1>[% loc('Remove my personal details') %]</h1>
+
+[% IF erase_error %]
+    <p class="form-error">[% erase_error %]</p>
+[% END %]
+
+<p>
+  [% loc('This removes your name, email address and phone number from your account. Your reports and updates stay on the site, without your name on them.') %]
+</p>
+
+<p>
+  <strong>[% loc('This cannot be undone.') %]</strong>
+</p>
+
+<form method="post" action="/my/erase" id="erase-form" class="box-warning">
+    <input type="hidden" name="token" value="[% csrf_token %]">
+
+    <p>
+        <label>
+            <input type="checkbox" name="confirm" value="1">
+            [% loc('Yes, I understand my details will be removed and cannot be restored.') %]
+        </label>
+    </p>
+
+    <input class="btn btn--primary" type="submit"
+           value="[% loc('Remove my personal details') %]">
+</form>
+
+[% INCLUDE 'footer.html' %]
