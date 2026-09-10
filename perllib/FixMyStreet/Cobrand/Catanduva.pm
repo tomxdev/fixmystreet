@@ -23,19 +23,22 @@ sub language_override { 'pt-br' }
 
 =head2 area_types
 
-Cobrands outside the UK have to name their own MapIt types: C<Cobrand::Default>
-falls back to the global C<MAPIT_TYPES>, which ships as C<ZZZ>, and
-C<Cobrand::UK> hardcodes the British ones. FiksGataMi does the same for Norway.
-Without this, no Brazilian area ever matches and the reporting form finds no
-body at all.
+Which MapIt types count as "our area". C<O08> is admin_level 8 in the
+OpenStreetMap-derived global MapIt, which is where Brazilian municipalities
+live - that is the production answer, and so it is the default.
 
-C<O08> is admin_level 8 in the OpenStreetMap-derived global MapIt, which is
-where Brazilian municipalities live. Revisit alongside INF-002, when the
-homologation environment settles which MapIt instance it points at.
+But it reads the configuration first, on purpose. The type is a property of the
+MapIt instance you point at, not of the cobrand: the local environment uses the
+built-in fakemapit, where everything is C<ZZZ>, and the test suites use stand-ins
+of their own. Hardcoding C<O08> here made all of those find no area at all, and
+therefore no body - the reporting form simply had nowhere to send anything.
+
+That is worth remembering as a shape of mistake: a deployment fact baked into
+code looks correct until the code runs somewhere else.
 
 =cut
 
-sub area_types { [ 'O08' ] }
+sub area_types { FixMyStreet->config('MAPIT_TYPES') || [ 'O08' ] }
 
 # The pt_BR catalogue already renders this msgid as "Especifique um CEP, Nome de
 # Rua ou Bairro", so reuse it rather than introduce a string no catalogue has.

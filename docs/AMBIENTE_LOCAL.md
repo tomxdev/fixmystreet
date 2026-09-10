@@ -72,11 +72,32 @@ divergência com o upstream.
 
 ## 5. Subir o ambiente
 
+### Jeito curto — script
+
     cd ~/projects/fixmystreet
+    bin/catanduva/ambiente-local
+
+Sobe os containers, espera o Postgres e a aplicação responderem, **recompila o catálogo
+pt-BR**, e cria órgão, categorias e superusuário. É idempotente: rodar de novo não duplica
+nada.
+
+    bin/catanduva/ambiente-local --testes    também roda a suíte do cobrand
+    bin/catanduva/ambiente-local --parar     derruba os containers
+
+### Jeito longo — na mão
+
     docker compose -f docker/docker-compose-dev.yml -f docker/docker-compose-local.yml up
 
 A primeira execução leva ~10 min (build da imagem + módulos CPAN). O
 `conf/general.yml` é gerado automaticamente pelo `docker/setup`.
+
+⚠️ **Recompile o catálogo depois de mexer no `.po`.** O `.mo` é gerado e não versionado, e
+uma tradução desatualizada faz a página sair **em inglês, sem aviso nenhum** — o `setlocale`
+falha em silêncio, porque o `die` que avisaria disso está comentado no commonlib:
+
+    docker exec docker-fixmystreet-1 bash -lc 'cd /var/www/fixmystreet && commonlib/bin/gettext-makemo FixMyStreet'
+
+O script acima já faz isso a cada execução.
 
 ## 6. Portas
 
@@ -124,6 +145,39 @@ embora **todas as 18 asserções passem**. É defeito de teardown do próprio te
 upstream (tag `v6.0`), não do ambiente. Baseline registrado: **220/221 arquivos,
 4.398 testes, zero asserções falhas.**
 
+## 8.1 Exercitando o piloto
+
+O que os testes automatizados **já cobrem** está em [`PLANO_DE_TESTES.md`](PLANO_DE_TESTES.md).
+O roteiro abaixo é para ver funcionando com os próprios olhos.
+
+| # | O quê | Onde | O que observar |
+|---|---|---|---|
+| 1 | Página inicial em português | `/` | "Digite um CEP próximo, ou o nome da rua e o bairro" — se aparecer em inglês, o catálogo não foi compilado |
+| 2 | Registrar ocorrência | clicar no mapa | O órgão encontrado é "Prefeitura de Catanduva" |
+| 3 | Campo de CEP | etapa de detalhes | Visível e editável, com a dica de origem (`UX-003`) |
+| 4 | Foto não publicada | anexar foto e enviar | A foto **não** aparece na página nem na lista (`MOD-002`) |
+| 5 | Aprovar a foto | entrar como admin, moderar a ocorrência | Passa a aparecer |
+| 6 | E-mail de confirmação | MailHog, `:8025` | Chega em português |
+| 7 | Exclusão a pedido | `/my/erase` | Dados somem, ocorrência fica sem nome (`LGPD-004`) |
+| 8 | Contestação de remoção | esconder pela moderação, abrir como autor | Vê o aviso e o link para contestar (`MOD-005`) |
+| 9 | 2FA de equipe | entrar como `admin@catanduva.local` | Exige segundo fator (`SEC-003`) |
+
+⚠️ **O item 9 tranca você para fora** se não tiver um app autenticador à mão. Para
+desenvolvimento, acrescente ao `conf/general.yml`:
+
+    STAGING_FLAGS:
+      skip_must_have_2fa: 1
+
+### Expurgo de retenção
+
+A rotina do `LGPD-007` só age sobre ocorrências resolvidas há mais de cinco anos, então
+localmente ela não encontra nada — o que é o comportamento certo. Para vê-la relatar sem
+gravar:
+
+    docker exec docker-fixmystreet-1 bash -lc 'cd /var/www/fixmystreet && bin/catanduva/expurgo-lgpd --verbose'
+
+Sem `--commit` ela não altera nada.
+
 ## 9. Parar e limpar
 
     docker compose -f docker/docker-compose-dev.yml -f docker/docker-compose-local.yml down
@@ -140,3 +194,6 @@ rotina.
 | `unexpected EOF` no pull | Falha transitória de rede — `docker pull` das imagens e repita |
 | Todos os testes falham com "No plan found" | Você chamou `prove` direto; use `bin/run-tests` |
 | `null value in column "postcode"` | Envio de ocorrência sem o campo `pc` |
+| Página em inglês, mesmo com o cobrand certo | Catálogo `.mo` desatualizado — rode o `gettext-makemo` da seção 5 |
+| "Não temos os dados da prefeitura que cobre este local" | Órgão não vinculado à área 161 do fakemapit, ou `MAPIT_TYPES` diferente de `ZZZ` |
+| Login de equipe pede código e você não tem | `skip_must_have_2fa` na seção 8.1 |
