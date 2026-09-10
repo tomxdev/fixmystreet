@@ -549,4 +549,24 @@ subtest 'a hidden report stays readable to its author, and to nobody else' => su
     };
 };
 
+# --------------------------------------------------------------------- SEC-003
+
+subtest '2FA is demanded of staff accounts, and not of the public' => sub {
+    my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+        { cobrand => 'catanduva' });
+
+    my $citizen = $mech->create_user_ok('cidadao-2fa@example.org');
+    is $cobrand->must_have_2fa($citizen), 0,
+        'a member of the public is not asked for a second factor';
+
+    my $staff = $mech->create_user_ok('equipe-2fa@example.org',
+        from_body => $body->id);
+    is $cobrand->must_have_2fa($staff), 1,
+        'anyone attached to the body is - they can moderate and read contact details';
+
+    my $super = $mech->create_user_ok('super-2fa@example.org');
+    $super->update({ is_superuser => 1 });
+    is $cobrand->must_have_2fa($super), 1, 'and so is a superuser';
+};
+
 done_testing();
