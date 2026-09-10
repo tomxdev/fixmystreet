@@ -152,7 +152,17 @@ jobs:
     - name: Dependencias
       run: |
         sudo apt update
-        sudo apt install -y gettext language-pack-en libimage-magick-perl
+        sudo apt install -y gettext language-pack-en language-pack-pt-base \
+          libimage-magick-perl
+        # O cobrand forca pt-br, e mySociety::Locale::change faz
+        # setlocale(LC_ALL, 'pt_BR.UTF-8'). Sem esse locale no sistema o
+        # setlocale falha, o gettext cai para o ingles e a pagina inteira sai
+        # traduzida pela metade - o die que avisaria disso esta comentado no
+        # commonlib (Locale.pm). Por isso geramos o locale e conferimos: um
+        # erro aqui e barulhento, ao contrario da falha original.
+        sudo locale-gen pt_BR.UTF-8
+        locale -a | grep -qi '^pt_BR\.utf8$' \
+          || { echo 'locale pt_BR.UTF-8 nao foi gerado - a pagina sairia em ingles'; exit 1; }
         npm install cypress@3.8.3
         ~/perl5/perlbrew/bin/perlbrew exec vendor/bin/carton install --deployment
         commonlib/bin/gettext-makemo FixMyStreet

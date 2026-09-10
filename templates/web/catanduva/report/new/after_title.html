@@ -1,7 +1,16 @@
 [%# UX-003 - campo de CEP.
 
-    O template base inclui este arquivo dentro de [% TRY %]...[% CATCH file %],
-    entao basta ele existir: nenhum template do upstream e sobrescrito, e
+    NAO cite sintaxe do Template Toolkit dentro deste comentario. Um comentario
+    TT termina no primeiro fecha-diretiva que aparece, entao um exemplo colado
+    no meio do texto encerra o comentario antes da hora e o resto do texto passa
+    a ser interpretado como diretiva. Foi o que aconteceu na primeira versao
+    deste arquivo, e o modo como falhou e o que torna o erro caro: o template
+    base inclui este arquivo dentro de um TRY cujo CATCH e do tipo "file", e o
+    TT classifica erro de parse tambem como "file". A excecao foi engolida, o
+    campo sumiu da pagina, e nada apareceu em log nenhum.
+
+    O arquivo entra por um hook do report/new/form_report.html, protegido por
+    esse TRY - basta existir. Nenhum template do upstream e sobrescrito, e
     sincronizar com o mysociety nao gera conflito aqui.
 
     O CEP vem da geocodificacao reversa do ponto marcado no mapa, mas fica
@@ -9,10 +18,10 @@
     corrigir - exigir que o cidadao soubesse o CEP de cor era justamente o que
     fazia abandonar o cadastro no meio.
 
-    O || do Template Toolkit e curto-circuito, entao c.cobrand.cep_from_pin so
-    e chamado quando o campo ainda nao foi preenchido - inclusive ao reexibir o
-    formulario depois de um erro de validacao, quando o que o cidadao digitou
-    tem de sobreviver.
+    O operador de alternativa do TT e curto-circuito, entao
+    c.cobrand.cep_from_pin so e chamado quando o campo ainda nao foi preenchido
+    - inclusive ao reexibir o formulario depois de um erro de validacao, quando
+    o que o cidadao digitou tem de sobreviver.
 %]
 [% SET cep = c.req.params.cep || c.cobrand.cep_from_pin %]
 
