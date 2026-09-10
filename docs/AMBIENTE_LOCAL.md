@@ -65,10 +65,37 @@ Crie `docker/docker-compose-local.yml`:
       css_watcher:
         volumes: [ "./gitconfig-local:/root/.gitconfig:ro" ]
       fixmystreet:
-        volumes: [ "./gitconfig-local:/root/.gitconfig:ro" ]
+        volumes:
+          - ./gitconfig-local:/root/.gitconfig:ro
+          - fixmystreet-upload:/var/www/upload
+          - fixmystreet-data:/var/www/data
+        environment:
+          FIXMYSTREET_APP_DEBUG: "0"
+
+    volumes:
+      fixmystreet-upload:
+      fixmystreet-data:
 
 Ambos são locais e **não versionados** (estão em `.git/info/exclude`), para não criar
 divergência com o upstream.
+
+### Por que os dois volumes e a variável
+
+⚠️ **Sem os volumes, o ambiente parece quebrar sozinho.** Nem `/var/www/upload` nem
+`/var/www/data` são cobertos pelos mounts do compose padrão — só o código, o `local/` e o
+`gitconfig`. Toda recriação de container apaga os dois:
+
+| Some | Sintoma |
+|---|---|
+| `/var/www/upload` | Miniaturas quebradas no site inteiro. As linhas do banco continuam apontando para arquivos que não existem mais |
+| `/var/www/data` | "Todas as ocorrências" responde 500 |
+
+Isso não acontece só em `down`: um `docker compose up -d` que recrie o container basta.
+
+ℹ️ **`FIXMYSTREET_APP_DEBUG: "0"`** desliga o Plack Debug toolbar — o painel que fica sobre
+a lateral da tela. É ferramenta de desenvolvimento, **não existe em produção**, e atrapalha
+avaliar a interface como o cidadão a verá. Volte para `"1"` quando precisar inspecionar
+consultas ao banco, parâmetros da requisição ou tempo de renderização.
 
 ## 5. Subir o ambiente
 
@@ -227,3 +254,5 @@ rotina.
 | "Não temos os dados da prefeitura que cobre este local" | Órgão não vinculado à área 161 do fakemapit, ou `MAPIT_TYPES` diferente de `ZZZ` |
 | Login de equipe pede código e você não tem | `skip_must_have_2fa` na seção 8.1 |
 | "Houve um problema ao tentar mostrar a página de Todas as Ocorrências" | Falta o `data/all-reports.json`. **Rode com `--table`** — sem a flag o script gera outro arquivo e a página continua quebrada: `bin/update-all-reports --table` |
+| Miniaturas quebradas em todo o site, de repente | Os arquivos de `/var/www/upload` sumiram numa recriação de container. Falta o volume da seção 3 |
+| Painel de debug grande na lateral | `FIXMYSTREET_APP_DEBUG: "0"` na seção 3 |
