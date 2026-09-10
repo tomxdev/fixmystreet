@@ -218,11 +218,13 @@ O roteiro abaixo é para ver funcionando com os próprios olhos.
 | 8 | Contestação de remoção | esconder pela moderação, abrir como autor | Vê o aviso e o link para contestar (`MOD-005`) |
 | 9 | 2FA de equipe | entrar como `admin@catanduva.local` | Exige segundo fator (`SEC-003`) |
 
-⚠️ **O item 9 tranca você para fora** se não tiver um app autenticador à mão. Para
-desenvolvimento, acrescente ao `conf/general.yml`:
+ℹ️ **O item 9 não vai pedir código**, porque o `bin/catanduva/ambiente-local` acrescenta
+`skip_must_have_2fa: 1` ao `conf/general.yml` na primeira execução. Sem essa flag, o
+superusuário fica **trancado para fora do `/admin`** — e o sintoma engana: o Painel de
+Controle apenas redireciona para o login, sem dizer que falta o segundo fator.
 
-    STAGING_FLAGS:
-      skip_must_have_2fa: 1
+Para exercitar o 2FA de verdade, remova a flag e reinicie a aplicação. A flag só tem efeito
+sob `STAGING_SITE`, então não há como ela vazar para produção.
 
 ### Expurgo de retenção
 
@@ -256,3 +258,4 @@ rotina.
 | "Houve um problema ao tentar mostrar a página de Todas as Ocorrências" | Falta o `data/all-reports.json`. **Rode com `--table`** — sem a flag o script gera outro arquivo e a página continua quebrada: `bin/update-all-reports --table` |
 | Miniaturas quebradas em todo o site, de repente | Os arquivos de `/var/www/upload` sumiram numa recriação de container. Falta o volume da seção 3 |
 | Painel de debug grande na lateral | `FIXMYSTREET_APP_DEBUG: "0"` na seção 3 |
+| Painel de Controle "parou de exibir os dados" | Não é o painel: o login não completa. Falta `skip_must_have_2fa` — rode o `bin/catanduva/ambiente-local` |

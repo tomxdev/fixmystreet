@@ -96,6 +96,25 @@ echo "orgao e categorias prontos"
 docker exec "$APP" bin/createsuperuser admin@catanduva.local senha123456 >/dev/null 2>&1 || true
 echo "superusuario: admin@catanduva.local / senha123456"
 
+# ------------------------------------------------------------------ 2FA
+# SEC-003 exige segundo fator de superusuario e de conta vinculada ao orgao. Em
+# producao e o que se quer; localmente tranca a propria pessoa para fora do
+# /admin, e o painel de controle passa a redirecionar para o login sem
+# explicacao aparente.
+#
+# A flag so tem efeito sob STAGING_SITE, entao nao ha risco de ela vazar para
+# producao. Acrescentada apenas se ainda nao estiver la.
+if ! grep -q 'skip_must_have_2fa' conf/general.yml 2>/dev/null; then
+    msg "Liberando o login administrativo local (skip_must_have_2fa)"
+    perl -i -pe 's/^(STAGING_FLAGS:.*)$/$1\n  skip_must_have_2fa: 1/' conf/general.yml
+    echo "flag acrescentada - reiniciando a aplicacao"
+    "${COMPOSE[@]}" restart fixmystreet >/dev/null 2>&1
+    for _ in $(seq 1 60); do
+        curl -sf -o /dev/null http://localhost:3000/ && break
+        sleep 2
+    done
+fi
+
 # ------------------------------------------------------- resumo de /reports
 # A pagina "Todas as ocorrencias" le um JSON pre-gerado, e sem ele responde 500.
 #
