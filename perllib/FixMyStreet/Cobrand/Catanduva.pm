@@ -241,4 +241,48 @@ sub report_moderate_after {
     $problem->update;
 }
 
+=head2 Caixa postal de demonstração (INT-005)
+
+There is no partnership with the city hall, so there is nowhere real to send a
+report to. Rather than leave the flow half-finished for the demonstration, every
+report is delivered to the project's own mailbox: the cycle can be shown end to
+end - filed, moderated, sent, e-mail arriving - and the only thing that changes
+on the day a partnership exists is the address.
+
+Configure it per cobrand, so no address is baked into the code:
+
+    COBRAND_FEATURES:
+      demonstration_recipient:
+        catanduva: 'ocorrencias@exemplo.org'
+
+Leaving it unset is normal FixMyStreet behaviour: the report goes to whatever
+the category contacts say. That is deliberate - this is a redirection, not a
+lock - but it is worth being plain that it therefore protects nothing on its
+own. What keeps the pilot from writing to a real council is that the contacts
+are ours; this only makes sure that stays true even if one of them is edited by
+mistake.
+
+=cut
+
+sub demonstration_recipient { $_[0]->feature('demonstration_recipient') }
+
+sub munge_sendreport_params {
+    my ($self, $row, $h, $params) = @_;
+
+    my $mailbox = $self->demonstration_recipient or return;
+
+    # Same shape the sender accepts either way: a bare address or [ address,
+    # name ]. Keep the originals on the report - during a demonstration the
+    # interesting question is "where would this have gone?", and after the
+    # partnership it is the record of what the pilot did instead.
+    my @would_have_gone = map { ref $_ ? $_->[0] : $_ } @{ $params->{To} || [] };
+    $row->update_extra_metadata( demonstration_redirect => \@would_have_gone )
+        if @would_have_gone;
+
+    $params->{To} = [ [ $mailbox, 'FixMyStreet Catanduva' ] ];
+
+    # A blind copy would walk straight past the redirection.
+    delete $params->{Bcc};
+}
+
 1;

@@ -507,10 +507,27 @@ cidadão esperando resposta — o risco fica suspenso junto com a fase. A respos
 houver alguém nomeado do lado da prefeitura, ou uma decisão consciente de operar sem
 encaminhamento e dizer isso na interface, o serviço não abre.
 
-💡 **PROPOSTA — o que demonstrar sem a prefeitura.** Para a apresentação, configurar o
-envio para uma **caixa postal do próprio projeto**. O fluxo completo fica demonstrável de
-ponta a ponta — cadastro, moderação, encaminhamento, e-mail chegando — e a única coisa
-que muda no dia da parceria é o endereço de destino.
+✅ **IMPLEMENTADO (INT-005) — o que demonstrar sem a prefeitura.** O envio pode ser
+desviado para uma **caixa postal do próprio projeto**, e o fluxo fica demonstrável de ponta
+a ponta — cadastro, moderação, encaminhamento, e-mail chegando. A única coisa que muda no
+dia da parceria é o endereço.
+
+Configura-se por cobrand, sem endereço algum no código:
+
+    COBRAND_FEATURES:
+      demonstration_recipient:
+        catanduva: 'ocorrencias@exemplo.org'
+
+Para onde a ocorrência **teria ido** fica registrado nela. Numa demonstração é a pergunta
+interessante; depois da parceria, é o registro do que o piloto fez.
+
+⚠️ **O que isto não é.** É um desvio, não uma tranca: com a chave ausente, o envio segue os
+contatos das categorias normalmente. O que impede o piloto de escrever para um órgão real é
+que os contatos são nossos — o desvio só garante que isso continue verdadeiro se algum
+deles for editado por engano.
+
+❓ **Falta o endereço.** A caixa postal em si depende de `INF-005`, que espera a escolha do
+provedor de e-mail (seção 13.2).
 
 ### 9.1 Matriz de encaminhamento
 
@@ -624,7 +641,7 @@ Identificadores conforme o padrão do prompt original.
 | INT-002 | Configurar envio por e-mail | ⏳ Adiada por RD-003 | Backend |
 | INT-003 | Definir fluxo de atualização de status | ⏳ Adiada — **condição de entrada do lançamento público** | PO |
 | INT-004 | Avaliar viabilidade de Open311 | ⏳ Adiada — estágio 1 primeiro | Líder técnico |
-| **INT-005** | **Caixa postal do projeto como destino de demonstração** | **Pronta** | Backend |
+| **INT-005** | **Caixa postal do projeto como destino de demonstração** | ✅ **Mecanismo pronto** — PR #17; falta o endereço (INF-005) | Backend |
 
 ### Fase 7 — Qualidade e piloto
 
@@ -679,7 +696,7 @@ delas dependeu de decisão pendente, como previsto.
 | INF-001 a INF-003 — cloud, domínio, HTTPS | Endereço público para demonstrar ao vivo |
 | INF-005 — e-mail autenticado | O e-mail de confirmação faz parte do fluxo |
 | INF-006 — fotos em armazenamento de objetos | Decidido; mais barato fazer agora que migrar depois |
-| INT-005 — destino de demonstração | Fecha o fluxo sem depender da prefeitura |
+| ✅ INT-005 — destino de demonstração | Fecha o fluxo sem depender da prefeitura. Mecanismo entregue; falta o endereço |
 | ✅ MOD-002 — aprovação prévia de foto | Requisito de lançamento, não melhoria. Entregue |
 
 ⚠️ **R1 não abre ao público.** Ver seção 1.1. É demonstração, e a diferença entre as duas
@@ -776,7 +793,6 @@ Executáveis desde já, sem depender dessas escolhas:
   negócio, não de código: depende de quais serviços a prefeitura atende.
 - ✅ **UX-007** — spec Cypress do cobrand, entregue: o formulário passou a ser exercitado
   de ponta a ponta, do mapa até a confirmação por e-mail.
-- **INT-005** — caixa postal do projeto como destino de demonstração
 
 **Achado em UX-007:** o cobrand `catanduva` não declarava `area_types`, então herdava o
 `MAPIT_TYPES` global (`ZZZ`) e **nenhuma área brasileira era encontrada** — o formulário
