@@ -461,8 +461,12 @@ subtest 'a public report page never carries the reporter contact details' => sub
     FixMyStreet::override_config { ALLOWED_COBRANDS => ['catanduva'] }, sub {
         my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
             { cobrand => 'catanduva' });
+        # O telefone entra depois, e nao no create_user_ok: um find() com
+        # e-mail e telefone juntos exige tambem um dos campos _verified, e
+        # ResultSet::User morre sem ele. Aqui so queremos o numero gravado.
         my $user = $mech->create_user_ok('privacidade@example.org',
-            name => 'Maria Silva', phone => '+551799990000');
+            name => 'Maria Silva');
+        $user->update({ phone => '+551799990000' });
         my ($problem) = $mech->create_problems_for_body(1, $body->id, 'Buraco', {
             user      => $user,
             cobrand   => 'catanduva',
