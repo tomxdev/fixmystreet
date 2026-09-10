@@ -489,6 +489,20 @@ que o serviço abrir — e é nesse dia que o nome do moderador precisa existir.
 ✅ **FATO.** Open Graph já implementado: `og:title` e `og:image` com imagem dedicada de
 1200×630 (`photo.url_og`). Compartilhamento funciona sem desenvolvimento adicional.
 
+✅ **VALIDADO (SOC-001) — e um defeito corrigido.** A validação encontrou uma interação
+não intencional com `MOD-002`: o `header_opengraph_image.html` decidia pela foto apenas com
+`IF problem.photo`, sem consultar `allow_photo_display`.
+
+Não havia vazamento — o controller de foto recusa servir os bytes de qualquer tamanho,
+inclusive o `og`. O problema era o outro lado: a meta tag anunciava uma URL vazia **e
+suprimia a imagem padrão do cobrand**, que é justamente o que deveria aparecer. Um link
+compartilhado ficaria sem prévia nenhuma. Corrigido, com teste.
+
+⚠️ **Falta a imagem própria.** Não existe `web/cobrands/catanduva/images/fms-og_image.jpg`,
+então o compartilhamento cai na imagem do FixMyStreet britânico. Não quebra nada, mas é
+1200×630 de identidade visual entregue ao projeto errado — tarefa de design, a resolver
+antes de `RD-008` (material de apresentação).
+
 💡 **PROPOSTA — regras de publicação:**
 
 - Divulgar **estatísticas agregadas**, não ocorrências individuais com foto
@@ -677,7 +691,7 @@ Identificadores conforme o padrão do prompt original.
 
 | ID | Tarefa | Situação | Resp. |
 |---|---|---|---|
-| SOC-001 | Validar Open Graph com o cobrand | Pronta | Frontend |
+| SOC-001 | Validar Open Graph com o cobrand | ✅ **Concluída** — PR #21 | Frontend |
 | SOC-002 | Definir canais e quem administra | ⏳ Adiada — não criar perfis antes do lançamento | PO |
 | SOC-003 | Painel público de estatísticas agregadas | Não iniciada | Backend |
 
