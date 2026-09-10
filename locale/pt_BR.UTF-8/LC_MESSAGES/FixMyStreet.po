@@ -888,7 +888,7 @@ msgstr ""
 msgid ""
 "Choose a <strong>category</strong> name that makes sense to the public (e.g., \"Pothole\", \"Street lighting\") but is helpful\n"
 "                  to the body too. These will appear in the drop-down menu on the report-a-problem page."
-msgstr "Escolha o nome de uma <strong>categoria</strong> que faça sentido para o público (por exemplo, \"Buraco na rua\", \"Iluminação pública\") mas que  também seja útil para o órgão. Elas aparecerão no menu suspenso da página de ocorrênciar um problema."
+msgstr "Escolha o nome de uma <strong>categoria</strong> que faça sentido para o público (por exemplo, \"Buraco na rua\", \"Iluminação pública\") mas que  também seja útil para o órgão. Elas aparecerão no menu suspenso da página de registrar um problema."
 
 #: templates/web/base/report/_inspect.html:46
 msgid "Choose another"
@@ -911,7 +911,7 @@ msgstr "Limpar dados offline"
 
 #: templates/web/base/around/_report_banner.html:2
 msgid "Click map to report a problem"
-msgstr "Clique no mapa para ocorrênciar um problema"
+msgstr "Clique no mapa para registrar um problema"
 
 #: templates/web/base/_email_sent_confirmation_text.html:17
 msgid "Click the link in our confirmation email to activate your alert."
@@ -1102,7 +1102,7 @@ msgstr "Continuar rascunho de ocorrência…"
 
 #: templates/web/base/report/new/duplicate_suggestions.html:20
 msgid "Continue – report a new problem"
-msgstr "Continuar - ocorrênciar um novo problema"
+msgstr "Continuar - registrar um novo problema"
 
 #: templates/web/base/admin/bodies/open311-form-fields.html:151
 msgid "Convert location from Easting/Northing"
@@ -2261,7 +2261,7 @@ msgstr "Histórico"
 
 #: templates/web/base/index-steps.html:1
 msgid "How to report a problem"
-msgstr "Como ocorrênciar um problema"
+msgstr "Como registrar um problema"
 
 #. ("JS")
 #: templates/web/base/js/translation_strings.html:44
@@ -2297,7 +2297,7 @@ msgstr ""
 #: templates/web/fixmystreet.com/contact/who.html:48
 #, fuzzy
 msgid "I want to report a street problem"
-msgstr "Como ocorrênciar um problema"
+msgstr "Como registrar um problema"
 
 #: perllib/FixMyStreet/App/Controller/Questionnaire.pm:86
 msgid "I'm afraid we couldn't locate your problem in the database.\n"
@@ -2397,7 +2397,7 @@ msgstr "Se você deseja que este modelo seja uma opção para categorias especí
 
 #: templates/web/base/report/new/top_message_none.html:10
 msgid "If you submit a problem here the problem will <strong>not</strong> be reported to the council."
-msgstr "Se você enviar um problema aqui, o problema <strong>não</strong> será ocorrênciado para o órgão."
+msgstr "Se você enviar um problema aqui, o problema <strong>não</strong> será registrado para o órgão."
 
 #: templates/web/base/admin/templates/_external.html:39
 msgid "If you want to use this template to prefill the update field when a report&rsquo;s <strong>external</strong> (e.g. Confirm) status code changes, enter the status code here."
@@ -2640,7 +2640,7 @@ msgstr "Deixe em branco se todos as ocorrências para este corpo devem ser envia
 
 #: templates/web/base/admin/bodies/body.html:30
 msgid "List all reported problems"
-msgstr "Listar todas os problemas ocorrênciados"
+msgstr "Listar todos os problemas registrados"
 
 #: templates/web/base/around/on_map_list_items.html:18
 msgid "Loading reports…"
@@ -3182,11 +3182,11 @@ msgstr ""
 
 #: templates/web/base/admin/stats/questionnaire.html:6
 msgid "Not reported before"
-msgstr "Não ocorrênciado antes"
+msgstr "Não registrado antes"
 
 #: templates/web/base/report/_main_sent_info.html:4
 msgid "Not reported to council"
-msgstr "Não ocorrênciado para o órgão"
+msgstr "Não registrado para o órgão"
 
 #: templates/web/base/admin/bodies/body.html:81
 #: templates/web/base/admin/bodies/category.html:43
@@ -3217,7 +3217,7 @@ msgstr "Nota de aviso"
 #: templates/web/base/reports/index.html:114
 #: templates/web/fixmystreet.com/reports/summary.html:123
 msgid "Number of problems reported in each category, in the last 7 days."
-msgstr "Número de problemas ocorrênciados em cada categoria, nos últimos 7 dias."
+msgstr "Número de problemas registrados em cada categoria, nos últimos 7 dias."
 
 #. ("JS")
 #: templates/web/base/js/translation_strings.html:98
@@ -3981,7 +3981,7 @@ msgstr "Problemas no mapa"
 
 #: db/alert_types.pl:14
 msgid "Problems recently reported fixed on FixMyStreet"
-msgstr "Problemas recentes resolvidos que foram ocorrênciados no AjeitaMinhaRua"
+msgstr "Problemas recentes resolvidos que foram registrados no AjeitaMinhaRua"
 
 #: templates/web/fixmystreet.com/reports/summary.html:48
 #, fuzzy
@@ -4175,7 +4175,7 @@ msgstr "Problemas locais recentes, %s"
 
 #: templates/web/base/front/recent.html:11
 msgid "Recently reported problems"
-msgstr "Problemas ocorrênciados recentemente"
+msgstr "Problemas registrados recentemente"
 
 #: templates/web/base/admin/triage/_list-filters.html:36
 #: templates/web/base/reports/_list-filters-sort.html:9
@@ -4371,7 +4371,7 @@ msgstr "Registrado por %s às %s via %s"
 
 #: perllib/FixMyStreet/DB/Result/Problem.pm:782
 msgid "Reported via %s in the %s category anonymously at %s"
-msgstr "Ocorrênciado anonimamente as %s via %s na categoria %s"
+msgstr "Registrado anonimamente às %s via %s na categoria %s"
 
 #: perllib/FixMyStreet/DB/Result/Problem.pm:804
 msgid "Reported via %s in the %s category by %s at %s"
@@ -5346,7 +5346,7 @@ msgstr ""
 
 #: templates/web/base/tokens/confirm_problem.html:32
 msgid "Thank you for reporting this issue!"
-msgstr "Obrigado por ocorrênciar este problema!"
+msgstr "Obrigado por registrar este problema!"
 
 #: templates/web/base/tokens/error.html:6
 msgid "Thank you for trying to confirm your update or problem. We seem to have an error ourselves though, so <a href=\"%s\">please let us know what went on</a> and we'll look into it."
@@ -5535,23 +5535,23 @@ msgstr "As seguintes informações sobre a estrada mais próxima podem ser impre
 #: db/alert_types.pl:19 db/alert_types.pl:23 db/alert_types.pl:27
 #: db/alert_types.pl:31
 msgid "The latest local problems reported by users"
-msgstr "Os últimos problemas locais ocorrênciados pelos usuários"
+msgstr "Os últimos problemas locais registrados pelos usuários"
 
 #: db/alert_types.pl:35
 msgid "The latest problems for {{COUNCIL}} reported by users"
-msgstr "Os últimos problemas para {{COUNCIL}} ocorrênciado por usuários"
+msgstr "Os últimos problemas para {{COUNCIL}} registrado por usuários"
 
 #: db/alert_types.pl:39
 msgid "The latest problems for {{COUNCIL}} within {{WARD}} ward reported by users"
-msgstr "Os últimos problemas ocorrênciado por usuários do {{COUNCIL}} no sinalizador {{WARD}}"
+msgstr "Os últimos problemas registrado por usuários do {{COUNCIL}} no sinalizador {{WARD}}"
 
 #: db/alert_types.pl:11
 msgid "The latest problems reported by users"
-msgstr "Últimos problemas ocorrênciados pelos usuários"
+msgstr "Últimos problemas registrados pelos usuários"
 
 #: db/alert_types.pl:15
 msgid "The latest problems reported fixed by users"
-msgstr "Os problemas solucionados mais recentes, ocorrênciados pelos usuários"
+msgstr "Os problemas solucionados mais recentes, registrados pelos usuários"
 
 #: db/alert_types.pl:43
 msgid "The latest problems within {{NAME}}'s boundary reported by users"
@@ -5738,7 +5738,7 @@ msgstr ""
 
 #: templates/web/base/admin/bodies/body.html:64
 msgid "This body has no contacts. This means that currently problems reported to this body <strong>will not be sent</strong>."
-msgstr "Este órgão não possui informações de contato. Isto significa que os problemas ocorrênciados para este órgão <strong>não serão enviados</strong>."
+msgstr "Este órgão não possui informações de contato. Isto significa que os problemas registrados para este órgão <strong>não serão enviados</strong>."
 
 #: templates/web/base/admin/bodies/form.html:60
 #: templates/web/base/admin/bodies/form.html:61
@@ -6577,7 +6577,7 @@ msgstr "Você pode anexar uma foto, se quiser"
 
 #: templates/web/base/alert/_list.html:24
 msgid "You can choose to subscribe to all problems reported in an area, or reports based on their destination."
-msgstr "Você pode escolher se inscrever em todos os problemas ocorrênciados dentro de uma área, ou ocorrências baseadas em seu destino."
+msgstr "Você pode escolher se inscrever em todos os problemas registrados dentro de uma área, ou ocorrências baseadas em seu destino."
 
 #: templates/web/base/contact/index.html:28
 msgid "You can contact technical support on <a href='mailto:%s'>%s</a>"
@@ -7203,9 +7203,9 @@ msgstr[2] "%s problemas marcados como resolvidos"
 #, perl-format
 msgid "%s problem reported"
 msgid_plural "%s problems reported"
-msgstr[0] "%s problema ocorrênciado"
-msgstr[1] "%s problemas ocorrênciados"
-msgstr[2] "%s problemas ocorrênciados"
+msgstr[0] "%s problema registrado"
+msgstr[1] "%s problemas registrados"
+msgstr[2] "%s problemas registrados"
 
 #: templates/web/base/reports/index.html:123
 #, perl-format
