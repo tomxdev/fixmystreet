@@ -187,9 +187,9 @@ para dar para diferenciar as miniaturas.
 
 `--limpar` remove o que ele criou. É idempotente: rodar de novo não duplica.
 
-O script **regenera sozinho** o resumo que a página "Todas as ocorrências" lê. Esse arquivo
-é dado derivado e envelhece a cada mudança — se você criar ocorrências por outro caminho,
-rode `bin/update-all-reports --table` depois.
+O script **regenera sozinho** os resumos que a página "Todas as ocorrências" lê. São dados
+derivados e envelhecem a cada mudança — se você criar ocorrências por outro caminho, rode os
+**três** comandos da seção 10 depois.
 
 ⚠️ **As fotografias entram já aprovadas**, senão o `MOD-002` as esconderia e o mapa
 apareceria sem miniatura nenhuma. Para ver o portão agindo, limpe o `publish_photo` de uma
@@ -260,8 +260,32 @@ Problemas que vão além do ambiente local estão em
 | "Não temos os dados da prefeitura que cobre este local" | Órgão não vinculado à área 161 do fakemapit, ou `MAPIT_TYPES` diferente de `ZZZ` |
 | Login de equipe pede código e você não tem | `skip_must_have_2fa` na seção 8.1 |
 | "Houve um problema ao tentar mostrar a página de Todas as Ocorrências" | Falta o `data/all-reports.json`. **Rode com `--table`** — sem a flag o script gera outro arquivo e a página continua quebrada: `bin/update-all-reports --table` |
+| "Todas as ocorrências" abre, mas **tudo zerado** | Foi gerado só um dos **três** arquivos. Veja abaixo |
 | Miniaturas quebradas em todo o site, de repente | Os arquivos de `/var/www/upload` sumiram numa recriação de container. Falta o volume da seção 3 |
 | Painel de debug grande na lateral | `FIXMYSTREET_APP_DEBUG: "0"` na seção 3 |
 | Painel de Controle "parou de exibir os dados" | Não é o painel: o login não completa. Falta `skip_must_have_2fa` — rode o `bin/catanduva/ambiente-local` |
 | Ao abrir "Todas as ocorrências" você parece ter sido deslogado | Não foi: `/reports` responde `max-age=3600` **sem `Vary: Cookie`**, e o navegador serve a cópia anônima em cache. O `ambiente-local` põe `CACHE_TIMEOUT: 0`; force uma recarga (Ctrl+F5) para descartar o que já está guardado |
 | Ocorrências novas demoram a aparecer na página inicial | Mesmo `CACHE_TIMEOUT` — ele cacheia as estatísticas e a lista de recentes |
+
+### Os três arquivos de "Todas as ocorrências"
+
+A página não lê um resumo, lê três — e não reclama dos que faltam:
+
+| Comando | Arquivo | Alimenta |
+|---|---|---|
+| `bin/update-all-reports --table` | `data/all-reports.json` | a lista de órgãos e o seletor de prefeitura |
+| `bin/update-all-reports` | `data/all-reports-dashboard.json` | o gráfico, os totais e o "Top 5 categorias" |
+| `bin/update-all-reports --all-bodies` | `data/all-reports-dashboard-<id>.json` | as estatísticas de cada órgão |
+
+O primeiro é o único cuja ausência dá erro visível. Os outros dois são lidos dentro de um
+`eval` no `load_dashboard_data` (`Reports.pm:561`) que **engole a falha**: a página responde
+200, desenha todos os painéis e mostra zero em cada um. Nada no log denuncia o que faltou.
+
+Foi assim que este defeito sobreviveu à primeira correção — geramos o arquivo que o erro
+citava, o erro sumiu, e a página continuou vazia por outro motivo, agora silencioso.
+
+O `bin/catanduva/ambiente-local` e o `bin/catanduva/dados-exemplo` rodam os três.
+
+> **Sobre o "Top 5 categorias":** ele conta apenas os **últimos 7 dias** (`last_seven_days`),
+> não o acervo. Com os dados de exemplo espalhados no tempo, é normal ver 3 ocorrências ali
+> e 10 no gráfico — não é resumo desatualizado.

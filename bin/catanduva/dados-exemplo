@@ -170,14 +170,23 @@ for my $e (@EXEMPLOS) {
 # responde com erro, e o menu parece quebrado logo depois de povoar o banco -
 # que foi exatamente como este defeito apareceu.
 #
-# --table e obrigatorio: sem a flag o script gera all-reports-DASHBOARD.json,
-# outro arquivo, e a pagina continua quebrada. A mensagem de erro do proprio
-# FixMyStreet sugere o comando sem a flag.
+# Sao TRES arquivos, e a pagina precisa dos tres:
+#
+#   --table        all-reports.json                 lista de orgaos
+#   (sem flag)     all-reports-dashboard.json       estatisticas gerais
+#   --all-bodies   all-reports-dashboard-<id>.json  estatisticas por orgao
+#
+# Gerar so o primeiro deixa a pagina respondendo 200 com tudo zerado: o
+# load_dashboard_data engole a falta num eval e segue sem os dados, entao nada
+# denuncia o que falta. Foi assim que este defeito sobreviveu a uma primeira
+# correcao - a mensagem de erro so citava o primeiro arquivo.
 if ($criadas) {
     my $script = FixMyStreet->path_to('bin/update-all-reports')->stringify;
-    system($script, '--table') == 0
-        or warn "aviso: nao consegui regenerar o resumo de /reports\n";
-    say 'resumo de /reports regenerado';
+    for my $args ( ['--table'], [], ['--all-bodies'] ) {
+        system($script, @$args) == 0
+            or warn "aviso: falhou update-all-reports @$args\n";
+    }
+    say 'resumos de /reports regenerados';
 }
 
 say '';

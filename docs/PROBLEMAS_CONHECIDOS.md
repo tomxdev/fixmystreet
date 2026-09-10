@@ -118,6 +118,7 @@ para quem montar o ambiente sem ele:
 | Sintoma | Causa |
 |---|---|
 | "Todas as ocorrências" com erro | Falta `data/all-reports.json`. Gerar com `bin/update-all-reports **--table**` — sem a flag o script escreve outro arquivo e o erro persiste |
+| "Todas as ocorrências" abre **zerada** | São **três** arquivos derivados, e a página precisa dos três. Gerar só um faz a página responder 200 com tudo em zero — o `load_dashboard_data` engole a falta num `eval` |
 | Miniaturas quebradas de repente | `/var/www/upload` não é volume; recriar o container apaga as fotografias |
 | Painel de Controle "sem dados" | Não é o painel: o `SEC-003` exige 2FA e o login não completa |
 | Página em inglês | `.mo` desatualizado — o `setlocale` falha em silêncio |
