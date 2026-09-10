@@ -490,4 +490,28 @@ subtest 'a public report page never carries the reporter contact details' => sub
     };
 };
 
+# --------------------------------------------------------------------- SOC-001
+
+subtest 'an unapproved photo never reaches the social preview' => sub {
+    FixMyStreet::override_config { ALLOWED_COBRANDS => ['catanduva'] }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        my ($problem) = $mech->create_problems_for_body(1, $body->id, 'Com foto', {
+            cobrand => 'catanduva',
+            photo   => '74e3362283b6ef0c48686fb0e161da4043bbcc97.jpeg',
+        });
+
+        $mech->log_out_ok;
+        $mech->get_ok('/report/' . $problem->id);
+
+        # The Photo controller already refuses the bytes, so nothing leaks. What
+        # this guards is the other half: without it the tag would advertise an
+        # empty URL and suppress the cobrand's own image, leaving a shared link
+        # with no preview at all.
+        $mech->content_lacks('og.jpeg', 'the unapproved photo is not offered as og:image');
+        $mech->content_contains('fms-og_image.jpg',
+            'the site image is used instead, so the link still previews');
+    };
+};
+
 done_testing();

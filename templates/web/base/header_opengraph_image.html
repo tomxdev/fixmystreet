@@ -1,4 +1,11 @@
-        [% IF problem.photo %]
+        [%# Consultar allow_photo_display aqui importa mais do que parece. Um
+            cobrand que so publica foto depois de aprovada - ver MOD-002 - tem o
+            Photo controller recusando servir os bytes, entao nao ha vazamento;
+            mas sem esta guarda a meta tag continuaria anunciando uma URL vazia
+            E suprimindo a imagem padrao do cobrand, que e justamente o que
+            deveria aparecer no lugar. O resultado seria um link compartilhado
+            sem previa nenhuma. %]
+        [% IF problem.photo AND c.cobrand.allow_photo_display(problem, 0) %]
         [% photo = problem.photos.first %]
         [% content_type = problem.get_first_image_type %]
         <meta property="og:image" content="[% c.cobrand.base_url %][% photo.url_og %]">
