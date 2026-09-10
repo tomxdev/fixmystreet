@@ -97,8 +97,12 @@ docker exec "$APP" bin/createsuperuser admin@catanduva.local senha123456 >/dev/n
 echo "superusuario: admin@catanduva.local / senha123456"
 
 # ------------------------------------------------------- resumo de /reports
-# A pagina "Todas as ocorrencias" le um JSON pre-gerado, e sem ele responde com
-# erro. E dado derivado: envelhece a cada mudanca em orgao ou ocorrencia.
+# A pagina "Todas as ocorrencias" le um JSON pre-gerado, e sem ele responde 500.
+#
+# Regenerar aqui NAO e redundante: /var/www/data nao e volume - os unicos mounts
+# sao o codigo, o local/ e o gitconfig. Qualquer recriacao de container apaga o
+# arquivo, e a pagina quebra de novo. Como este script roda a cada subida, e o
+# lugar certo para refaze-lo.
 #
 # A flag --table nao e opcional: sem ela o script gera all-reports-DASHBOARD.json,
 # que e outro arquivo, e a pagina continua quebrada. A propria mensagem de erro
