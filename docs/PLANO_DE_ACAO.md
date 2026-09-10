@@ -236,9 +236,9 @@ graph LR
 
 | # | Item | Estado |
 |---|---|---|
-| 1 | Provedor de cloud | ❓ **PENDENTE** — ver abaixo |
+| 1 | Provedor de cloud | ✔️ **Direção escolhida** — VPS no Brasil, amd64 (`INF-001`) |
 | 2 | Domínio do serviço | ✔️ **DECIDIDO** — domínio próprio, derivado do nome do projeto |
-| 3 | Provedor de envio de e-mail | ❓ **PENDENTE** — ver abaixo |
+| 3 | Provedor de envio de e-mail | ✔️ **Direção escolhida** — faixa gratuita, domínio autenticado (`INF-001`) |
 | 4 | Armazenamento de fotografias | ✔️ **DECIDIDO** — armazenamento de objetos |
 
 ❓ **Os itens 1 e 3 continuam abertos.** As perguntas eram "qual provedor", e a resposta
@@ -277,6 +277,18 @@ pilha inteira** — não é preciso banco gerenciado no MVP.
 costumam ser ARM64. A máquina de desenvolvimento é AMD64, então esse risco nunca apareceu
 até agora — mas numa instância ARM ele volta, e a imagem oficial precisa ter build `arm64`.
 **Confirmar antes de contratar**, não depois.
+
+✅ **CONFIRMADO — e o alerta procedia (10/09/2026).** A imagem oficial
+`fixmystreet/fixmystreet` publica **apenas `amd64`**, nas 16 tags disponíveis, incluindo
+`stable` e `v6.0`. **Não existe build `arm64`.**
+
+Isso descarta, na prática, as opções gratuitas mais citadas — a cota do Oracle Always Free é
+Ampere, que é ARM. Usá-la exigiria compilar a imagem (Perl com módulos XS, `Image::Magick`,
+`carton`): possível, mas trabalho de infraestrutura não previsto, num piloto de três meses,
+para economizar dezenas de reais.
+
+📄 **Levantamento completo:** [`INFRAESTRUTURA_CUSTOS.md`](INFRAESTRUTURA_CUSTOS.md), com as
+três configurações comparadas, e-mail, objetos e o que falta contratar.
 
 💡 **PROPOSTA sobre e-mail (item 3):** o critério de escolha não é preço, é **entregabilidade**.
 Um e-mail de confirmação que cai em spam impede o cadastro de ser concluído — o serviço
@@ -716,7 +728,7 @@ Identificadores conforme o padrão do prompt original.
 
 | ID | Tarefa | Situação | Resp. |
 |---|---|---|---|
-| INF-001 | **Levantar custo de 3 configurações** e escolher a cloud com número na mão (seção 4.1) | **Pronta** — redefinida | DevOps |
+| INF-001 | **Levantar custo de 3 configurações** e escolher a cloud com número na mão (seção 4.1) | ✅ **Concluída** — PR #28 | DevOps |
 | INF-002 | Provisionar ambiente de homologação | Depende de INF-001 | DevOps |
 | INF-003 | Registrar domínio próprio e configurar HTTPS | **Pronta** — domínio decidido | DevOps |
 | **INF-004** | **Eliminar chamada bloqueante ao Gaze** | ✅ **Concluída** — PR #8 | Backend |
@@ -949,3 +961,4 @@ próprios tipos, como o `FiksGataMi` faz para a Noruega. Corrigido para `O08`
   tratamento (LGPD art. 37)
 - [`PLANO_DE_TESTES.md`](PLANO_DE_TESTES.md) — aceitação manual, e o que nenhum teste alcança
 - [`ACESSIBILIDADE.md`](ACESSIBILIDADE.md) — auditoria de marcação, e o que ela não alcança
+- [`INFRAESTRUTURA_CUSTOS.md`](INFRAESTRUTURA_CUSTOS.md) — comparação de custo e a restrição de arquitetura
