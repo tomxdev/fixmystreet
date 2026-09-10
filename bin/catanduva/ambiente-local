@@ -148,9 +148,20 @@ fi
 # que e outro arquivo, e a pagina continua quebrada. A propria mensagem de erro
 # do FixMyStreet sugere o comando sem a flag - seguir a sugestao ao pe da letra
 # nao resolve.
-msg "Gerando o resumo de /reports"
-docker exec "$APP" bash -lc 'cd /var/www/fixmystreet && bin/update-all-reports --table'
-echo "resumo gerado"
+#
+# Sao TRES arquivos, e a pagina precisa dos tres. Gerar so um deixa a pagina
+# respondendo 200 com estatisticas zeradas - o load_dashboard_data engole a
+# falta num eval e segue sem os dados, entao nada denuncia o que falta:
+#
+#   --table        all-reports.json               lista de orgaos
+#   (sem flag)     all-reports-dashboard.json     estatisticas gerais
+#   --all-bodies   all-reports-dashboard-<id>.json  estatisticas por orgao
+msg "Gerando os resumos de /reports"
+docker exec "$APP" bash -lc 'cd /var/www/fixmystreet \
+    && bin/update-all-reports --table \
+    && bin/update-all-reports \
+    && bin/update-all-reports --all-bodies'
+echo "resumos gerados"
 
 # ------------------------------------------------------------------- testes
 if [ "${1:-}" = "--testes" ]; then
