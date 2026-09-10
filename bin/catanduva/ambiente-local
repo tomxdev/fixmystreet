@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+#
+# Sobe o ambiente local do piloto brasileiro e deixa dados prontos para
+# exercitar o que foi construido - cobrand, CEP, moderacao de foto, exclusao a
+# pedido, contestacao de remocao.
+#
+# Idempotente: rodar de novo nao duplica orgao, categoria nem usuario.
+#
+#   bin/catanduva/ambiente-local          sobe e popula
+#   bin/catanduva/ambiente-local --testes tambem roda a suite do cobrand
+#   bin/catanduva/ambiente-local --parar  derruba os containers
+
+set -euo pipefail
+
+cd "$(dirname "$0")/../.."
+
+COMPOSE=(docker compose -f docker/docker-compose-dev.yml)
+[ -f docker/docker-compose-local.yml ] && COMPOSE+=(-f docker/docker-compose-local.yml)
+
+APP=docker-fixmystreet-1
+DB=docker-db-1
+
+msg() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
+erro() { printf '\n\033[31m!! %s\033[0m\n' "$*" >&2; exit 1; }
+
+if [ "${1:-}" = "--parar" ]; then
+    msg "Derrubando containers"
+    "${COMPOSE[@]}" down
+    exit 0
+fi
+
+# ---------------------------------------------------------------- pre-requisitos
+docker info >/dev/null 2>&1 || erro \
+    "O daemon do Docker nao responde. Abra o Docker Desktop e, no WSL, confirme a integracao com esta distro."
+
+# ---------------------------------------------------------------------- subir
+msg "Subindo containers (a primeira vez leva ~10 min: build + modulos CPAN)"
+"${COMPOSE[@]}" up -d
+
+msg "Esperando o Postgres aceitar conexao"
+for _ in $(seq 1 60); do
+    docker exec "$DB" pg_isready -U postgres >/dev/null 2>&1 && break
+    sleep 2
+done
+docker exec "$DB" pg_isready -U postgres >/dev/null 2>&1 \
+    || erro "Postgres nao subiu. Veja: ${COMPOSE[*]} logs db"
+
+msg "Esperando a aplicacao responder"
+for _ in $(seq 1 90); do
+    curl -sf -o /dev/null http://localhost:3000/ && break
+    sleep 2
+done
+curl -sf -o /dev/null http://localhost:3000/ \
+    || erro "A aplicacao nao respondeu em 3 minutos. Veja: ${COMPOSE[*]} logs fixmystreet"
+
+# ------------------------------------------------------------------- catalogo
+# O .mo e gerado, nao versionado, e fica desatualizado sempre que o .po muda -
+# entao a pagina sai em ingles sem aviso nenhum. Recompilar sempre e barato.
+msg "Compilando o catalogo pt-BR"
+docker exec "$APP" bash -lc 'cd /var/www/fixmystreet && commonlib/bin/gettext-makemo FixMyStreet' >/dev/null
+echo "catalogo compilado"
+
+# ----------------------------------------------------------------- dados base
+# O fakemapit devolve UMA area para qualquer coordenada: id 161, tipo ZZZ. O
+# area_types do cobrand le o MAPIT_TYPES da configuracao, que localmente e ZZZ -
+# por isso o orgao precisa estar vinculado justamente a area 161.
+msg "Criando orgao, categorias e usuarios"
+docker exec -i "$DB" psql -q -U postgres -d fixmystreet <<'SQL'
+INSERT INTO body (name, endpoint, send_method, cobrand)
+SELECT 'Prefeitura de Catanduva', 'ocorrencias@example.org', 'Email', 'catanduva'
+WHERE NOT EXISTS (SELECT 1 FROM body WHERE name = 'Prefeitura de Catanduva');
+
+INSERT INTO body_areas (body_id, area_id)
+SELECT b.id, 161 FROM body b
+WHERE b.name = 'Prefeitura de Catanduva'
+  AND NOT EXISTS (SELECT 1 FROM body_areas WHERE body_id = b.id AND area_id = 161);
+
+INSERT INTO contacts (body_id, category, email, state, editor, whenedited, note)
+SELECT b.id, c.cat, 'ocorrencias@example.org', 'confirmed', 'ambiente-local', now(), 'dados de desenvolvimento'
+FROM body b
+CROSS JOIN (VALUES
+    ('Buraco na via'),
+    ('Iluminacao publica'),
+    ('Lixo acumulado'),
+    ('Sinalizacao danificada')
+) AS c(cat)
+WHERE b.name = 'Prefeitura de Catanduva'
+  AND NOT EXISTS (
+      SELECT 1 FROM contacts x WHERE x.body_id = b.id AND x.category = c.cat
+  );
+SQL
+echo "orgao e categorias prontos"
+
+# Superusuario para /admin e para exercitar moderacao. O createsuperuser e
+# idempotente na pratica: recriar apenas redefine a senha.
+docker exec "$APP" bin/createsuperuser admin@catanduva.local senha123456 >/dev/null 2>&1 || true
+echo "superusuario: admin@catanduva.local / senha123456"
+
+# ------------------------------------------------------------------- testes
+if [ "${1:-}" = "--testes" ]; then
+    msg "Rodando a suite do cobrand"
+    docker exec "$APP" bash -lc 'cd /var/www/fixmystreet && bin/run-tests t/cobrand/catanduva.t'
+fi
+
+# ------------------------------------------------------------------- resumo
+msg "Pronto"
+cat <<'FIM'
+  Aplicacao ....... http://127.0.0.1.nip.io:3000
+  E-mails ......... http://localhost:8025      (nada sai para a internet)
+  Admin ........... http://127.0.0.1.nip.io:3000/admin
+                    admin@catanduva.local / senha123456
+
+  Roteiro em docs/AMBIENTE_LOCAL.md, secao "Exercitando o piloto".
+  Para derrubar: bin/catanduva/ambiente-local --parar
+FIM

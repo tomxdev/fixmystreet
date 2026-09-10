@@ -282,6 +282,13 @@ até agora — mas numa instância ARM ele volta, e a imagem oficial precisa ter
 `fixmystreet/fixmystreet` publica **apenas `amd64`**, nas 16 tags disponíveis, incluindo
 `stable` e `v6.0`. **Não existe build `arm64`.**
 
+⚠️ **Correção relacionada, encontrada ao rodar localmente.** O `area_types` do cobrand
+estava **fixo em `O08`**, e isso quebrava o ambiente local: o `fakemapit` embutido devolve
+tipo `ZZZ` para qualquer coordenada, então nenhuma área casava e o formulário não
+encontrava órgão nenhum. O tipo pertence à instância de MapIt em que se aponta, não ao
+cobrand — passou a ler `MAPIT_TYPES` da configuração, com `O08` como padrão de produção.
+Só rodando é que apareceu.
+
 Isso descarta, na prática, as opções gratuitas mais citadas — a cota do Oracle Always Free é
 Ampere, que é ARM. Usá-la exigiria compilar a imagem (Perl com módulos XS, `Image::Magick`,
 `carton`): possível, mas trabalho de infraestrutura não previsto, num piloto de três meses,

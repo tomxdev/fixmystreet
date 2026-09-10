@@ -115,13 +115,19 @@ my @PLACES = (
     [ '?', 51.293415, -0.441269, 2242, 'Surrey County Council', 'DIS'],
     # Brasil - Catanduva/SP, para os testes de navegador do piloto brasileiro.
     # Todos os pontos caem dentro do bounding box declarado em
-    # Cobrand/Catanduva.pm, e o tipo O08 (admin_level 8 do MapIt global, que e
-    # onde ficam os municipios brasileiros) casa com o area_types do cobrand.
+    # Cobrand/Catanduva.pm.
+    #
+    # O tipo e ZZZ, e nao O08, porque o area_types do cobrand le o MAPIT_TYPES
+    # da configuracao - e a configuracao de teste, vinda do general.yml-example,
+    # diz ZZZ. Em producao, apontando para o MapIt global, o mesmo cobrand usa
+    # O08, que e onde ficam os municipios brasileiros. O tipo pertence a
+    # instancia de MapIt, nao ao cobrand.
+    #
     # O id 900001 e sintetico: nao ha area brasileira nas listas acima, e o
     # numero so precisa bater com o --area_id passado ao bin/browser-tests.
-    [ '15800-000', -21.1383, -48.9736, 900001, 'Prefeitura de Catanduva', 'O08' ], # Centro
-    [ '?',         -21.1375, -48.9770, 900001, 'Prefeitura de Catanduva', 'O08' ], # Centro, outra quadra
-    [ '?',         -21.1290, -48.9650, 900001, 'Prefeitura de Catanduva', 'O08' ], # zona norte
+    [ '15800-000', -21.1383, -48.9736, 900001, 'Prefeitura de Catanduva', 'ZZZ' ], # Centro
+    [ '?',         -21.1375, -48.9770, 900001, 'Prefeitura de Catanduva', 'ZZZ' ], # Centro, outra quadra
+    [ '?',         -21.1290, -48.9650, 900001, 'Prefeitura de Catanduva', 'ZZZ' ], # zona norte
 );
 
 sub dispatch_request {
