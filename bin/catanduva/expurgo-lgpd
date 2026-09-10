@@ -28,20 +28,36 @@ BEGIN {
 }
 
 use FixMyStreet;
+use FixMyStreet::Cobrand;
 use FixMyStreet::Script::Inactive;
 use Getopt::Long;
 use Pod::Usage;
 
 # Cinco anos, em meses - a unidade que o FixMyStreet::Script::Inactive entende.
 use constant RETENCAO_MESES => 60;
+use constant COBRAND        => 'catanduva';
 
 my %h;
 GetOptions(\%h, 'verbose|v', 'help|h', 'commit|c') or exit 1;
 pod2usage(0) if $h{help};
 
+# FixMyStreet::Cobrand->get_class_for_moniker cai para o cobrand Default quando
+# o moniker nao esta em ALLOWED_COBRANDS - e Default->moniker e 'default'. Como
+# o filtro do Inactive e por moniker, uma configuracao incompleta faria esta
+# rotina anonimizar as ocorrencias do cobrand ERRADO, sem dizer nada.
+#
+# Uma rotina que apaga dado pessoal nao pode falhar em silencio, entao conferimos
+# antes de qualquer coisa.
+my $resolvido = FixMyStreet::Cobrand->get_class_for_moniker(COBRAND)->moniker;
+die sprintf(
+    "cobrand '%s' resolveu para '%s': verifique se ele esta em ALLOWED_COBRANDS.\n"
+  . "Prosseguir anonimizaria as ocorrencias do cobrand errado.\n",
+    COBRAND, $resolvido
+) unless $resolvido eq COBRAND;
+
 FixMyStreet::Script::Inactive->new(
     anonymize => RETENCAO_MESES,
-    cobrand   => 'catanduva',
+    cobrand   => COBRAND,
     verbose   => $h{verbose},
     # Inverte o padrao do script generico: nada e gravado sem --commit. Uma
     # rotina que apaga dado pessoal nao deve ser destrutiva por descuido de

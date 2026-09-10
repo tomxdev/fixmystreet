@@ -339,6 +339,12 @@ decisão 3 ("retenção de ocorrência resolvida"). Uma ocorrência que siga abe
 cinco anos é problema de operação, não de retenção — e anonimizá-la calada esconderia
 justamente o caso que merece atenção.
 
+⚠️ **Requisito de configuração:** `catanduva` precisa estar em `ALLOWED_COBRANDS`. O
+`FixMyStreet::Cobrand->get_class_for_moniker` cai para o cobrand `Default` quando o moniker
+não é permitido, e o filtro do expurgo é por moniker — uma configuração incompleta faria a
+rotina anonimizar as ocorrências do **cobrand errado**. O script recusa rodar nesse caso, em
+vez de descobrir isso depois.
+
 ✔️ **Exclusão por anonimização.** Confirma a proposta: o problema urbano é interesse
 público, a identidade de quem reportou não. Atende ao direito de eliminação sem destruir
 o registro do problema.

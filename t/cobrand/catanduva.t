@@ -1,5 +1,6 @@
 use FixMyStreet::TestMech;
 use FixMyStreet::Cobrand::Catanduva;
+use FixMyStreet::Cobrand;
 use FixMyStreet::DB;
 use FixMyStreet::Script::Inactive;
 use Test::MockModule;
@@ -361,12 +362,23 @@ subtest 'retention: a resolved report is anonymised once it is five years old' =
     my $open   = $report->('Aberta',   $long_ago, 'confirmed',       'catanduva');
     my $others = $report->('De outro', $long_ago, 'fixed - council', 'default');
 
-    # Exactly the arguments bin/catanduva/expurgo-lgpd passes. If the retention
-    # period changes there, this has to change with it.
-    FixMyStreet::Script::Inactive->new(
-        anonymize => 60,
-        cobrand   => 'catanduva',
-    )->reports;
+    # ALLOWED_COBRANDS matters more than it looks. Inactive coerces the moniker
+    # through FixMyStreet::Cobrand->get_class_for_moniker, which falls back to
+    # Cobrand::Default when the moniker is not allowed - and Default's moniker
+    # is 'default'. Without this, the run silently anonymises the reports of
+    # the wrong cobrand, which is exactly what it did the first time.
+    # bin/catanduva/expurgo-lgpd refuses to run in that situation.
+    FixMyStreet::override_config { ALLOWED_COBRANDS => ['catanduva'] }, sub {
+        is FixMyStreet::Cobrand->get_class_for_moniker('catanduva')->moniker,
+            'catanduva', 'the moniker resolves to this cobrand, not the default';
+
+        # Exactly the arguments bin/catanduva/expurgo-lgpd passes. If the
+        # retention period changes there, this has to change with it.
+        FixMyStreet::Script::Inactive->new(
+            anonymize => 60,
+            cobrand   => 'catanduva',
+        )->reports;
+    };
 
     $_->discard_changes for ($stale, $fresh, $open, $others);
 
