@@ -1,0 +1,27 @@
+# Tarefas agendadas do piloto brasileiro (cobrand catanduva).
+#
+# Arquivo NOVO de proposito, ao lado do conf/crontab-example do upstream e nao
+# dentro dele: nunca conflita ao sincronizar com o mysociety, pelo mesmo motivo
+# que o .github/workflows/ci-br.yml existe separado.
+#
+# Isto NAO substitui o crontab-example - ele continua valendo para as tarefas
+# comuns (send-reports, send-alerts, send-questionnaires). O que esta aqui e o
+# que so o piloto precisa.
+#
+# Substitua $FMS pelo caminho do clone e $LOCK_DIR por um diretorio gravavel,
+# como no exemplo do upstream.
+
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# LGPD-007 - expurgo da retencao de cinco anos.
+#
+# Semanal, domingo de madrugada. Nao precisa ser mais frequente: o prazo e de
+# anos, e a janela de uma semana e irrelevante diante disso. Rodar raro tambem
+# mantem barata uma varredura que percorre a tabela inteira de ocorrencias.
+#
+# O --commit e obrigatorio para gravar; sem ele o script so relata. Se quiser
+# conferir antes de ligar de vez, rode a mao sem --commit e com --verbose.
+#
+# O prazo em si NAO fica aqui - mora em bin/catanduva/expurgo-lgpd, porque e
+# decisao registrada no plano, nao parametro de operacao.
+17 3 * * 0 "$FMS/commonlib/bin/run-with-lockfile.sh" -n "$LOCK_DIR/expurgo-lgpd.lock" "$FMS/bin/catanduva/expurgo-lgpd --commit" || echo "expurgo LGPD travado?"

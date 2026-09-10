@@ -324,9 +324,26 @@ perante o titular. Não há organização atrás. Dois efeitos práticos:
   existir, essa decisão precisa ser reaberta — passa a haver duas partes tratando os
   mesmos dados.
 
-✔️ **Retenção de 5 anos.** Prazo definido. `LGPD-003` sai de bloqueada. A implementação
-exige uma rotina de expurgo automática — não basta declarar o prazo na política e manter
-o dado para sempre no banco; prazo não cumprido é pior do que prazo não declarado.
+✔️ **Retenção de 5 anos.** Prazo definido. `LGPD-003` sai de bloqueada.
+
+✅ **IMPLEMENTADO (LGPD-007) — a rotina existe.** `bin/catanduva/expurgo-lgpd`, agendado em
+`conf/crontab-catanduva`. Não bastava declarar o prazo na política e manter o dado para
+sempre no banco: prazo não cumprido é pior do que prazo não declarado.
+
+A rotina **anonimiza, não apaga** — é onde as decisões 3 e 4 se encontram: some quem
+reportou, permanece o buraco na rua. O prazo mora no script, não na linha de cron, porque é
+decisão registrada aqui e não parâmetro de operação.
+
+⚠️ **Alcança apenas ocorrências resolvidas ou fechadas**, que é exatamente o escopo da
+decisão 3 ("retenção de ocorrência resolvida"). Uma ocorrência que siga aberta depois de
+cinco anos é problema de operação, não de retenção — e anonimizá-la calada esconderia
+justamente o caso que merece atenção.
+
+⚠️ **Requisito de configuração:** `catanduva` precisa estar em `ALLOWED_COBRANDS`. O
+`FixMyStreet::Cobrand->get_class_for_moniker` cai para o cobrand `Default` quando o moniker
+não é permitido, e o filtro do expurgo é por moniker — uma configuração incompleta faria a
+rotina anonimizar as ocorrências do **cobrand errado**. O script recusa rodar nesse caso, em
+vez de descobrir isso depois.
 
 ✔️ **Exclusão por anonimização.** Confirma a proposta: o problema urbano é interesse
 público, a identidade de quem reportou não. Atende ao direito de eliminação sem destruir
@@ -610,7 +627,7 @@ Identificadores conforme o padrão do prompt original.
 | LGPD-004 | Implementar anonimização em pedido de exclusão | **Pronta** — abordagem decidida | Backend |
 | LGPD-005 | Revisar campos públicos versus privados | Pronta | Backend |
 | LGPD-006 | Registrar operações de tratamento | **Pronta** — controlador definido | Jurídico |
-| **LGPD-007** | **Rotina de expurgo automático aos 5 anos** | **Pronta** — decorre de LGPD-003 | Backend |
+| **LGPD-007** | **Rotina de expurgo automático aos 5 anos** | ✅ **Concluída** — PR #18 | Backend |
 | SEC-001 | HTTPS obrigatório e HSTS | Depende de INF-003 | DevOps |
 | SEC-002 | Antiabuso por IP e e-mail | Não iniciada | Backend |
 | SEC-003 | 2FA nas contas administrativas | Não iniciada | DevOps |

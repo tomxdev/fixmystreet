@@ -1,7 +1,10 @@
 use FixMyStreet::TestMech;
 use FixMyStreet::Cobrand::Catanduva;
+use FixMyStreet::Cobrand;
 use FixMyStreet::DB;
+use FixMyStreet::Script::Inactive;
 use Test::MockModule;
+use DateTime;
 
 # report_new_munge_before_insert reads a form parameter and the stash, and the
 # photo rules ask who is looking. Only these things are ever asked of it.
@@ -330,6 +333,72 @@ subtest 'no original recipient, nothing invented' => sub {
         'still goes to the project mailbox';
     is $row->extra_metadata('demonstration_redirect'), undef,
         'and records no redirect it cannot describe';
+};
+
+# --------------------------------------------------------------------- LGPD-007
+
+subtest 'retention: a resolved report is anonymised once it is five years old' => sub {
+    my $citizen = $mech->create_user_ok('cidadao@example.org');
+    my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+        { cobrand => 'catanduva' });
+
+    my $long_ago  = DateTime->now->subtract(months => 61);
+    my $recently  = DateTime->now->subtract(months => 12);
+
+    my $report = sub {
+        my ($title, $when, $state, $cobrand) = @_;
+        my ($problem) = $mech->create_problems_for_body(1, $body->id, $title, {
+            dt         => $when,
+            lastupdate => "$when",
+            state      => $state,
+            cobrand    => $cobrand,
+            user       => $citizen,
+        });
+        return $problem;
+    };
+
+    my $stale  = $report->('Antiga',   $long_ago, 'fixed - council', 'catanduva');
+    my $fresh  = $report->('Recente',  $recently, 'fixed - council', 'catanduva');
+    my $open   = $report->('Aberta',   $long_ago, 'confirmed',       'catanduva');
+    my $others = $report->('De outro', $long_ago, 'fixed - council', 'default');
+
+    # ALLOWED_COBRANDS matters more than it looks. Inactive coerces the moniker
+    # through FixMyStreet::Cobrand->get_class_for_moniker, which falls back to
+    # Cobrand::Default when the moniker is not allowed - and Default's moniker
+    # is 'default'. Without this, the run silently anonymises the reports of
+    # the wrong cobrand, which is exactly what it did the first time.
+    # bin/catanduva/expurgo-lgpd refuses to run in that situation.
+    FixMyStreet::override_config { ALLOWED_COBRANDS => ['catanduva'] }, sub {
+        # Via a variable on purpose: `is Some::Class->method, ...` makes perl
+        # read the class name as an indirect object of is(), which parses into
+        # something else entirely and takes the whole file down with it.
+        my $resolved = FixMyStreet::Cobrand->get_class_for_moniker('catanduva')->moniker;
+        is $resolved, 'catanduva',
+            'the moniker resolves to this cobrand, not the default';
+
+        # Exactly the arguments bin/catanduva/expurgo-lgpd passes. If the
+        # retention period changes there, this has to change with it.
+        FixMyStreet::Script::Inactive->new(
+            anonymize => 60,
+            cobrand   => 'catanduva',
+        )->reports;
+    };
+
+    $_->discard_changes for ($stale, $fresh, $open, $others);
+
+    isnt $stale->user_id, $citizen->id,
+        'resolved and past the period: the reporter is anonymised';
+    is $fresh->user_id, $citizen->id,
+        'resolved a year ago: left alone';
+
+    # A report still open after six years is an operations problem, not a
+    # retention one, and quietly stripping it would hide the very case that
+    # deserves attention.
+    is $open->user_id, $citizen->id,
+        'still open after six years: left alone';
+
+    is $others->user_id, $citizen->id,
+        'another cobrand entirely: untouched';
 };
 
 done_testing();
