@@ -28,7 +28,7 @@ sub placeholders {
     return scalar @found;
 }
 
-my (@mismatched, @broken, @denuncia);
+my (@mismatched, @broken, @denuncia, @malformed);
 
 for my $block (@blocks) {
     next if $block =~ /^#,[^\n]*\bfuzzy\b/m;    # msgfmt drops these anyway
@@ -48,6 +48,16 @@ for my $block (@blocks) {
 
     push @denuncia, $msgid
         if $msgstr =~ /den[uú]nci/i && !$abuse_is_fine{$msgid};
+
+    # ocorrência/ocorrências are the only real words on that stem. Anything
+    # else means a search-and-replace chewed through a longer word: the noun
+    # "denuncia" is a substring of the verb "denunciar", so replacing the noun
+    # first turns "denunciar" into "ocorrenciar".
+    while ($msgstr =~ /([Oo]corrênci\w*)/g) {
+        my $word = lc $1;
+        push @malformed, "$msgid -> $1"
+            unless $word eq 'ocorrência' || $word eq 'ocorrências';
+    }
 }
 
 subtest 'placeholders survive translation' => sub {
@@ -60,6 +70,8 @@ subtest 'placeholders survive translation' => sub {
 subtest 'reports are ocorrencias, not denuncias' => sub {
     is_deeply \@denuncia, [],
         'denuncia is reserved for reporting abuse';
+    is_deeply \@malformed, [],
+        'no half-replaced words such as ocorrenciar or ocorrenciado';
 };
 
 done_testing();
