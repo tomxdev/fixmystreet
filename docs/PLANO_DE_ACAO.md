@@ -388,7 +388,17 @@ atendimento ao titular. Numa operação de pessoa física, o próprio responsáv
 acumular o papel — o que a LGPD admite. O que não se admite é publicar o serviço sem
 canal nenhum.
 
-**Tarefas:** LGPD-001 a LGPD-006 (seção 10).
+✅ **REGISTRO PRONTO (LGPD-006).** As operações de tratamento estão em
+[`LGPD_REGISTRO_TRATAMENTO.md`](LGPD_REGISTRO_TRATAMENTO.md), montado a partir do que a
+auditoria verificou no código e no `db/schema.sql` — não de suposição.
+
+⚠️ **O que ele deliberadamente não faz:** enquadrar a base legal. Essas linhas estão
+marcadas como 💡 PROPOSTA, porque enquadramento é questão de direito e não de engenharia.
+Como o controlador é **pessoa física**, o inciso de execução de política pública não se
+aplica, e a escolha entre consentimento e legítimo interesse muda o que a política de
+privacidade precisa dizer. É o ponto do documento que mais precisa de advogado.
+
+**Tarefas:** LGPD-001 a LGPD-007 (seção 10).
 
 ---
 
@@ -724,7 +734,7 @@ Identificadores conforme o padrão do prompt original.
 | LGPD-003 | Definir prazos de retenção | ✔️ **Decidida** — 5 anos | Jurídico |
 | LGPD-004 | Implementar anonimização em pedido de exclusão | ✅ **Concluída** — PR #19 | Backend |
 | LGPD-005 | Revisar campos públicos versus privados | ✅ **Concluída** — PR #20 | Backend |
-| LGPD-006 | Registrar operações de tratamento | **Pronta** — controlador definido | Jurídico |
+| LGPD-006 | Registrar operações de tratamento | ✅ **Concluída** — PR #24 | Jurídico |
 | **LGPD-007** | **Rotina de expurgo automático aos 5 anos** | ✅ **Concluída** — PR #18 | Backend |
 | SEC-001 | HTTPS obrigatório e HSTS | Depende de INF-003 | DevOps |
 | SEC-002 | Antiabuso por IP e e-mail | Não iniciada | Backend |
@@ -923,3 +933,5 @@ próprios tipos, como o `FiksGataMi` faz para a Noruega. Corrigido para `O08`
 - [`BASELINE.md`](BASELINE.md) — origem, tag e submódulos
 - [`AMBIENTE_LOCAL.md`](AMBIENTE_LOCAL.md) — instalação do zero
 - [`FLUXO_TRABALHO.md`](FLUXO_TRABALHO.md) — GitFlow e integração contínua
+- [`LGPD_REGISTRO_TRATAMENTO.md`](LGPD_REGISTRO_TRATAMENTO.md) — registro de operações de
+  tratamento (LGPD art. 37)
