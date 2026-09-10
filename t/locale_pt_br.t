@@ -22,41 +22,79 @@ my %abuse_is_fine = map { $_ => 1 } (
     'You are reporting the following update for being abusive, containing personal information, or similar:',
 );
 
+# A po entry may wrap over several lines, and a plural entry carries one msgstr
+# per form. Reading only `^msgid "..."$` and `^msgstr "..."$` - single line,
+# singular - silently skipped both, which is how "conselhos" survived in
+# msgstr[1] and how a dozen admin strings kept saying "denúncia".
+sub unwrap {
+    my ($s) = @_;
+    return '' unless defined $s;
+    $s =~ s/"\s*\n\s*"//g;      # join continuation lines
+    $s =~ s/^"|"\s*$//g;        # drop the outer quotes
+    return $s;
+}
+
+sub translations_of {
+    my ($block) = @_;
+    return map { unwrap($_) } $block =~ /^msgstr\[\d+\]\s+((?:"[^\n]*"\n?)+)/mg
+        if $block =~ /^msgstr\[/m;
+    my ($single) = $block =~ /^msgstr\s+((?:"[^\n]*"\n?)+)/m;
+    return unwrap($single);
+}
+
 sub placeholders {
     my ($s) = @_;
     my @found = $s =~ /(%[sd])/g;
     return scalar @found;
 }
 
-my (@mismatched, @broken, @denuncia, @malformed);
+my (@mismatched, @broken, @denuncia, @malformed,
+    @sinalizador, @conselho, @codigo_postal, @outra_marca);
 
 for my $block (@blocks) {
     next if $block =~ /^#,[^\n]*\bfuzzy\b/m;    # msgfmt drops these anyway
 
-    my ($msgid) = $block =~ /^msgid "(.*)"$/m;
-    my ($msgstr) = $block =~ /^msgstr "(.*)"$/m;
+    my ($raw_id) = $block =~ /^msgid\s+(.*?)(?=^msgid_plural|^msgstr)/ms;
+    next unless defined $raw_id;
 
-    next unless defined $msgid && defined $msgstr;
-    next if $msgid eq '' || $msgstr eq '';
+    my $msgid = unwrap($raw_id);
+    next if $msgid eq '';
 
-    # A space between the % and its letter stops it being a placeholder, so the
-    # value is never interpolated. \b keeps literals such as "99% das vezes" out.
-    push @broken, $msgid if $msgstr =~ /%\s+[sd]\b/;
+    for my $msgstr (translations_of($block)) {
+        next if $msgstr eq '';
 
-    push @mismatched, $msgid
-        if placeholders($msgid) != placeholders($msgstr);
+        # A space between the % and its letter stops it being a placeholder, so
+        # the value is never interpolated. \b keeps literals such as "99% das
+        # vezes" out.
+        push @broken, $msgid if $msgstr =~ /%\s+[sd]\b/;
 
-    push @denuncia, $msgid
-        if $msgstr =~ /den[uú]nci/i && !$abuse_is_fine{$msgid};
+        push @mismatched, $msgid
+            if placeholders($msgid) != placeholders($msgstr);
 
-    # ocorrência/ocorrências are the only real words on that stem. Anything
-    # else means a search-and-replace chewed through a longer word: the noun
-    # "denuncia" is a substring of the verb "denunciar", so replacing the noun
-    # first turns "denunciar" into "ocorrenciar".
-    while ($msgstr =~ /([Oo]corrênci\w*)/g) {
-        my $word = lc $1;
-        push @malformed, "$msgid -> $1"
-            unless $word eq 'ocorrência' || $word eq 'ocorrências';
+        push @denuncia, $msgid
+            if $msgstr =~ /den[uú]nci/i && !$abuse_is_fine{$msgid};
+
+        # ocorrência/ocorrências are the only real words on that stem. Anything
+        # else means a search-and-replace chewed through a longer word: the noun
+        # "denuncia" is a substring of the verb "denunciar", so replacing the
+        # noun first turns "denunciar" into "ocorrenciar".
+        while ($msgstr =~ /([Oo]corrênci\w*)/g) {
+            my $word = lc $1;
+            push @malformed, "$msgid -> $1"
+                unless $word eq 'ocorrência' || $word eq 'ocorrências';
+        }
+
+        # UX-004 vocabulary. A "ward" is a territorial division; the inherited
+        # catalogue called it a "sinalizador", which is a flare. "Council" was
+        # "órgão", too vague to tell the city hall from any other body - and in
+        # two plural entries it was "conselho", a board of members.
+        push @sinalizador,   $msgid if $msgstr =~ /sinalizador/i;
+        push @conselho,      $msgid if $msgstr =~ /\bconselhos?\b/i;
+        push @codigo_postal, $msgid if $msgstr =~ /c[óo]digo\s+postal/i;
+
+        # The catalogue arrived carrying another Brazilian installation's brand,
+        # in one case rewriting the "Powered by" footer to point at their domain.
+        push @outra_marca, $msgid if $msgstr =~ /ajeitaminharua/i;
     }
 }
 
@@ -72,6 +110,20 @@ subtest 'reports are ocorrencias, not denuncias' => sub {
         'denuncia is reserved for reporting abuse';
     is_deeply \@malformed, [],
         'no half-replaced words such as ocorrenciar or ocorrenciado';
+};
+
+subtest 'municipal vocabulary' => sub {
+    is_deeply \@sinalizador, [],
+        'ward is bairro, never sinalizador';
+    is_deeply \@conselho, [],
+        'council is prefeitura, never conselho';
+    is_deeply \@codigo_postal, [],
+        'postcode is CEP, never codigo postal';
+};
+
+subtest 'no other installation branding' => sub {
+    is_deeply \@outra_marca, [],
+        'the catalogue names FixMyStreet, not another deployment';
 };
 
 done_testing();
