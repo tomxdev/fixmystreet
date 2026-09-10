@@ -23,12 +23,22 @@
   [% INCLUDE 'around/_postcode_form_geolocation.html' url='/alert/list' %]
 </form>
 
-[% IF photos.size %]
+[%# Filtra ANTES de decidir mostrar a secao. Um cobrand que so publica foto
+    depois de aprovada - ver MOD-002 - faz o Photo controller recusar os bytes,
+    entao sem esta guarda a lista renderizaria img condenados a falhar. E se
+    todas forem filtradas, o cabecalho apareceria sozinho sobre um vazio.
+    report/photo.html e report/_item.html ja consultam o mesmo hook. %]
+[% SET photos_visiveis = [] %]
+[% FOREACH p IN photos %]
+  [% photos_visiveis.push(p) IF c.cobrand.allow_photo_display(p, 0) %]
+[% END %]
+
+[% IF photos_visiveis.size %]
 <script type="module" src="[% version('/js/overflow-focus-scroll.js') %]"></script>
 <h2>[% loc('Some photos of recent reports') %]</h2>
 <overflow-focus-scroll>
 <div class="alerts__nearby-activity__photos">
-  [% FOREACH p IN photos %]
+  [% FOREACH p IN photos_visiveis %]
     <a href="/report/[% p.id %]">
         <img border="0" height="100" src="[% p.photos.first.url_tn %]"
         alt="[% p.title | html %]" title="[% p.title | html %]">

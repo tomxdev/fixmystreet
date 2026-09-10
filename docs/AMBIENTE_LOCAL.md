@@ -65,10 +65,37 @@ Crie `docker/docker-compose-local.yml`:
       css_watcher:
         volumes: [ "./gitconfig-local:/root/.gitconfig:ro" ]
       fixmystreet:
-        volumes: [ "./gitconfig-local:/root/.gitconfig:ro" ]
+        volumes:
+          - ./gitconfig-local:/root/.gitconfig:ro
+          - fixmystreet-upload:/var/www/upload
+          - fixmystreet-data:/var/www/data
+        environment:
+          FIXMYSTREET_APP_DEBUG: "0"
+
+    volumes:
+      fixmystreet-upload:
+      fixmystreet-data:
 
 Ambos são locais e **não versionados** (estão em `.git/info/exclude`), para não criar
 divergência com o upstream.
+
+### Por que os dois volumes e a variável
+
+⚠️ **Sem os volumes, o ambiente parece quebrar sozinho.** Nem `/var/www/upload` nem
+`/var/www/data` são cobertos pelos mounts do compose padrão — só o código, o `local/` e o
+`gitconfig`. Toda recriação de container apaga os dois:
+
+| Some | Sintoma |
+|---|---|
+| `/var/www/upload` | Miniaturas quebradas no site inteiro. As linhas do banco continuam apontando para arquivos que não existem mais |
+| `/var/www/data` | "Todas as ocorrências" responde 500 |
+
+Isso não acontece só em `down`: um `docker compose up -d` que recrie o container basta.
+
+ℹ️ **`FIXMYSTREET_APP_DEBUG: "0"`** desliga o Plack Debug toolbar — o painel que fica sobre
+a lateral da tela. É ferramenta de desenvolvimento, **não existe em produção**, e atrapalha
+avaliar a interface como o cidadão a verá. Volte para `"1"` quando precisar inspecionar
+consultas ao banco, parâmetros da requisição ou tempo de renderização.
 
 ## 5. Subir o ambiente
 
@@ -145,6 +172,35 @@ embora **todas as 18 asserções passem**. É defeito de teardown do próprio te
 upstream (tag `v6.0`), não do ambiente. Baseline registrado: **220/221 arquivos,
 4.398 testes, zero asserções falhas.**
 
+## 8.0 Povoando com exemplos
+
+O banco nasce vazio, e mapa vazio não mostra grande coisa. Para ver o piloto povoado:
+
+    docker exec docker-fixmystreet-1 bash -lc 'cd /var/www/fixmystreet && bin/catanduva/dados-exemplo'
+
+Cria **8 ocorrências** espalhadas por Catanduva, em quatro categorias e estados variados,
+cada uma com fotografia própria — imagens geradas, não fotos reais, com o título escrito
+para dar para diferenciar as miniaturas.
+
+    Mapa       http://127.0.0.1.nip.io:3000/around?lat=-21.1383;lon=-48.9736;zoom=14
+    Listagem   http://127.0.0.1.nip.io:3000/reports
+
+`--limpar` remove o que ele criou. É idempotente: rodar de novo não duplica.
+
+O script **regenera sozinho** o resumo que a página "Todas as ocorrências" lê. Esse arquivo
+é dado derivado e envelhece a cada mudança — se você criar ocorrências por outro caminho,
+rode `bin/update-all-reports --table` depois.
+
+⚠️ **As fotografias entram já aprovadas**, senão o `MOD-002` as esconderia e o mapa
+apareceria sem miniatura nenhuma. Para ver o portão agindo, limpe o `publish_photo` de uma
+delas pelo `/admin` e recarregue.
+
+ℹ️ O script recusa rodar fora de `STAGING_SITE` — dado de exemplo em produção seria mentira
+exibida ao cidadão.
+
+**Onde as imagens ficam:** os originais em `/var/www/upload` (o `UPLOAD_DIR: '../upload/'`
+é relativo à raiz da aplicação), e `web/photo/` guarda o cache já redimensionado.
+
 ## 8.1 Exercitando o piloto
 
 O que os testes automatizados **já cobrem** está em [`PLANO_DE_TESTES.md`](PLANO_DE_TESTES.md).
@@ -162,11 +218,13 @@ O roteiro abaixo é para ver funcionando com os próprios olhos.
 | 8 | Contestação de remoção | esconder pela moderação, abrir como autor | Vê o aviso e o link para contestar (`MOD-005`) |
 | 9 | 2FA de equipe | entrar como `admin@catanduva.local` | Exige segundo fator (`SEC-003`) |
 
-⚠️ **O item 9 tranca você para fora** se não tiver um app autenticador à mão. Para
-desenvolvimento, acrescente ao `conf/general.yml`:
+ℹ️ **O item 9 não vai pedir código**, porque o `bin/catanduva/ambiente-local` acrescenta
+`skip_must_have_2fa: 1` ao `conf/general.yml` na primeira execução. Sem essa flag, o
+superusuário fica **trancado para fora do `/admin`** — e o sintoma engana: o Painel de
+Controle apenas redireciona para o login, sem dizer que falta o segundo fator.
 
-    STAGING_FLAGS:
-      skip_must_have_2fa: 1
+Para exercitar o 2FA de verdade, remova a flag e reinicie a aplicação. A flag só tem efeito
+sob `STAGING_SITE`, então não há como ela vazar para produção.
 
 ### Expurgo de retenção
 
@@ -187,6 +245,10 @@ rotina.
 
 ## 10. Diagnóstico rápido
 
+Problemas que vão além do ambiente local estão em
+[`PROBLEMAS_CONHECIDOS.md`](PROBLEMAS_CONHECIDOS.md).
+
+
 | Sintoma | Causa provável |
 |---|---|
 | `command 'docker' could not be found in this WSL distro` | Docker Desktop parado ou integração WSL desligada |
@@ -197,3 +259,9 @@ rotina.
 | Página em inglês, mesmo com o cobrand certo | Catálogo `.mo` desatualizado — rode o `gettext-makemo` da seção 5 |
 | "Não temos os dados da prefeitura que cobre este local" | Órgão não vinculado à área 161 do fakemapit, ou `MAPIT_TYPES` diferente de `ZZZ` |
 | Login de equipe pede código e você não tem | `skip_must_have_2fa` na seção 8.1 |
+| "Houve um problema ao tentar mostrar a página de Todas as Ocorrências" | Falta o `data/all-reports.json`. **Rode com `--table`** — sem a flag o script gera outro arquivo e a página continua quebrada: `bin/update-all-reports --table` |
+| Miniaturas quebradas em todo o site, de repente | Os arquivos de `/var/www/upload` sumiram numa recriação de container. Falta o volume da seção 3 |
+| Painel de debug grande na lateral | `FIXMYSTREET_APP_DEBUG: "0"` na seção 3 |
+| Painel de Controle "parou de exibir os dados" | Não é o painel: o login não completa. Falta `skip_must_have_2fa` — rode o `bin/catanduva/ambiente-local` |
+| Ao abrir "Todas as ocorrências" você parece ter sido deslogado | Não foi: `/reports` responde `max-age=3600` **sem `Vary: Cookie`**, e o navegador serve a cópia anônima em cache. O `ambiente-local` põe `CACHE_TIMEOUT: 0`; force uma recarga (Ctrl+F5) para descartar o que já está guardado |
+| Ocorrências novas demoram a aparecer na página inicial | Mesmo `CACHE_TIMEOUT` — ele cacheia as estatísticas e a lista de recentes |
