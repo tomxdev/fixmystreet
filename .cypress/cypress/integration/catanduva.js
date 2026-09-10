@@ -43,6 +43,12 @@ describe('Cobrand de Catanduva', function() {
         before(function() {
             cy.server();
             cy.route('/report/new/ajax*').as('report-ajax');
+            // O cobrand liga suggest_duplicates (UX-002), entao o assistente
+            // ganha uma etapa de sugestoes antes das fotos. Esperar essa
+            // consulta e o que torna o teste deterministico: sem isso, ora a
+            // etapa ja existe quando clicamos em continuar, ora nao - e o
+            // clique cai na pagina errada.
+            cy.route('/around/nearby*').as('nearby-ajax');
 
             cy.visit('http://catanduva.localhost:3001/report/new?longitude=-48.9736&latitude=-21.1383');
             cy.contains('Prefeitura de Catanduva');
@@ -52,6 +58,12 @@ describe('Cobrand de Catanduva', function() {
 
         it('encontra o orgao e oferece categorias', function() {
             cy.pickCategory('Potholes');
+            cy.wait('@nearby-ajax');
+        });
+
+        it('sugere ocorrencias parecidas antes de abrir uma nova', function() {
+            cy.nextPageReporting();
+            cy.contains('Já foi relatado?').should('be.visible');
         });
 
         it('avanca para a secao de fotos', function() {
