@@ -145,6 +145,31 @@ embora **todas as 18 asserções passem**. É defeito de teardown do próprio te
 upstream (tag `v6.0`), não do ambiente. Baseline registrado: **220/221 arquivos,
 4.398 testes, zero asserções falhas.**
 
+## 8.0 Povoando com exemplos
+
+O banco nasce vazio, e mapa vazio não mostra grande coisa. Para ver o piloto povoado:
+
+    docker exec docker-fixmystreet-1 bash -lc 'cd /var/www/fixmystreet && bin/catanduva/dados-exemplo'
+
+Cria **8 ocorrências** espalhadas por Catanduva, em quatro categorias e estados variados,
+cada uma com fotografia própria — imagens geradas, não fotos reais, com o título escrito
+para dar para diferenciar as miniaturas.
+
+    Mapa       http://127.0.0.1.nip.io:3000/around?lat=-21.1383;lon=-48.9736;zoom=14
+    Listagem   http://127.0.0.1.nip.io:3000/reports
+
+`--limpar` remove o que ele criou. É idempotente: rodar de novo não duplica.
+
+⚠️ **As fotografias entram já aprovadas**, senão o `MOD-002` as esconderia e o mapa
+apareceria sem miniatura nenhuma. Para ver o portão agindo, limpe o `publish_photo` de uma
+delas pelo `/admin` e recarregue.
+
+ℹ️ O script recusa rodar fora de `STAGING_SITE` — dado de exemplo em produção seria mentira
+exibida ao cidadão.
+
+**Onde as imagens ficam:** os originais em `/var/www/upload` (o `UPLOAD_DIR: '../upload/'`
+é relativo à raiz da aplicação), e `web/photo/` guarda o cache já redimensionado.
+
 ## 8.1 Exercitando o piloto
 
 O que os testes automatizados **já cobrem** está em [`PLANO_DE_TESTES.md`](PLANO_DE_TESTES.md).

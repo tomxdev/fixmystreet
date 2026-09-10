@@ -1,0 +1,175 @@
+#!/usr/bin/env perl
+#
+# Cria ocorrencias de exemplo, com fotografia, para ver o piloto povoado - mapa,
+# listagem e pagina de ocorrencia. So faz sentido em ambiente local; recusa
+# rodar fora de STAGING_SITE.
+#
+# Idempotente: identifica pelo titulo e nao duplica.
+#
+#   bin/catanduva/dados-exemplo            cria as ocorrencias
+#   bin/catanduva/dados-exemplo --limpar   remove as que ele criou
+
+use strict;
+use warnings;
+use v5.14;
+use utf8;
+
+BEGIN {
+    use File::Basename qw(dirname);
+    use File::Spec;
+    my $d = dirname(File::Spec->rel2abs($0));
+    require "$d/../../setenv.pl";
+}
+
+use FixMyStreet;
+use FixMyStreet::DB;
+use FixMyStreet::PhotoStorage;
+use Getopt::Long;
+use Image::Magick;
+
+binmode(STDOUT, ':encoding(UTF-8)');
+
+my %opt;
+GetOptions(\%opt, 'limpar', 'help|h') or exit 1;
+
+# Dado de exemplo em producao seria mentira exibida ao cidadao.
+die "Recusando: isto so roda em ambiente de teste (STAGING_SITE).\n"
+    unless FixMyStreet->config('STAGING_SITE');
+
+my $MARCA = '[exemplo]';   # fica no campo 'note'? nao ha - usamos o detail
+my $BODY  = 'Prefeitura de Catanduva';
+
+# Espalhadas pelo municipio, todas dentro do bounding box do cobrand.
+my @EXEMPLOS = (
+    { titulo => 'Buraco fundo na Rua São Paulo',
+      detalhe => 'Buraco de uns 40 cm na faixa da direita, bem no cruzamento. Já vi duas motos desviarem em cima da hora.',
+      categoria => 'Buraco na via',   lat => '-21.1383', lon => '-48.9736',
+      cep => '15800-000', estado => 'confirmed',        cor => '#8B5A2B' },
+
+    { titulo => 'Poste apagado há duas semanas',
+      detalhe => 'A rua inteira ficou escura. À noite ninguém passa a pé por ali.',
+      categoria => 'Iluminacao publica', lat => '-21.1290', lon => '-48.9650',
+      cep => '15801-100', estado => 'investigating',    cor => '#2F4F4F' },
+
+    { titulo => 'Entulho abandonado na esquina',
+      detalhe => 'Restos de obra deixados na calçada, ocupando metade da passagem.',
+      categoria => 'Lixo acumulado',  lat => '-21.1450', lon => '-48.9800',
+      cep => '15802-200', estado => 'confirmed',        cor => '#556B2F' },
+
+    { titulo => 'Placa de pare torta e ilegível',
+      detalhe => 'A placa girou e aponta para o lado errado. Quem vem da subida não vê.',
+      categoria => 'Sinalizacao danificada', lat => '-21.1200', lon => '-48.9550',
+      cep => '15803-300', estado => 'action scheduled', cor => '#B22222' },
+
+    { titulo => 'Asfalto afundado perto da escola',
+      detalhe => 'Afundamento no meio da via, bem na entrada da escola. Piorou depois da chuva.',
+      categoria => 'Buraco na via',   lat => '-21.1500', lon => '-48.9600',
+      cep => '15804-400', estado => 'confirmed',        cor => '#6B4423' },
+
+    { titulo => 'Lâmpada piscando na praça',
+      detalhe => 'Fica acendendo e apagando a noite toda.',
+      categoria => 'Iluminacao publica', lat => '-21.1350', lon => '-48.9900',
+      cep => '15805-500', estado => 'fixed - council',  cor => '#4682B4' },
+
+    { titulo => 'Lixo acumulado no ponto de ônibus',
+      detalhe => 'Sacos rasgados há dias, com mau cheiro forte. Quem espera o ônibus fica em pé na calçada.',
+      categoria => 'Lixo acumulado',  lat => '-21.1100', lon => '-48.9700',
+      cep => '15806-600', estado => 'confirmed',        cor => '#6E7B8B' },
+
+    { titulo => 'Faixa de pedestre apagada',
+      detalhe => 'A pintura sumiu quase toda. No horário de saída da escola é perigoso.',
+      categoria => 'Sinalizacao danificada', lat => '-21.1420', lon => '-48.9500',
+      cep => '15807-700', estado => 'confirmed',        cor => '#708090' },
+);
+
+my $problems = FixMyStreet::DB->resultset('Problem');
+
+# ------------------------------------------------------------------- limpar
+if ($opt{limpar}) {
+    my $rs = $problems->search({ title => [ map { $_->{titulo} } @EXEMPLOS ] });
+    my $n = $rs->count;
+    $_->comments->delete for $rs->all;
+    $rs->delete;
+    say "removidas: $n";
+    exit 0;
+}
+
+# -------------------------------------------------------------------- corpo
+my $body = FixMyStreet::DB->resultset('Body')->find({ name => $BODY })
+    or die "Orgao '$BODY' nao existe. Rode bin/catanduva/ambiente-local antes.\n";
+
+my $user = FixMyStreet::DB->resultset('User')->find_or_create({
+    email => 'exemplos@catanduva.local',
+    email_verified => 1,
+    name => 'Morador de Catanduva',
+});
+
+# --------------------------------------------------------------------- foto
+# Uma imagem distinta por ocorrencia, para dar para diferenciar as miniaturas
+# na listagem. Nao e foto de verdade - e um retangulo com o titulo escrito.
+sub gera_foto {
+    my ($texto, $cor) = @_;
+
+    my $img = Image::Magick->new;
+    $img->Set(size => '640x480');
+    $img->ReadImage("canvas:$cor");
+    $img->Annotate(
+        text => $texto, gravity => 'Center', fill => 'white',
+        pointsize => 28, font => 'DejaVu-Sans',
+    );
+    $img->Set(magick => 'JPEG', quality => 82);
+
+    my @blobs = $img->ImageToBlob;
+    return $blobs[0];
+}
+
+# -------------------------------------------------------------------- criar
+my $criadas = 0;
+for my $e (@EXEMPLOS) {
+    if ($problems->search({ title => $e->{titulo} })->count) {
+        say "ja existe, pulando: $e->{titulo}";
+        next;
+    }
+
+    my $blob = gera_foto($e->{titulo}, $e->{cor});
+    my $fileid = FixMyStreet::PhotoStorage->backend->store_photo($blob);
+
+    my $quando = DateTime->now->subtract(days => 1 + $criadas * 3);
+
+    my $p = $problems->create({
+        title      => $e->{titulo},
+        detail     => $e->{detalhe},
+        category   => $e->{categoria},
+        latitude   => $e->{lat},
+        longitude  => $e->{lon},
+        postcode   => $e->{cep},
+        state      => $e->{estado},
+        cobrand    => 'catanduva',
+        bodies_str => $body->id,
+        areas      => ',161,',
+        user       => $user,
+        name       => $user->name,
+        anonymous  => 0,
+        used_map   => 1,
+        confirmed  => $quando,
+        lastupdate => $quando,
+        whensent   => $quando,
+        photo      => "$fileid.jpeg",
+    });
+
+    # Aprovadas de proposito: sem isto o MOD-002 as esconde, e o objetivo aqui
+    # e justamente ver as fotografias no mapa e na listagem.
+    $p->set_extra_metadata(publish_photo => 1);
+    $p->update;
+
+    say sprintf('criada #%d  %-38s  %s', $p->id, $e->{titulo}, $e->{estado});
+    $criadas++;
+}
+
+say '';
+say "criadas: $criadas";
+say 'Mapa:      http://127.0.0.1.nip.io:3000/around?lat=-21.1383;lon=-48.9736;zoom=14';
+say 'Listagem:  http://127.0.0.1.nip.io:3000/reports';
+say '';
+say 'As fotografias ja entram aprovadas. Para ver o portao do MOD-002 agindo,';
+say 'limpe o publish_photo de uma delas pelo /admin e recarregue a pagina.';
