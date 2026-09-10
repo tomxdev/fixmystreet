@@ -369,8 +369,12 @@ subtest 'retention: a resolved report is anonymised once it is five years old' =
     # the wrong cobrand, which is exactly what it did the first time.
     # bin/catanduva/expurgo-lgpd refuses to run in that situation.
     FixMyStreet::override_config { ALLOWED_COBRANDS => ['catanduva'] }, sub {
-        is FixMyStreet::Cobrand->get_class_for_moniker('catanduva')->moniker,
-            'catanduva', 'the moniker resolves to this cobrand, not the default';
+        # Via a variable on purpose: `is Some::Class->method, ...` makes perl
+        # read the class name as an indirect object of is(), which parses into
+        # something else entirely and takes the whole file down with it.
+        my $resolved = FixMyStreet::Cobrand->get_class_for_moniker('catanduva')->moniker;
+        is $resolved, 'catanduva',
+            'the moniker resolves to this cobrand, not the default';
 
         # Exactly the arguments bin/catanduva/expurgo-lgpd passes. If the
         # retention period changes there, this has to change with it.
