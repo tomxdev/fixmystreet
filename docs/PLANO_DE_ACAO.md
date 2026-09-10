@@ -539,7 +539,7 @@ Identificadores conforme o padrão do prompt original.
 | INF-001 | **Levantar custo de 3 configurações** e escolher a cloud com número na mão (seção 4.1) | **Pronta** — redefinida | DevOps |
 | INF-002 | Provisionar ambiente de homologação | Depende de INF-001 | DevOps |
 | INF-003 | Registrar domínio próprio e configurar HTTPS | **Pronta** — domínio decidido | DevOps |
-| **INF-004** | **Eliminar chamada bloqueante ao Gaze** | **Pronta para execução** | Backend |
+| **INF-004** | **Eliminar chamada bloqueante ao Gaze** | ✅ **Concluída** — PR #8 | Backend |
 | INF-005 | Configurar envio de e-mail com SPF/DKIM/DMARC | Depende de INF-003 | DevOps |
 | INF-006 | Armazenamento de objetos para fotografias | **Pronta** — decidido usar objetos | DevOps |
 | INF-007 | Backup automatizado | Não iniciada | DevOps |
@@ -549,10 +549,10 @@ Identificadores conforme o padrão do prompt original.
 
 | ID | Tarefa | Situação | Resp. |
 |---|---|---|---|
-| **UX-001** | **Revisar tradução pt-BR** — já existe, não é do zero | **Pronta** | Frontend |
-| UX-002 | Criar cobrand `catanduva` | Pronta | Frontend |
+| **UX-001** | **Revisar tradução pt-BR** — já existe, não é do zero | ✅ **Concluída** — PRs #10 e #11 | Frontend |
+| UX-002 | Criar cobrand `catanduva` | ✅ **Concluída** — PR #9 | Frontend |
 | **UX-003** | **CEP por geocodificação reversa**, campo visível e editável | **Pronta** — decidida | Backend |
-| UX-004 | Adequar vocabulário (bairro, CEP, protocolo, prefeitura) | Pronta | Frontend |
+| UX-004 | Adequar vocabulário (bairro, CEP, protocolo, prefeitura) | ✅ **Concluída** — PR #12 | Frontend |
 | UX-005 | Validar fluxo em celular e rede lenta | Não iniciada | QA |
 | UX-006 | Auditoria de acessibilidade (WCAG/eMAG) | Não iniciada | Frontend |
 | UX-007 | Spec Cypress do cobrand e reativação no CI | Não iniciada | QA |
@@ -634,14 +634,14 @@ o projeto avança.
 | Release | Objetivo | Situação |
 |---|---|---|
 | **R0** | Repositório, ambiente local, GitFlow e CI | ✅ **Concluída** |
-| **R0.1** | Correções técnicas independentes de decisão | **Em execução** |
+| **R0.1** | Correções técnicas independentes de decisão | ✅ **Concluída** |
 | **R1** | **MVP demonstrável para apresentar à prefeitura** | Desbloqueada — depende de INF-001 |
 | R2 | Piloto controlado, público restrito | ⏳ Adiada — depende da resposta da prefeitura (RD-003) |
 | R3 | Lançamento limitado | ⏳ Adiada por R2 |
 | R4 | Evolução pós-piloto | — |
 
-**R0.1 — executável imediatamente**, sem depender de nenhuma decisão: INF-004, UX-001,
-UX-002 e UX-004.
+**R0.1 — concluída.** INF-004, UX-001, UX-002 e UX-004 estão em `develop`. Nenhuma
+delas dependeu de decisão pendente, como previsto.
 
 **R1 — conteúdo proposto.** O que precisa existir para a apresentação ter valor:
 
@@ -728,14 +728,17 @@ resto de R0.1 anda sem elas.
 
 ## 14. Próxima ação recomendada
 
-**Executar a R0.1**, que não depende de nenhuma decisão pendente:
+**R0.1 está concluída.** As quatro tarefas que não dependiam de decisão pendente
+foram entregues:
 
-1. **INF-004** — eliminar a chamada ao Gaze (ganho medido: ~2s por página de mapa)
-2. **UX-002** — criar o cobrand `catanduva`
-3. **UX-001** — revisar a tradução pt-BR existente
-4. **UX-004** — adequar vocabulário ao contexto municipal brasileiro
+1. ✅ **INF-004** — chamada ao Gaze eliminada (ganho medido: ~2s por página de mapa)
+2. ✅ **UX-002** — cobrand `catanduva` criado
+3. ✅ **UX-001** — tradução pt-BR revisada
+4. ✅ **UX-004** — vocabulário adequado ao contexto municipal brasileiro
 
-Em seguida, **UX-003** (CEP automático), agora desbloqueada.
+**A próxima tarefa é UX-003** (CEP por geocodificação reversa), agora desbloqueada e
+pré-requisito de R1: sem ela o cadastro quebra no Brasil, porque `problem.postcode` é
+`NOT NULL` (seção 3.2).
 
 Em paralelo, e sem depender de código: escolher **provedor de cloud** e **provedor de
 e-mail** (seção 13.2). São as duas únicas decisões que travam R1.
