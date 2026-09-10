@@ -1,0 +1,86 @@
+#!/usr/bin/env perl
+
+# LGPD-007 - expurgo automatico da retencao decidida para o piloto brasileiro.
+#
+# O prazo mora aqui, e nao numa linha de crontab, de proposito: e uma decisao
+# registrada no plano (secao 5, decisao 3), nao um parametro de operacao. Quem
+# for mudar o prazo tem de passar por este arquivo e pelo comentario abaixo.
+#
+# O que a rotina faz e ANONIMIZAR, nao apagar. As duas decisoes de LGPD se
+# combinam assim: a retencao de dado pessoal e de cinco anos (decisao 3), mas a
+# ocorrencia em si e interesse publico e fica (decisao 4). Anonimizar atende as
+# duas - some quem reportou, permanece o buraco na rua.
+#
+# So alcanca ocorrencias resolvidas ou fechadas, que e exatamente o escopo da
+# decisao: "retencao de ocorrencia resolvida". Uma ocorrencia que siga aberta
+# depois de cinco anos e um problema de operacao, nao de retencao, e some-la
+# calada seria esconder justamente o caso que merece atencao.
+
+use warnings;
+use v5.14;
+use utf8;
+
+BEGIN {
+    use File::Basename qw(dirname);
+    use File::Spec;
+    my $d = dirname(File::Spec->rel2abs($0));
+    require "$d/../../setenv.pl";
+}
+
+use FixMyStreet;
+use FixMyStreet::Script::Inactive;
+use Getopt::Long;
+use Pod::Usage;
+
+# Cinco anos, em meses - a unidade que o FixMyStreet::Script::Inactive entende.
+use constant RETENCAO_MESES => 60;
+
+my %h;
+GetOptions(\%h, 'verbose|v', 'help|h', 'commit|c') or exit 1;
+pod2usage(0) if $h{help};
+
+FixMyStreet::Script::Inactive->new(
+    anonymize => RETENCAO_MESES,
+    cobrand   => 'catanduva',
+    verbose   => $h{verbose},
+    # Inverte o padrao do script generico: nada e gravado sem --commit. Uma
+    # rotina que apaga dado pessoal nao deve ser destrutiva por descuido de
+    # quem a chama na mao.
+    #
+    # Com hifen, e nao dry_run: o BUILDARGS do Inactive faz
+    # $args{dry_run} = delete $args{'dry-run'} incondicionalmente, entao passar
+    # a forma com underscore seria sobrescrito por undef - e a rotina gravaria
+    # de verdade sem --commit, justamente o contrario do que se quer aqui.
+    'dry-run' => !$h{commit},
+)->reports;
+
+__END__
+
+=encoding utf-8
+
+=head1 NAME
+
+expurgo-lgpd - anonimiza ocorrências encerradas fora do prazo de retenção
+
+=head1 SYNOPSIS
+
+expurgo-lgpd --commit
+
+ Opções:
+   --commit      Grava de fato; sem isto a rotina só relata o que faria
+   --verbose     Lista cada ocorrência afetada
+   --help        Esta mensagem
+
+=head1 DESCRIÇÃO
+
+Anonimiza o autor de ocorrências do cobrand C<catanduva> que estejam resolvidas
+ou fechadas há mais de cinco anos, preservando a ocorrência.
+
+O prazo vem da decisão 3 da seção 5 do C<docs/PLANO_DE_ACAO.md>; a escolha por
+anonimizar em vez de apagar vem da decisão 4 da mesma seção.
+
+Pensado para rodar por cron - ver C<conf/crontab-catanduva>. Prazo declarado e
+não cumprido é pior do que prazo não declarado, então a rotina existe para que a
+política de privacidade possa afirmar o prazo com honestidade.
+
+=cut
