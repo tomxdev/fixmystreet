@@ -408,6 +408,41 @@ canal nenhum.
 ✅ **FATO.** Backup sem restauração testada não é backup. O plano exige **executar** uma
 restauração completa antes do lançamento — tarefa **SEC-005**.
 
+### 6.1 Distância para o upstream (SEC-004)
+
+✅ **FATO, medido em 10/09/2026.** O enunciado desta tarefa presumia atraso. Não é o caso:
+
+| Medida | Valor |
+|---|---|
+| Nossa baseline | `v6.0`, de 15/11/2024 |
+| Release mais recente do upstream | **`v6.0`** — a mesma |
+| Commits não publicados no master deles | 1574 |
+| Commits nossos | 54 |
+
+Confirmado por duas fontes: as tags após `git fetch --tags` e a API de releases do GitHub.
+**Estamos na última release estável** — não há versão nova para sincronizar, e portanto não
+há backlog de correções de segurança represado numa release que deixamos de aplicar.
+
+⚠️ **O risco real é outro.** São 22 meses de trabalho não publicado no master do upstream.
+Uma correção de segurança que caia lá antes de sair a `v7.0` **não chega até nós** — e,
+quando a sincronização vier, será grande. Isso não se resolve com vigilância; resolve-se
+decidindo, quando a `v7.0` sair, sincronizar cedo em vez de acumular.
+
+💡 **O acompanhamento virou script:** `bin/catanduva/checar-upstream`. Só lê, e responde as
+três perguntas que importam — saiu release nova, quanto se acumulou, as dependências
+andaram. Um processo que custa um comando é um processo que acontece.
+
+❓ **Ação pendente com você — 5 segundos.** Os alertas de vulnerabilidade do GitHub estão
+**desligados** neste fork (a varredura de segredos, essa está ligada, com proteção de push).
+Não liguei porque muda configuração do seu repositório e passa a gerar alertas na sua conta:
+
+    gh api -X PUT repos/tomxdev/fixmystreet/vulnerability-alerts
+
+⚠️ **Limite desta revisão.** A busca por commits de segurança é por palavra no assunto —
+achou dois, nenhum deles correção de vulnerabilidade. Não é auditoria: correção que não
+anuncie a palavra no título não aparece. Auditoria de verdade exige `cpan-audit` ou
+equivalente, ausente no ambiente.
+
 ---
 
 ## 7. Moderação
@@ -678,7 +713,7 @@ Identificadores conforme o padrão do prompt original.
 | SEC-001 | HTTPS obrigatório e HSTS | Depende de INF-003 | DevOps |
 | SEC-002 | Antiabuso por IP e e-mail | Não iniciada | Backend |
 | SEC-003 | 2FA nas contas administrativas | Não iniciada | DevOps |
-| SEC-004 | Revisar dependências e correções do upstream | Pronta | DevOps |
+| SEC-004 | Revisar dependências e correções do upstream | ✅ **Concluída** — PR #22 | DevOps |
 | **SEC-005** | **Testar restauração real do backup** | Depende de INF-007 | DevOps |
 | MOD-001 | Definir política de moderação | **Pronta** — decisões 3 e 4 tomadas | PO |
 | MOD-002 | Configurar aprovação prévia de fotografia | ✅ **Concluída** — PR #15 | Backend |

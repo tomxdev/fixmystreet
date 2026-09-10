@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+#
+# SEC-004 - relatorio de distancia para o upstream.
+#
+# "Acompanhar correcoes do upstream" so vira pratica se for barato de repetir.
+# Este script responde, em segundos, as tres perguntas que importam:
+#
+#   1. Saiu release nova? (e o que muda o trabalho de verdade)
+#   2. Quanto trabalho nao publicado se acumulou no master deles?
+#   3. As dependencias andaram?
+#
+# So le - nao altera nada, nem o working tree. Seguro de rodar a qualquer hora.
+
+set -u
+
+cd "$(dirname "$0")/../.." || exit 1
+
+BASELINE="${1:-v6.0}"
+
+if ! git remote get-url upstream >/dev/null 2>&1; then
+    echo "Nao ha remote 'upstream'. Adicione com:"
+    echo "  git remote add upstream https://github.com/mysociety/fixmystreet.git"
+    exit 1
+fi
+
+echo "Buscando upstream..."
+git fetch --quiet --tags upstream || { echo "falha ao buscar o upstream"; exit 1; }
+
+echo
+echo "== Baseline =="
+git log -1 --format='%h  %ci  %s' "$BASELINE" 2>/dev/null \
+    || { echo "baseline '$BASELINE' nao encontrada"; exit 1; }
+
+echo
+echo "== Release mais recente do upstream =="
+ultima=$(git tag -l 'v*' --sort=creatordate | tail -1)
+data=$(git log -1 --format='%ci' "$ultima" 2>/dev/null)
+echo "$ultima  ($data)"
+
+if [ "$ultima" != "$BASELINE" ]; then
+    echo
+    echo ">> HA RELEASE NOVA. Sincronizar com ela e a acao de maior retorno:"
+    echo "   uma release e trabalho ja estabilizado, ao contrario do master."
+else
+    echo "   (e a mesma da baseline - nao ha release nova para mirar)"
+fi
+
+echo
+echo "== Trabalho nao publicado no master do upstream =="
+printf 'commits desde a baseline: %s\n' "$(git rev-list --count "$BASELINE..upstream/master")"
+printf 'nossos commits proprios:  %s\n' "$(git rev-list --count upstream/master..develop 2>/dev/null || echo '?')"
+
+echo
+echo "== Commits que se anunciam como seguranca =="
+achados=$(git log --oneline "$BASELINE..upstream/master" \
+    --regexp-ignore-case \
+    --grep='securit' --grep='CVE' --grep='XSS' --grep='injection' \
+    --grep='vulnerab' --grep='sanitis' --grep='sanitiz')
+if [ -n "$achados" ]; then
+    echo "$achados"
+else
+    echo "(nenhum)"
+fi
+echo
+echo "Atencao: isto e busca por palavra no assunto do commit, nao auditoria."
+echo "Correcao de seguranca sem a palavra no titulo nao aparece aqui."
+
+echo
+echo "== Dependencias =="
+git diff --stat "$BASELINE..upstream/master" -- cpanfile cpanfile.snapshot package.json \
+    | sed 's/^/  /'
+
+echo
+echo "== Alertas de vulnerabilidade do GitHub =="
+if command -v gh >/dev/null 2>&1; then
+    if gh api repos/tomxdev/fixmystreet/vulnerability-alerts >/dev/null 2>&1; then
+        echo "  ligados"
+    else
+        echo "  DESLIGADOS - ligue com:"
+        echo "    gh api -X PUT repos/tomxdev/fixmystreet/vulnerability-alerts"
+    fi
+else
+    echo "  (gh ausente; nao foi possivel verificar)"
+fi
