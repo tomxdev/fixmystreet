@@ -451,4 +451,43 @@ subtest 'a citizen removes their own personal details' => sub {
     };
 };
 
+# --------------------------------------------------------------------- LGPD-005
+
+# The visibility table in section 5 of the plan says: the name is public only if
+# the reporter chose so, the email address and the phone number never are. The
+# upstream already behaves that way; these lock it, so that a template change
+# cannot quietly undo a privacy promise the policy makes in writing.
+subtest 'a public report page never carries the reporter contact details' => sub {
+    FixMyStreet::override_config { ALLOWED_COBRANDS => ['catanduva'] }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        # O telefone entra depois, e nao no create_user_ok: um find() com
+        # e-mail e telefone juntos exige tambem um dos campos _verified, e
+        # ResultSet::User morre sem ele. Aqui so queremos o numero gravado.
+        my $user = $mech->create_user_ok('privacidade@example.org',
+            name => 'Maria Silva');
+        $user->update({ phone => '+551799990000' });
+        my ($problem) = $mech->create_problems_for_body(1, $body->id, 'Buraco', {
+            user      => $user,
+            cobrand   => 'catanduva',
+            name      => 'Maria Silva',
+            anonymous => 'f',
+        });
+
+        $mech->log_out_ok;
+
+        $mech->get_ok('/report/' . $problem->id);
+        $mech->content_contains('Maria Silva',
+            'the name is shown, because this reporter did not ask to be anonymous');
+        $mech->content_lacks($user->email, 'the email address is not');
+        $mech->content_lacks('99990000', 'nor the phone number');
+
+        $problem->update({ anonymous => 1 });
+        $mech->get_ok('/report/' . $problem->id);
+        $mech->content_lacks('Maria Silva', 'once anonymous, the name goes too');
+        $mech->content_lacks($user->email, 'and the email address stays away');
+        $mech->content_lacks('99990000', 'and so does the phone number');
+    };
+};
+
 done_testing();

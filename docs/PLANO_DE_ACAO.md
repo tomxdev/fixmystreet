@@ -291,7 +291,15 @@ aplicação, sem serviço transacional, é a receita mais rápida para cair em s
 ⚠️ Esta seção **não substitui parecer jurídico**.
 
 ✅ **FATO — dados pessoais que o sistema coleta:** nome, e-mail, telefone (opcional),
-endereço IP, coordenadas do local reportado e fotografias.
+coordenadas do local reportado e fotografias.
+
+⚠️ **Correção (LGPD-005).** Versões anteriores desta seção listavam **endereço IP**. Não
+procede: a auditoria não encontrou coluna de IP em nenhuma tabela do `db/schema.sql`, a
+tabela `abuse` guarda apenas e-mail, e o cadastro de ocorrência não captura o endereço.
+Registros de acesso do servidor web podem conter IPs, mas isso é infraestrutura (`INF-002`,
+`INF-008`), não tratamento pela aplicação. Declarar tratamento que não existe é tão errado
+quanto omitir um que existe — e a política de privacidade (`LGPD-001`) vai se basear nesta
+lista.
 
 💡 **PROPOSTA — base legal e tratamento:**
 
@@ -300,9 +308,23 @@ endereço IP, coordenadas do local reportado e fotografias.
 | Nome | Identificar autor | Pública **apenas se o cidadão optar** (`may_show_name`) |
 | E-mail | Confirmar cadastro e notificar | **Nunca público** |
 | Telefone | Contato do órgão | **Nunca público** |
-| IP | Antiabuso | **Nunca público**, retenção curta |
 | Coordenada | Localizar o problema | Pública |
 | Fotografia | Evidenciar o problema | Pública **após moderação** |
+
+✅ **VERIFICADO (LGPD-005).** A auditoria confirmou que o código honra a tabela acima:
+
+- o nome só aparece quando a ocorrência não é anônima (`Problem::meta_line`), e o nome real
+  do autor só é revelado a quem tem `view_body_contribute_details`;
+- e-mail e telefone aparecem apenas em `report/inspect/information.html`, atrás de
+  `permissions.report_inspect` — visão de equipe, nunca pública;
+- o RSS troca o nome por "anonymous" (`Rss.pm:228`);
+- as três saídas JSON públicas não expõem dado pessoal: duas devolvem endereço e sugestões
+  do geocoder, e a terceira devolve pinos mais um fragmento HTML já renderizado pelos
+  templates — que por sua vez honram o `anonymous`.
+
+Nada precisou ser corrigido no código. O que faltava era **teste**: essas propriedades
+dependiam de todos lembrarem delas. Agora há um que falha se uma mudança de template
+desfizer a promessa que a política faz por escrito.
 
 **Situação das quatro decisões de LGPD:**
 
@@ -636,7 +658,7 @@ Identificadores conforme o padrão do prompt original.
 | LGPD-002 | Definir controlador e encarregado | **Parcial** — controlador ✔️, encarregado ❓ | Jurídico |
 | LGPD-003 | Definir prazos de retenção | ✔️ **Decidida** — 5 anos | Jurídico |
 | LGPD-004 | Implementar anonimização em pedido de exclusão | ✅ **Concluída** — PR #19 | Backend |
-| LGPD-005 | Revisar campos públicos versus privados | Pronta | Backend |
+| LGPD-005 | Revisar campos públicos versus privados | ✅ **Concluída** — PR #20 | Backend |
 | LGPD-006 | Registrar operações de tratamento | **Pronta** — controlador definido | Jurídico |
 | **LGPD-007** | **Rotina de expurgo automático aos 5 anos** | ✅ **Concluída** — PR #18 | Backend |
 | SEC-001 | HTTPS obrigatório e HSTS | Depende de INF-003 | DevOps |
