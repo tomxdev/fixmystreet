@@ -113,6 +113,15 @@ my @PLACES = (
     [ '?', 51.418776, 0.005357, 2492, 'Lewisham Borough Council', 'DIS' ],
     [ '?', 52.956196, -1.151204, 2412, 'Gedling Borough Council', 'DIS', 2236, 'Nottinghamshire County Council', 'CTY' ],
     [ '?', 51.293415, -0.441269, 2242, 'Surrey County Council', 'DIS'],
+    # Brasil - Catanduva/SP, para os testes de navegador do piloto brasileiro.
+    # Todos os pontos caem dentro do bounding box declarado em
+    # Cobrand/Catanduva.pm, e o tipo O08 (admin_level 8 do MapIt global, que e
+    # onde ficam os municipios brasileiros) casa com o area_types do cobrand.
+    # O id 900001 e sintetico: nao ha area brasileira nas listas acima, e o
+    # numero so precisa bater com o --area_id passado ao bin/browser-tests.
+    [ '15800-000', -21.1383, -48.9736, 900001, 'Prefeitura de Catanduva', 'O08' ], # Centro
+    [ '?',         -21.1375, -48.9770, 900001, 'Prefeitura de Catanduva', 'O08' ], # Centro, outra quadra
+    [ '?',         -21.1290, -48.9650, 900001, 'Prefeitura de Catanduva', 'O08' ], # zona norte
 );
 
 sub dispatch_request {

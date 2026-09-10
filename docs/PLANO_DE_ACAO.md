@@ -563,7 +563,7 @@ Identificadores conforme o padrão do prompt original.
 | UX-004 | Adequar vocabulário (bairro, CEP, protocolo, prefeitura) | ✅ **Concluída** — PR #12 | Frontend |
 | UX-005 | Validar fluxo em celular e rede lenta | Não iniciada | QA |
 | UX-006 | Auditoria de acessibilidade (WCAG/eMAG) | Não iniciada | Frontend |
-| UX-007 | Spec Cypress do cobrand e reativação no CI | Não iniciada | QA |
+| UX-007 | Spec Cypress do cobrand e reativação no CI | ✅ **Concluída** — PR #14 | QA |
 
 ### Fase 4 — LGPD, segurança e moderação
 
@@ -753,11 +753,19 @@ e-mail** (seção 13.2).
 
 Executáveis desde já, sem depender dessas escolhas:
 
-- **RD-005** — fechar as categorias iniciais (4 definidas, faltam de 1 a 4)
-- **UX-007** — spec Cypress do cobrand, que hoje é o único caminho para testar o
-  formulário de ponta a ponta
+- **RD-005** — fechar as categorias iniciais (4 definidas, faltam de 1 a 4). É decisão de
+  negócio, não de código: depende de quais serviços a prefeitura atende.
+- ✅ **UX-007** — spec Cypress do cobrand, entregue: o formulário passou a ser exercitado
+  de ponta a ponta, do mapa até a confirmação por e-mail.
 - **MOD-002** — aprovação prévia de foto, requisito de lançamento
 - **INT-005** — caixa postal do projeto como destino de demonstração
+
+**Achado em UX-007:** o cobrand `catanduva` não declarava `area_types`, então herdava o
+`MAPIT_TYPES` global (`ZZZ`) e **nenhuma área brasileira era encontrada** — o formulário
+de registro não acharia órgão algum. Cobrands fora do Reino Unido precisam declarar os
+próprios tipos, como o `FiksGataMi` faz para a Noruega. Corrigido para `O08`
+(admin_level 8 do MapIt global, onde ficam os municípios brasileiros); revisar junto de
+`INF-002`, quando o ambiente de homologação definir qual instância de MapIt vai usar.
 
 ---
 

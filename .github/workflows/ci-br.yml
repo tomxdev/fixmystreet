@@ -97,24 +97,126 @@ jobs:
     - name: Suite de testes
       run: ~/perl5/perlbrew/bin/perlbrew exec script/test --jobs 3 t
 
+  cypress:
+    # Roda so o spec do cobrand brasileiro. O workflow Cypress do upstream esta
+    # desabilitado neste fork e exercita os 20 cobrands britanicos - custo alto
+    # e nenhum deles e nosso.
+    #
+    # A fixture do bin/browser-tests cria UM orgao por execucao, no --area_id
+    # informado, e o padrao do script e Borsetshire. Por isso a invocacao passa
+    # as coordenadas e o orgao de Catanduva/SP, que precisam bater com os pontos
+    # acrescentados a t/Mock/MapIt.pm - senao o formulario nao acha orgao algum.
+    name: Cypress (cobrand catanduva)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: Setup node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 12.x
+
+    - name: Cache carton
+      uses: actions/cache@v4
+      with:
+        path: local
+        key: br-ubuntu22-carton-${{ hashFiles('cpanfile.snapshot') }}
+
+    - name: Cache perl
+      id: cache-perl
+      uses: actions/cache@v4
+      with:
+        path: ~/perl5
+        key: br-ubuntu22-perl-5.32.1
+
+    - name: Cache cypress
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.npm
+          ~/.cache/Cypress
+          node_modules
+        key: br-ubuntu22-node12-cypress-3.8.3
+
+    - name: Instalar perl 5.32.1
+      if: steps.cache-perl.outputs.cache-hit != 'true'
+      run: |
+        wget -qO - https://install.perlbrew.pl | bash
+        ~/perl5/perlbrew/bin/perlbrew install --notest 5.32.1
+        ~/perl5/perlbrew/bin/perlbrew clean
+
+    - name: Dependencias
+      run: |
+        sudo apt update
+        sudo apt install -y gettext language-pack-en language-pack-pt-base \
+          libimage-magick-perl
+        # O cobrand forca pt-br, e mySociety::Locale::change faz
+        # setlocale(LC_ALL, 'pt_BR.UTF-8'). Sem esse locale no sistema o
+        # setlocale falha, o gettext cai para o ingles e a pagina inteira sai
+        # traduzida pela metade - o die que avisaria disso esta comentado no
+        # commonlib (Locale.pm). Por isso geramos o locale e conferimos: um
+        # erro aqui e barulhento, ao contrario da falha original.
+        sudo locale-gen pt_BR.UTF-8
+        locale -a | grep -qi '^pt_BR\.utf8$' \
+          || { echo 'locale pt_BR.UTF-8 nao foi gerado - a pagina sairia em ingles'; exit 1; }
+        npm install cypress@3.8.3
+        ~/perl5/perlbrew/bin/perlbrew exec vendor/bin/carton install --deployment
+        commonlib/bin/gettext-makemo FixMyStreet
+        echo "$(npm bin)" >> $GITHUB_PATH
+
+    # O --spec e resolvido a partir do diretorio de trabalho, nao do --project
+    # que o bin/browser-tests passa (.cypress). Por isso o caminho vai completo:
+    # com 'cypress/integration/...' o Cypress procura em '../cypress/...' e nao
+    # acha nada.
+    - name: Spec do cobrand
+      run: |
+        ~/perl5/perlbrew/bin/perlbrew exec bin/browser-tests \
+          --cobrand catanduva \
+          --coords=-21.1383,-48.9736 \
+          --area_id 900001 \
+          --name 'Prefeitura de Catanduva' \
+          --body_cobrand catanduva \
+          run --spec .cypress/cypress/integration/catanduva.js
+
+    - name: Guardar capturas da falha
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: cypress-catanduva
+        path: |
+          .cypress/cypress/screenshots
+          .cypress/cypress/videos
+        if-no-files-found: ignore
+
   gate:
     # ESTE e o unico check que deve ser marcado como obrigatorio na protecao de
     # branch. Roda sempre (`if: always()`), inclusive quando a suite e pulada por
     # ser mudanca so de documentacao - garantindo que o check exista e nao trave a PR.
     name: CI BR
-    needs: [ changes, test ]
+    needs: [ changes, test, cypress ]
     if: always()
     runs-on: ubuntu-22.04
     steps:
     - name: Avaliar resultado
       run: |
-        echo "changes.code = ${{ needs.changes.outputs.code }}"
-        echo "test.result  = ${{ needs.test.result }}"
+        echo "changes.code   = ${{ needs.changes.outputs.code }}"
+        echo "test.result    = ${{ needs.test.result }}"
+        echo "cypress.result = ${{ needs.cypress.result }}"
         if [ "${{ needs.changes.result }}" != "success" ]; then
           echo "Deteccao de mudancas falhou."; exit 1
         fi
-        case "${{ needs.test.result }}" in
-          success)  echo "Suite passou.";        exit 0 ;;
-          skipped)  echo "Mudanca apenas de documentacao - suite pulada."; exit 0 ;;
-          *)        echo "Suite falhou ou foi cancelada."; exit 1 ;;
-        esac
+        # Os dois jobs sao pulados juntos quando a mudanca e so de documentacao,
+        # entao 'skipped' aqui nao e falha - e ausencia de trabalho a fazer.
+        for job in "suite:${{ needs.test.result }}" "cypress:${{ needs.cypress.result }}"; do
+          nome=${job%%:*}
+          resultado=${job#*:}
+          case "$resultado" in
+            success)  echo "$nome passou." ;;
+            skipped)  echo "$nome pulado - mudanca apenas de documentacao." ;;
+            *)        echo "$nome falhou ou foi cancelado."; exit 1 ;;
+          esac
+        done

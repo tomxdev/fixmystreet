@@ -18,6 +18,22 @@ sub country { 'BR' }
 sub languages { [ 'pt-br,Português,pt_BR' ] }
 sub language_override { 'pt-br' }
 
+=head2 area_types
+
+Cobrands outside the UK have to name their own MapIt types: C<Cobrand::Default>
+falls back to the global C<MAPIT_TYPES>, which ships as C<ZZZ>, and
+C<Cobrand::UK> hardcodes the British ones. FiksGataMi does the same for Norway.
+Without this, no Brazilian area ever matches and the reporting form finds no
+body at all.
+
+C<O08> is admin_level 8 in the OpenStreetMap-derived global MapIt, which is
+where Brazilian municipalities live. Revisit alongside INF-002, when the
+homologation environment settles which MapIt instance it points at.
+
+=cut
+
+sub area_types { [ 'O08' ] }
+
 # The pt_BR catalogue already renders this msgid as "Especifique um CEP, Nome de
 # Rua ou Bairro", so reuse it rather than introduce a string no catalogue has.
 # The wording itself is UX-001's to revise.
