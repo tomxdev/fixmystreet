@@ -734,7 +734,7 @@ Identificadores conforme o padrão do prompt original.
 | **UX-003** | **CEP por geocodificação reversa**, campo visível e editável | ✅ **Concluída** — PR #13 | Backend |
 | UX-004 | Adequar vocabulário (bairro, CEP, protocolo, prefeitura) | ✅ **Concluída** — PR #12 | Frontend |
 | UX-005 | Validar fluxo em celular e rede lenta | Não iniciada | QA |
-| UX-006 | Auditoria de acessibilidade (WCAG/eMAG) | Não iniciada | Frontend |
+| UX-006 | Auditoria de acessibilidade (WCAG/eMAG) | ✅ **Parcial** — PR #27; ver limites | Frontend |
 | UX-007 | Spec Cypress do cobrand e reativação no CI | ✅ **Concluída** — PRs #14 e #15 | QA |
 
 ### Fase 4 — LGPD, segurança e moderação
@@ -948,3 +948,4 @@ próprios tipos, como o `FiksGataMi` faz para a Noruega. Corrigido para `O08`
 - [`LGPD_REGISTRO_TRATAMENTO.md`](LGPD_REGISTRO_TRATAMENTO.md) — registro de operações de
   tratamento (LGPD art. 37)
 - [`PLANO_DE_TESTES.md`](PLANO_DE_TESTES.md) — aceitação manual, e o que nenhum teste alcança
+- [`ACESSIBILIDADE.md`](ACESSIBILIDADE.md) — auditoria de marcação, e o que ela não alcança

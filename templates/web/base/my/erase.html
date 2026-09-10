@@ -5,7 +5,10 @@
 <h1>[% loc('Remove my personal details') %]</h1>
 
 [% IF erase_error %]
-    <p class="form-error">[% erase_error %]</p>
+    [%# role=alert faz o leitor de tela anunciar o erro assim que a pagina
+        recarrega, em vez de exigir que a pessoa navegue ate ele para descobrir
+        por que nada aconteceu. %]
+    <p class="form-error" role="alert">[% erase_error %]</p>
 [% END %]
 
 <p>
