@@ -1912,6 +1912,10 @@ msgstr ""
 msgid "First time"
 msgstr "Primeira vez"
 
+#: templates/web/catanduva/report/new/after_title.html:41
+msgid "Five digits, a hyphen, then three digits."
+msgstr "Cinco dígitos, um hífen, e mais três dígitos."
+
 #: templates/web/base/dashboard/heatmap-list.html:4
 msgid "Five most recent commented reports"
 msgstr ""

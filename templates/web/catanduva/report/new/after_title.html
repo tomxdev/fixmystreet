@@ -40,4 +40,8 @@
        autocomplete="postal-code"
        maxlength="9"
        pattern="[0-9]{5}-?[0-9]{3}"
+       [%# Sem o title, o navegador recusa o envio com um generico "corresponda
+           ao formato solicitado", que nao diz qual formato. Com ele, a mensagem
+           - lida tambem por leitor de tela - explica o que se espera. %]
+       title="[% loc('Five digits, a hyphen, then three digits.') %]"
        aria-describedby="cep-hint">
