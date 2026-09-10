@@ -177,10 +177,18 @@ sub load_problem_or_display_error : Private {
             unless $c->cobrand->show_unconfirmed_reports ;
     }
     elsif ( $problem->hidden_states->{ $problem->state } ) {
+        # MOD-005. Where the cobrand asks for it, whoever wrote the report can
+        # still read it: contesting a removal without being able to see what was
+        # removed is a right in name only. Everyone else still gets the 410.
+        my $is_author = $c->user_exists && $problem->user
+            && $c->user->id == $problem->user->id;
+
         $c->detach(
             '/page_error_410_gone',
             [ _('That report has been removed from FixMyStreet.') ]    #
-        );
+        ) unless $is_author && $c->cobrand->call_hook('show_hidden_reports_to_author');
+
+        $c->stash->{hidden_for_author} = 1;
     } elsif ( $problem->non_public ) {
         # Creator, and inspection users can see non_public reports
         $c->stash->{problem} = $problem;

@@ -241,6 +241,20 @@ sub report_moderate_after {
     $problem->update;
 }
 
+=head2 show_hidden_reports_to_author
+
+MOD-005. A report hidden by moderation stays readable to the person who wrote
+it, and to nobody else.
+
+Contesting a removal without being able to read what was removed is a right in
+name only - and the author already knows the content, they wrote it. What
+changes here is only that they are told, rather than meeting a bare 410 that
+explains nothing and offers nowhere to go.
+
+=cut
+
+sub show_hidden_reports_to_author { 1 }
+
 =head2 allow_self_service_erasure
 
 LGPD-004. The right to have one's data erased is the titular's, and making them

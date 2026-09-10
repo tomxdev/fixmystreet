@@ -509,6 +509,22 @@ piloto, com volume conhecido, continua sendo a recomendação.
 para **receber e protocolar** a contestação. A decisão sobre restabelecer o conteúdo
 precisa de pessoa: é justamente o caso em que a moderação já errou uma vez.
 
+✅ **IMPLEMENTADO (MOD-005).** O upstream já tinha metade do caminho: o formulário de
+contato aceita `?id=` e, no envio, compõe *"Complaint about report N"* e **marca a
+ocorrência como sinalizada**, que a lista no admin. Isso é o "receber e protocolar", e o
+número da ocorrência é a referência — não há protocolo separado a inventar.
+
+O que faltava era o caminho de entrada. Uma ocorrência escondida devolvia **410 a todo
+mundo, inclusive a quem a escreveu**: sem explicação, sem para onde ir.
+
+✔️ **DECIDIDO — o autor continua vendo a própria ocorrência escondida.** Contestar uma
+remoção sem poder ler o que foi removido é um direito de fachada, e o autor já conhece o
+conteúdo: foi ele quem escreveu. Para todo o resto do mundo, segue 410.
+
+Vale registrar o que o upstream deixou pela metade: existe um fluxo de contestação por
+token de escopo `moderation` (`Contact.pm:85`), com template próprio — mas **nada no código
+cria esse token**. O caminho implementado aqui não depende dele.
+
 ⚠️ **Risco operacional.** Moderação manual é o gargalo mais provável do piloto. Se ninguém
 tiver tempo garantido para isso, a fila cresce e o serviço perde credibilidade. Melhor
 **limitar a área de cobertura** do que aceitar volume que não se consegue moderar.
@@ -719,7 +735,7 @@ Identificadores conforme o padrão do prompt original.
 | MOD-002 | Configurar aprovação prévia de fotografia | ✅ **Concluída** — PR #15 | Backend |
 | MOD-003 | Treinar moderador | ❓ Pendente por RD-007 | PO |
 | **MOD-004** | **Fixar prazo de moderação em horas** (proposta: 24h) | ❓ Pendente | PO |
-| **MOD-005** | **Canal automatizado de contestação de remoção** | Pronta | Backend |
+| **MOD-005** | **Canal automatizado de contestação de remoção** | ✅ **Concluída** — PR #23 | Backend |
 | **MOD-006** | **Fluxo de redirecionamento de denúncia de crime à autoridade** | Pronta | PO |
 
 ### Fase 5 — Transparência e redes sociais

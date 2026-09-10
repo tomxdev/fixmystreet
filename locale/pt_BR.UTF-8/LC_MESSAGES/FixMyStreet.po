@@ -1088,6 +1088,10 @@ msgstr "Contato"
 msgid "Contact the team"
 msgstr "Contactar o time"
 
+#: templates/web/base/report/banner.html:20
+msgid "Contest this removal"
+msgstr "Contestar esta remoção"
+
 #. ("JS")
 #: templates/web/base/js/translation_strings.html:61
 #: templates/web/base/report/form/user.html:13
@@ -2365,6 +2369,12 @@ msgstr "Se você está nos contatando sobre uma ocorrência ou atualização esp
 #: templates/web/fixmystreet.com/contact/unsuitable-text.html:6
 msgid "If you are trying to make a new report, please <a href=\"/\">go to the front page</a> and follow the instructions."
 msgstr "Se você está tentando registrar uma nova ocorrência, <a href=\"/\">vá para a página inicial</a> e siga as instruções."
+
+#: templates/web/base/report/banner.html:19
+msgid ""
+"If you believe that was a mistake, you can contest it, quoting report %s."
+msgstr ""
+"Se acredita que houve engano, você pode contestar, citando a ocorrência %s."
 
 #: templates/web/base/auth/generate_token.html:80
 msgid "If you generate a new token the existing token will no longer work."
@@ -5879,6 +5889,11 @@ msgstr "Esta ocorrência está atualmente marcada como aberta."
 #: templates/web/fixmystreet.com/report/_updates_disallowed_message.html:12
 msgid "This report is now closed to updates from the public."
 msgstr "Esta ocorrência não aceita mais atualizações do público."
+
+#: templates/web/base/report/banner.html:17
+msgid "This report was removed by moderation. Nobody else can see it."
+msgstr ""
+"Esta ocorrência foi removida pela moderação. Mais ninguém consegue vê-la."
 
 #: templates/web/base/admin/sitemessage/edit.html:16
 #, fuzzy
