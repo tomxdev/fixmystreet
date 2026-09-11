@@ -121,3 +121,18 @@ $status-closed: rgb(135, 148, 154);
 // do design system e nao exige sobrescrever cada componente, porque o mixin de
 // botao ja le esta variavel.
 $button-border-radius: 8px;
+
+// Fundo do bloco de conteudo da home.
+//
+// O upstream pinta .content de branco e, quando esta variavel iguala o fundo da
+// pagina, ele proprio troca o padding do bloco. Era o ponto de extensao correto:
+// a primeira tentativa sobrescreveu .content no cobrand e perdeu para o
+// layout.scss por cascata, o mesmo tropeco que D-010 registra.
+//
+// Com o bloco no tom da pagina, os cartoes da lista passam a ter contra o que
+// contrastar — antes eram brancos sobre branco.
+$content-background-desktop: $background;
+
+// Largura reservada para o CTA no cabecalho, para o menu nao escorregar por
+// baixo dele. Declarada uma vez e lida pelos dois lados.
+$cta-slot: 11rem;

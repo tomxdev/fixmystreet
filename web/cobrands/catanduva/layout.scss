@@ -68,3 +68,65 @@ h1 {
 .nav-menu--main span {
     font-size: var(--font-body-sm);
 }
+
+// No desktop o upstream esconde o CTA do cabecalho. Traze-lo de volta e o que
+// resolve UI-003 sem tocar em template — o elemento sempre esteve no HTML.
+#report-cta {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+}
+
+// Respiro maior no desktop, onde ha espaco para ele.
+.frontpage .content {
+    padding-block: var(--space-12);
+}
+
+// O CTA e absoluto e ancorado a direita, onde no desktop mora a navegacao. Sem
+// reservar a faixa, ele cai por cima de "Alertas locais" e "Ajuda" — foi o que
+// a primeira validacao desta fase mostrou.
+#report-cta {
+    #{$right}: 0;
+    min-width: $cta-slot;
+    justify-content: center;
+}
+
+// A reserva vai na margem do #main-nav, e nao no padding do .container: o
+// container e content-box, entao padding ali alargava a caixa em vez de
+// empurrar o menu, e o CTA continuava por cima.
+#main-nav {
+    margin-#{$right}: calc(#{$cta-slot} + var(--space-6));
+}
+
+// As duas colunas da home sao celulas de tabela, e celula de tabela iguala a
+// altura das irmas: a coluna dos passos tem 337px de conteudo e era esticada a
+// 614px para acompanhar a lista ao lado, deixando um vazio branco embaixo do
+// cartao.
+//
+// Flex resolve sem tocar no HTML. Fica so nesta folha, que vale a partir de
+// 768px: no celular as colunas precisam continuar empilhadas.
+// O seletor precisa do filho direto: o rodape carrega um segundo .tablewrapper
+// (.footer-marketing), e a primeira versao desta regra transformou os dois
+// paragrafos do rodape em colunas lado a lado.
+.frontpage .content > .tablewrapper {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-6);
+
+    > div {
+        display: block;
+        flex: 1 1 0;
+        min-width: 0;
+    }
+}
+
+// Na propria home o CTA aponta para "/", ou seja, para a pagina onde ja se esta.
+// Mostra-lo ali seria um botao de destaque que nao leva a lugar nenhum, e o
+// caminho de registro na home e a busca por endereco dentro do hero.
+//
+// Isto deixa UI-003 parcialmente aberto de proposito: o CTA agora existe no
+// desktop das demais paginas, mas dar a home um CTA de verdade exige um href
+// diferente, e href e template — fora do que D-001 permite mexer sem combinar.
+.frontpage #report-cta {
+    display: none;
+}

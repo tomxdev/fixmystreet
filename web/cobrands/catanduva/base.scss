@@ -458,3 +458,78 @@ small,
 #front-main {
     padding-block: var(--space-8);
 }
+
+// ---------------------------------------------------------------------------
+// Composicao — Fase 5
+// ---------------------------------------------------------------------------
+//
+// Referencia de COMPOSICAO, nao de identidade. As secoes 13.1 e 13.2 do plano
+// proibem reproduzir a identidade visual de outra plataforma; o que se toma
+// emprestado aqui sao padroes genericos de composicao — CTA separado do menu,
+// hero com titulo expressivo e regra decorativa, respiro vertical generoso,
+// conteudo sobre fundo neutro em vez de um unico bloco branco. Paleta,
+// tipografia e marca continuam sendo as definidas em 13.1.
+
+// CTA de registrar ocorrencia.
+//
+// O elemento ja existia no cabecalho e estava escondido no desktop, entao o
+// achado UI-003 — "a home nao tem CTA de registrar" — se resolve sem tocar em
+// template. Coral com texto escuro, conforme D-004: branco sobre coral da 2.79.
+#report-cta {
+    background: var(--color-accent);
+    color: var(--color-text-primary);
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 0 var(--space-4);
+    font-weight: 700;
+    text-decoration: none;
+
+    &:hover,
+    &:focus {
+        background: mix($coral, $black, 90%);
+        color: var(--color-text-primary);
+        text-decoration: none;
+    }
+}
+
+// Regra decorativa do hero, entre o titulo e o subtitulo.
+#front-main h1::after {
+    content: "";
+    display: block;
+    width: 72px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--color-secondary);
+    margin-top: var(--space-4);
+}
+
+// Home sobre fundo neutro.
+//
+// O conteudo da home vinha dentro de um unico bloco branco, e os cartoes da
+// lista — brancos tambem — nao se distinguiam do proprio fundo. Deixando o
+// bloco transparente, a cor de fundo da pagina aparece e os cartoes passam a
+// ter contra o que contrastar.
+.frontpage {
+    h2 {
+        margin-bottom: var(--space-4);
+    }
+
+    // Coluna dos passos vira superficie propria. A coluna da direita fica
+    // transparente de proposito: os itens da lista ja sao cartoes, e um cartao
+    // dentro de outro achata a hierarquia em vez de organiza-la.
+    .tablewrapper > div:first-child {
+        background: var(--color-surface);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        padding: var(--space-6);
+    }
+}
+
+// Respiro entre o hero e o conteudo.
+//
+// Precisa mirar .content, e nao .container: .container e uma classe generica que
+// o cabecalho tambem usa, e a primeira versao desta regra engordou o cabecalho
+// em 64px no celular, abrindo um vazio branco antes do hero.
+.frontpage .content {
+    padding-block: var(--space-8);
+}

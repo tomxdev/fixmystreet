@@ -258,3 +258,44 @@ ruído e o olho perde a capacidade de percorrer rapidamente.
 
 **Consequência.** Quando a Fase 7 tratar painel e listagem, a densidade é o
 critério — separação por linha ou por espaçamento, não por elevação.
+
+---
+
+## `D-018` · Referência externa entra como composição, nunca como identidade
+
+**Decisão.** O **colab.com.br** é referência de composição e hierarquia para esta
+evolução. Dele se tomam padrões genéricos — CTA separado do menu, hero com regra
+decorativa, respiro vertical, conteúdo sobre fundo neutro. Não se tomam cores,
+marca, tipografia nem arranjo específico de tela.
+
+**Porquê.** §13.1 proíbe "copiar diretamente a identidade visual de outra
+plataforma", e §13.2 diz que referências externas servem para melhorar UX,
+composição e hierarquia — não para reproduzir identidade. O Colab é, além disso,
+uma plataforma do mesmo domínio no mesmo país: imitar sua identidade seria ruim
+por mais de um motivo.
+
+**Consequência.** Toda regra desta fase se justifica por um princípio de
+composição, não por "assim está no Colab".
+
+---
+
+## `D-019` · Seletor amplo se verifica na tela, não só na medição
+
+**Decisão.** Regra escrita sobre classe genérica (`.container`, `.tablewrapper`,
+`.content`) exige captura de tela antes de ser dada por boa, e de preferência
+filho direto em vez de descendente.
+
+**Porquê.** Três erros de escopo nesta fase, nenhum apanhado pela varredura
+numérica:
+
+| Seletor | Efeito não previsto |
+|---|---|
+| `.frontpage .container` | pegou o `.container` do cabeçalho: +64px de altura no celular |
+| `.frontpage .tablewrapper` | pegou o `.tablewrapper` do rodapé: parágrafos em duas colunas |
+| `padding` no `.container` | caixa é `content-box`: alargou em vez de empurrar |
+
+Contraste, overflow e alvos de toque seguiam em zero falhas nos três casos.
+
+**Consequência.** A varredura mede o que é mensurável. Layout quebrado continua
+sendo assunto de olho humano — ou, aqui, de captura comparada. É a segunda vez
+nesta iniciativa (a primeira foi `display: flex` na Fase 3).

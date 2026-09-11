@@ -128,3 +128,19 @@ sombra estavam declarados com consumo zero (`D-016`).
 - [ ] Varredura de consistência entre páginas
 - [ ] Revisão de microcópia
 - [ ] Screenshots finais dos quatro viewports
+
+---
+
+## Phase 5b — Composição ✅
+
+Inserida a pedido do responsável, com o **colab.com.br** como referência de
+composição (`D-018`). Não substitui a Phase 5 original (fluxo de registro e
+mapa), que segue pendente.
+
+- [x] Conteúdo sobre fundo neutro, via `$content-background-desktop`
+- [x] Colunas da Home dimensionadas pelo conteúdo, não por célula de tabela
+- [x] Regra decorativa no hero
+- [x] CTA destacado no cabeçalho, fora da Home (`D-004`)
+- [x] Respiro vertical com os tokens de espaçamento
+- [ ] `UI-003` — CTA na própria Home: exige `href` diferente, e `href` é template
+- [ ] Superfície das listas densas (`D-017`) — Phase 7
