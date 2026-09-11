@@ -132,3 +132,13 @@ $button-border-radius: 8px;
 // Com o bloco no tom da pagina, os cartoes da lista passam a ter contra o que
 // contrastar — antes eram brancos sobre branco.
 $content-background-desktop: $background;
+
+// PROPOSTA — familia tipografica.
+//
+// O upstream expoe as tres pilhas como !default, entao trocar a fonte e questao
+// de variavel, nao de sobrescrita. A pilha herdada (MuseoSans) vem do
+// FixMyStreet britanico; Inter e uma sans de interface contemporanea, com
+// altura-x maior e numerais tabulares.
+$body-font: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+$meta-font: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+$heading-font: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;

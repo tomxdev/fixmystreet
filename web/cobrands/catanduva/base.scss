@@ -567,3 +567,91 @@ body:not(.frontpage) {
 .frontpage #report-cta {
     display: none;
 }
+
+// ---------------------------------------------------------------------------
+// PROPOSTA DE CONCEITO — nao mesclar sem aprovacao
+// ---------------------------------------------------------------------------
+//
+// Demonstra os tres pontos que saem do "so sobrescrever variavel":
+// 1. familia tipografica (ver _colours.scss e templates/.../header_extra.html)
+// 2. respiro e composicao do hero e do cabecalho
+// 3. sistema de superficie com borda em vez de sombra pesada
+
+// Inter tem altura-x maior que MuseoSans, entao o mesmo corpo parece maior. A
+// entrelinha compensa, e o tracking negativo nos titulos e o que da a densidade
+// de uma interface atual em vez de um documento.
+body {
+    -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+    letter-spacing: -0.02em;
+}
+
+#front-main h1 {
+    letter-spacing: -0.03em;
+}
+
+// Cabecalho com mais ar. 64px e altura de barra de ferramentas; 80px e altura de
+// cabecalho de produto.
+#site-header {
+    .container {
+        padding-block: var(--space-3);
+    }
+}
+
+// Campo de busca do hero: maior, com raio, e o botao integrado a caixa.
+.postcode-form-box {
+    div {
+        border: none;
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+        max-width: 34rem;
+    }
+
+    input#pc {
+        padding: var(--space-4);
+        font-size: var(--font-body-lg);
+        border: none;
+    }
+
+    input#sub {
+        padding-inline: var(--space-6);
+        font-weight: 700;
+        border-radius: 0;
+    }
+}
+
+// Superficie por borda, nao por sombra.
+//
+// Sombra em todo cartao deixa a pagina pesada; uma borda de 1px no tom da marca,
+// bem diluida, separa com menos ruido e sustenta melhor o fundo claro.
+.frontpage {
+    .tablewrapper > div:first-child,
+    .item-list--front-page .item-list__item {
+        box-shadow: none;
+        border: 1px solid mix($teal, $white, 12%);
+        border-radius: var(--radius-lg);
+    }
+
+    .item-list--front-page .item-list__item:hover {
+        box-shadow: none;
+        border-color: mix($teal, $white, 35%);
+    }
+
+    // Passos numerados: o numero vira marcador circular em vez de digito solto.
+    .big-numbers > li:before {
+        background: var(--color-soft-blue);
+        color: var(--color-primary-dark);
+        border-radius: 999px;
+        width: 2.25rem;
+        height: 2.25rem;
+        line-height: 2.25rem;
+        text-align: center;
+        font-size: var(--font-body);
+        font-weight: 700;
+    }
+}
