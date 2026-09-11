@@ -47,26 +47,8 @@ a.platform-logo {
     }
 }
 
-// Os dois degraus maiores crescem a partir do tablet. No celular 40px faria o
-// titulo do hero quebrar em quatro linhas.
-#front-main h1 {
-    font-size: 2.5rem; // 40px
-}
-
-h1 {
-    font-size: 2rem; // 32px
-}
-
 #front-main {
     padding-block: var(--space-12);
-}
-
-// A navegacao em desktop tem regra propria nesta folha, que vence a do base por
-// ordem de cascata — mesmo caso de D-010. Sem repetir aqui, os links continuam
-// nos 14.4px do em composto.
-.nav-menu--main a,
-.nav-menu--main span {
-    font-size: var(--font-body-sm);
 }
 
 // Respiro maior no desktop, onde ha espaco para ele.
@@ -131,4 +113,22 @@ h1 {
 // diferente, e href e template — fora do que D-001 permite mexer sem combinar.
 .frontpage .report-a-problem-btn {
     display: none;
+}
+
+// Os dois degraus de topo so entram onde ha largura para eles. No celular o hero
+// fica um degrau abaixo, senao o titulo quebra em quatro linhas.
+//
+// A navegacao precisa ser repetida aqui: o layout.scss tem regra propria para ela
+// e vence a do base por cascata (D-010).
+#front-main h1 {
+    font-size: var(--f-hero);
+}
+
+h1 {
+    font-size: var(--f-page);
+}
+
+.nav-menu--main a,
+.nav-menu--main span {
+    font-size: var(--f-body);
 }

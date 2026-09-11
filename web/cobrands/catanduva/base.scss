@@ -655,3 +655,150 @@ h3 {
         font-weight: 700;
     }
 }
+
+// ---------------------------------------------------------------------------
+// PROPOSTA v2 — escala modular e cores de fato
+// ---------------------------------------------------------------------------
+//
+// A v1 trocou a fonte mas manteve degraus herdados: 40 / 24 / 18 / 16 / 14, com
+// razoes de 1.67, 1.33, 1.13 e 1.14. Isso nao e escala, e acumulo — e foi o que
+// o responsavel notou como "tamanhos que nao conversam entre si".
+//
+// Agora ha uma razao unica, 1.25 (tercia maior), ancorada em 16px:
+//
+//   0.8rem  12.8   legenda, metadados
+//   1rem    16     corpo, navegacao
+//   1.25rem 20     linha de apoio
+//   1.5625  25     titulo de cartao
+//   1.953   31.25  titulo de secao
+//   2.441   39     h1 de pagina / h1 do hero no celular
+//   3.052   48.8   h1 do hero no desktop
+:root {
+    --f-caption: 0.8rem;
+    --f-body: 1rem;
+    --f-lead: 1.25rem;
+    --f-card: 1.5625rem;
+    --f-section: 1.953rem;
+    --f-page: 2.441rem;
+    --f-hero: 3.052rem;
+}
+
+#front-main h1 {
+    font-size: var(--f-page); // no celular; o desktop sobe no layout.scss
+    line-height: 1.05;
+}
+
+#front-main h2 {
+    font-size: var(--f-lead);
+    line-height: 1.45;
+    font-weight: 400;
+}
+
+h1 {
+    font-size: var(--f-section);
+    line-height: 1.15;
+}
+
+h2 {
+    font-size: var(--f-section);
+    line-height: 1.2;
+}
+
+h3 {
+    font-size: var(--f-card);
+    line-height: 1.25;
+    font-weight: 600;
+}
+
+// Titulo de item de lista fica um degrau abaixo do titulo de cartao solto. Em
+// 25px, com cinco itens, quase todos quebravam em duas linhas e a lista passava
+// a competir com o titulo da secao em vez de se subordinar a ele.
+.item-list__heading {
+    font-size: var(--f-lead);
+    line-height: 1.3;
+    font-weight: 600;
+}
+
+small,
+.item-list__update-text {
+    font-size: var(--f-caption);
+    line-height: 1.5;
+}
+
+// Navegacao em corpo cheio. 14px era herdado do em composto e fazia o menu
+// parecer nota de rodape ao lado de um h1 de 48px.
+.nav-menu a,
+.nav-menu span {
+    font-size: var(--f-body);
+}
+
+// Os contadores.
+//
+// Vinham em 39px com entrelinha 16 — um numero maior que o titulo de secao,
+// quase do tamanho do h1 do hero, e com as linhas se tocando. Passam a ser o
+// degrau de secao, que e o peso que a informacao tem: apoio, nao manchete.
+// O upstream marca os contadores com <big>, tag que o HTML5 aposentou — dai o
+// seletor ser pelo nome do elemento e nao por classe.
+.frontpage .full-width big,
+.big-numbers big {
+    font-size: var(--f-section);
+    line-height: 1.1;
+    font-weight: 700;
+}
+
+// O botao de busca nao tinha entrelinha declarada.
+.postcode-form-box input#sub {
+    line-height: 1.5;
+}
+
+// Cores de texto.
+//
+// A paleta estava declarada e a pagina continuava em #222 e #666, que sao do
+// upstream e vencem por especificidade em regras espalhadas. Medido: #222 em 11
+// elementos, #666 em 5, e o token real em apenas 5. A cor dominante da interface
+// nao era a da identidade.
+body,
+p,
+li,
+dd,
+dt,
+td,
+th,
+label,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.item-list__heading {
+    color: $base_fg;
+}
+
+small,
+.form-hint,
+.item-list__update-text {
+    color: $mediumgrey;
+}
+
+// O hero fica de fora da regra de cor acima.
+//
+// Aquela regra lista h1..h6 nominalmente, e seletor de elemento vence a cor que
+// o #front-main passa por heranca. Resultado: o titulo e o label do CEP ficaram
+// escuros sobre o teal, contraste 2.29. E o UI-001 pela terceira vez nesta
+// iniciativa, e pela terceira vez por um seletor mais largo do que devia.
+//
+// Reafirmar aqui e mais legivel que encadear :not() na regra anterior.
+#front-main {
+    h1,
+    h2,
+    h3,
+    p,
+    label {
+        color: $primary_text;
+    }
+
+    .form-hint {
+        color: transparentize($primary_text, 0.2);
+    }
+}
