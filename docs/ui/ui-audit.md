@@ -391,3 +391,70 @@ offset: a conta do upstream volta a fechar sozinha.
 `UI-003`, `UI-005`, `UI-006`, `UI-007`, `UI-010`, `UI-011`, `UI-012`, `UI-016`, e
 a parte não aplicada de `UI-008` — todos nas fases às quais o roadmap já os
 atribuiu.
+
+---
+
+# Situação após a Fase 3 — Componentes fundamentais
+
+> Revalidado com Playwright MCP em 390 / 768 / 1024 / 1440, nas rotas `/`,
+> `/around` e `/report/:id`.
+
+## Resolvidos
+
+| Achado | Como | Verificação |
+|---|---|---|
+| `UI-012` | Alvo mínimo de 44px em navegação, `#key-tools` e `#report-cta` | **0** controles autônomos abaixo de 44px, nos quatro viewports |
+| `UI-007` (metade visual) | Cada `.banner--*` recebeu a cor do seu estado | "Em execução" deixa de ser visualmente idêntico a "Encerrado" |
+
+O botão neutro, os campos de formulário e o anel de foco passaram a sair dos
+tokens. A borda de campo era `#aaa` — **2.32:1**, abaixo do 3:1 que a WCAG 1.4.11
+exige para o contorno de um controle. Agora é `#767C82`, **4.03:1**.
+
+`UI-007` continua **aberto pela metade**: a cor foi resolvida, a tradução não.
+"Action scheduled" segue em inglês, e isso é conteúdo, não CSS — Fase 6.
+
+## Encontrado e corrigido: uma regressão da Fase 2
+
+### `UI-020` · O deslocamento do cabeçalho vazava para páginas comuns
+
+A Fase 2 escreveu, no `layout.scss`:
+
+```scss
+.dev-site-notice ~ .wrapper {
+  #site-header { top: $dev-notice-height; }
+}
+```
+
+Sem `.mappage`. Nas páginas de mapa o `#site-header` é `position: absolute`, e o
+`top` faz o que se espera. **Nas páginas comuns ele é `position: relative`** — o
+deslocamento é visual, o espaço original continua ocupado, e o cabeçalho desceu
+40px por cima do hero, cortando o `h1` da Home.
+
+```
+#site-header   position: relative   top: 40px   →   renderiza em y=80
+#front-main    y=104
+h1             y=120, coberto
+```
+
+**Por que passou.** A regra entrou na Fase 2 e eu revalidei `/report/:id` depois
+dela — que é página de mapa, onde ela funciona. Não revalidei a Home em desktop
+após a última edição do `layout.scss`. A captura `fase2-home-1440.png` é anterior
+a essa edição, então nem a evidência mostrava o problema.
+
+Corrigido escopando tudo em `.mappage`.
+
+## Dois erros meus dentro desta fase, corrigidos antes do commit
+
+**`display: flex` nos alvos de toque.** A primeira versão da regra de 44px usava
+`display: flex`, o que tornou os links de navegação blocos de largura total e fez
+o cabeçalho crescer. Trocado por `inline-flex`.
+
+**`.item-list__item a` no escopo.** O link do item de lista envolve miniatura,
+título e data; com `flex` os três foram parar lado a lado, em vez de empilhados.
+Esse link, aliás, **nunca foi um alvo pequeno** — já passava de 44px. Foi erro de
+escopo, não de medida, e a regra saiu.
+
+Ambos apareceram na captura de validação, não na medição: a varredura numérica
+dizia "0 alvos pequenos, 0 falhas de contraste" enquanto a lista estava quebrada
+na tela. É o argumento do §37 do plano em forma concreta — a página renderizada é
+a fonte final de verdade, e a medição sozinha não teria pego.

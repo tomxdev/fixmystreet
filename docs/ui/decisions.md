@@ -165,3 +165,62 @@ seguem valendo.
 
 **Consequência.** Vale para qualquer ajuste futuro ligado à faixa. Um valor
 absoluto solto é um bug de produção esperando o deploy.
+
+---
+
+## `D-012` · O alvo de 44px vale para controles autônomos, não para links em linha
+
+**Decisão.** A regra de `min-height: 44px` alcança navegação, `#key-tools`,
+`#report-cta` e botões. Links dentro de um parágrafo ficam de fora.
+
+**Porquê.** A WCAG 2.5.8 isenta expressamente links embutidos em blocos de texto.
+Forçar 44px neles estouraria a entrelinha do parágrafo sem ganho algum de
+acessibilidade — o alvo seguro de um link em linha é resolvido pela altura de
+linha do texto, não por uma caixa.
+
+**Consequência.** A varredura de alvos pequenos descarta elementos dentro de `p`.
+Um relatório que os incluísse produziria uma lista de falsos positivos que
+ninguém deveria corrigir.
+
+---
+
+## `D-013` · O anel de foco tem duas camadas
+
+**Decisão.** `outline` em `$darkteal` mais um `box-shadow` branco por dentro.
+
+**Porquê.** O site tem fundos claros (superfícies), escuros (hero teal) e
+saturados (botão coral). Um contorno de cor única é invisível contra pelo menos
+um deles: teal escuro sobre o hero teal dá 1.7. A camada branca interna garante
+separação em qualquer fundo.
+
+---
+
+## `D-014` · Estado da ocorrência: cor na borda, fundo claro, texto escuro
+
+**Decisão.** Cada `.banner--*` recebe `border-top-color` na cor do estado e um
+fundo com 12% dessa cor sobre branco. O texto continua no cinza escuro padrão.
+
+**Porquê.** É o padrão que o próprio upstream já usa em `.banner--fixed`, então a
+correção estende algo existente em vez de inventar um componente. E satisfaz
+`D-004` por construção: nenhum badge tem texto branco sobre cor de estado, que é
+justamente o que reprovava contraste em cinco dos seis estados.
+
+**Consequência.** Cores de estado usadas como *texto* — em listas e filtros, por
+exemplo — precisam das variantes `-ink` do `design-system.md`, não destes valores.
+
+---
+
+## `D-015` · Regra que compensa a faixa precisa dizer também em que página vale
+
+**Decisão.** Além de `.dev-site-notice ~` (`D-011`), ajustes de posicionamento
+carregam `.mappage` quando só valem para páginas de mapa.
+
+**Porquê.** `D-011` garantia que a regra não vazasse para **produção**. Não
+impedia que vazasse para **outras páginas do mesmo ambiente**, e foi o que
+aconteceu: `#site-header { top: 40px }` alcançou a Home, onde o elemento é
+`relative` e não `absolute`, e derrubou o cabeçalho sobre o `h1` (`UI-020`).
+
+**Consequência.** Duas perguntas antes de escrever um offset: *em que ambiente
+isto existe?* e *em que páginas isto se aplica?* `D-011` responde a primeira,
+`D-015` a segunda. E revalidar uma página de cada tipo — mapa e comum — antes de
+dar a unidade por encerrada.

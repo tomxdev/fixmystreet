@@ -53,14 +53,21 @@ páginas de mapa — `UI-018` e `UI-019`, corrigidos aqui.
 
 ---
 
-## Phase 3 — Componentes fundamentais
+## Phase 3 — Componentes fundamentais ✅
 
-- [ ] Button (primário, secundário, destaque) sobre tokens
-- [ ] Input, Select, Textarea e Form field
-- [ ] Card e lista de ocorrências
-- [ ] Badge de estado (`UI-007`, regra `D-004`)
-- [ ] Alert, Loading, Empty state, Error state
-- [ ] `UI-012` — alvos de toque ≥ 44px
+Concluída. Também corrigiu `UI-020`, uma regressão da Phase 2 que só aparecia em
+páginas comuns em desktop — ver `ui-audit.md`.
+
+- [x] Button (primário, secundário, destaque) sobre tokens
+- [x] Input, Select, Textarea e Form field
+- [ ] Card e lista de ocorrências — só o título foi tratado (Phase 1); superfície,
+      raio e sombra ainda não
+- [x] Badge de estado — metade visual de `UI-007`, regra `D-004`
+- [ ] `UI-007` — traduzir os estados (conteúdo, Phase 6)
+- [x] Estado de erro de campo
+- [ ] Alert, Loading e Empty state
+- [x] `UI-012` — alvos de toque ≥ 44px em controles autônomos (`D-012`)
+- [x] Anel de foco visível em qualquer fundo (`D-013`)
 
 ---
 
