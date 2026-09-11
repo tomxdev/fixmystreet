@@ -224,3 +224,37 @@ aconteceu: `#site-header { top: 40px }` alcançou a Home, onde o elemento é
 isto existe?* e *em que páginas isto se aplica?* `D-011` responde a primeira,
 `D-015` a segunda. E revalidar uma página de cada tipo — mapa e comum — antes de
 dar a unidade por encerrada.
+
+---
+
+## `D-016` · Token declarado é token consumido
+
+**Decisão.** Nenhuma unidade pode declarar um token sem que alguma regra o leia
+por `var(--…)` na mesma unidade. Valor literal só quando não existir token
+equivalente — e nesse caso o token passa a existir.
+
+**Porquê.** A Fase 1 declarou quinze tokens de espaçamento, raio e sombra. Até a
+Fase 4, o consumo era **zero**: nenhum `var(--space…)`, `var(--radius…)` ou
+`var(--shadow…)` em arquivo nenhum. Na página, o único raio era o `4px` herdado
+do upstream e a única sombra era o anel de foco.
+
+O efeito prático é pior que não ter sistema: a documentação afirma uma coisa e a
+interface mostra outra, e quem ler `design-system.md` vai supor que a escala está
+em vigor.
+
+**Consequência.** Antes de encerrar uma unidade, contar declarações e usos. Se o
+uso for zero, ou a unidade aplica o token, ou não o declara.
+
+---
+
+## `D-017` · Cartão é para lista curta, não para lista densa
+
+**Decisão.** Superfície, raio e sombra por item valem para a lista da Home.
+O painel de `/reports` e a barra lateral do mapa seguem sem tratamento de cartão.
+
+**Porquê.** A Home mostra cinco ocorrências e cada uma merece peso próprio. As
+outras listas são de varredura: dezenas de itens, onde sombra por linha vira
+ruído e o olho perde a capacidade de percorrer rapidamente.
+
+**Consequência.** Quando a Fase 7 tratar painel e listagem, a densidade é o
+critério — separação por linha ou por espaçamento, não por elevação.

@@ -31,7 +31,7 @@ aqui por serem consequência direta da paleta.
 - [x] `D-002` — migrar `$primary` do verde para `#126782`
 - [x] `UI-009` — eliminar os literais `#00693e` / `#005230` de `base.scss`
 - [x] `UI-008` — entrelinhas de `h1`/`h2` e título da ocorrência em 18px/700
-- [ ] `UI-008` — aplicar os sete degraus da escala às demais superfícies
+- [x] `UI-008` — escala aplicada na Phase 4
 - [x] `UI-013` — corrigir a entrelinha do `h1`
 - [x] Validar ausência de regressão em `/`, `/around`, `/report/:id`, `/reports`
 - [x] Screenshots pós-mudança nos quatro viewports
@@ -71,12 +71,20 @@ páginas comuns em desktop — ver `ui-audit.md`.
 
 ---
 
-## Phase 4 — Home
+## Phase 4 — Tipografia e superfície ✅
 
+Concluída. A fase foi redirecionada a pedido do responsável: as unidades
+anteriores tinham entregado quase só cor, e os tokens de espaçamento, raio e
+sombra estavam declarados com consumo zero (`D-016`).
+
+- [x] Escala tipográfica aplicada — 10 tamanhos para 5, todos da escala
+- [x] Pesos e entrelinhas de `h1`, `h2` e `h3`
+- [x] Tokens de espaçamento, raio e sombra efetivamente consumidos (`D-016`)
+- [x] Cartão na lista da Home — superfície, raio, elevação (`D-017`)
 - [ ] `UI-003` — CTA de registrar ocorrência com o Accent
-- [ ] Hierarquia do hero
-- [ ] Distinguir título e data nas ocorrências recentes
-- [ ] Validar nos quatro viewports
+- [x] Hierarquia do hero — `h1` 40px/700 contra subtítulo 18px/400
+- [x] Distinguir título e data nas ocorrências recentes
+- [x] Validar nos quatro viewports
 
 ---
 

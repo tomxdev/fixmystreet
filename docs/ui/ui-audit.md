@@ -458,3 +458,63 @@ Ambos apareceram na captura de validação, não na medição: a varredura numé
 dizia "0 alvos pequenos, 0 falhas de contraste" enquanto a lista estava quebrada
 na tela. É o argumento do §37 do plano em forma concreta — a página renderizada é
 a fonte final de verdade, e a medição sozinha não teria pego.
+
+---
+
+# Situação após a Fase 4 — Tipografia e superfície
+
+> Revalidado com Playwright MCP em 390 / 768 / 1024 / 1440, nas rotas `/` e
+> `/report/:id`.
+
+## O que motivou esta fase
+
+Uma observação do responsável, e ela estava certa: até a Fase 3 as mudanças
+visíveis eram quase todas de **cor**. Tipografia e layout praticamente não tinham
+saído do papel.
+
+A medição confirmou, e o número mais constrangedor é este:
+
+```
+tokens --space / --radius / --shadow declarados:  15
+usos via var(--…) em todo o cobrand:               0
+```
+
+O Design System publicado na Fase 1 não era lido por ninguém. Um sistema que
+nenhuma regra consome não é um sistema — é documentação.
+
+Na Home havia **10 combinações distintas** de tamanho, entrelinha e peso,
+incluindo os `15.84px` e `14.4px` que a própria auditoria de baseline apontara
+como *"resultado de `em` composto, não de decisão"* — e que continuavam lá três
+fases depois. O `h1`, maior texto da página, ainda tinha **peso 400**, o mesmo do
+corpo de texto.
+
+## Resolvidos
+
+| Achado | Antes | Depois |
+|---|---|---|
+| `UI-008` (restante) | 10 tamanhos, incl. `15.84` e `14.4` | **5 tamanhos**, todos da escala: 40/24/18/16/14 |
+| Peso do `h1` | 400 | **700**, entrelinha 1.15 |
+| Peso do `h2` | 400 | **700**, entrelinha 1.3 |
+| Card da lista | sem superfície própria | fundo, `--radius-lg`, `--shadow-sm`, elevação no `:hover` |
+| Raio de botões e campos | 4px | 8px, via `$button-border-radius` |
+| Respiro do hero | `1em` | `--space-8` no celular, `--space-12` no desktop |
+
+Os tokens passaram a ser consumidos: cor, espaçamento, raio, sombra e agora
+tipografia, todos por `var(--…)`.
+
+## Uma reincidência de `D-010`
+
+A regra de tamanho da navegação foi escrita só no `base.scss` e não teve efeito:
+os links continuaram nos `14.4px`, porque a navegação de desktop tem regra
+própria no `layout.scss`, que carrega depois e vence por cascata.
+
+É exatamente o que `D-010` registrou na Fase 2, ao corrigir o logotipo do rodapé.
+Repeti o erro na fase seguinte. A decisão está escrita; o que faltou foi
+consultá-la antes de assumir que uma regra no `base` bastaria.
+
+## Escopo deliberado
+
+O tratamento de cartão foi aplicado a `.item-list--front-page`, a lista da Home.
+As listas do painel e da barra lateral do mapa **não** receberam superfície: são
+listas densas, onde sombra por item pesa mais do que ajuda. Entram na Fase 7,
+quando essas páginas forem tratadas por inteiro.
