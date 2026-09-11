@@ -199,3 +199,158 @@ a.platform-logo {
         top: calc(60px + 0.25em + #{$dev-notice-height});
     }
 }
+
+// ---------------------------------------------------------------------------
+// Componentes fundamentais — Fase 3
+// ---------------------------------------------------------------------------
+
+// Foco visivel.
+//
+// Um anel de duas camadas: branco por dentro, azul escuro por fora. A camada
+// branca e o que faz o anel sobreviver ao hero teal e aos botoes coral — um
+// contorno de cor unica so funciona contra metade dos fundos do site.
+@mixin foco-visivel {
+    outline: 3px solid $darkteal;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px $white;
+}
+
+// Botao neutro.
+//
+// Vinha com borda #ccc (1.6 sobre branco) e texto #222, nenhum dos dois vindo
+// da paleta. A altura de 42px tambem ficava abaixo do alvo de 44.
+.btn,
+button.btn,
+a.btn,
+input.btn {
+    min-height: 44px;
+    background: $surface;
+    border: 1px solid $form-control-border-color;
+    color: $base_fg;
+    border-radius: $button-border-radius;
+    font-weight: 700;
+
+    &:hover {
+        background: $softblue;
+        border-color: $primary;
+        color: $primary_b;
+    }
+
+    &:focus-visible {
+        @include foco-visivel;
+    }
+
+    &[disabled],
+    &.btn--disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+    }
+}
+
+// O botao de acao principal ja recebeu coral com texto escuro na Fase 1
+// (decisao D-004). Aqui so entra o alvo de toque e o foco.
+.btn--primary {
+    min-height: 44px;
+
+    &:focus-visible {
+        @include foco-visivel;
+    }
+}
+
+// Campos de formulario.
+.form-control,
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="password"],
+input[type="number"],
+select,
+textarea {
+    border-color: $form-control-border-color;
+    color: $base_fg;
+    border-radius: $button-border-radius;
+
+    &:focus,
+    &:focus-visible {
+        @include foco-visivel;
+        border-color: $primary;
+    }
+}
+
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="password"],
+input[type="number"],
+select {
+    min-height: 44px;
+}
+
+// Campo com erro. O upstream marca o grupo com .form-error; sem cor propria a
+// pessoa so descobre qual campo falhou lendo a mensagem.
+.form-error,
+.error {
+    input,
+    select,
+    textarea {
+        border-color: $error_color;
+        border-width: 2px;
+    }
+}
+
+// Estados da ocorrencia.
+//
+// O upstream so estiliza .banner--fixed, e as demais variantes caem no cinza
+// #f6f6f6 com borda #999 — um estado "em execucao" fica visualmente igual a um
+// "encerrado". Era metade de UI-007; a outra metade e a traducao, que e conteudo
+// e fica para a Fase 6.
+//
+// O padrao e o que o proprio upstream usa em .banner--fixed, e coincide com a
+// decisao D-004: a cor vive na borda e num fundo bem claro, e o texto continua
+// escuro. Nenhum badge tem texto branco sobre cor de estado.
+@mixin banner-estado($cor) {
+    border-top-color: $cor;
+    background-color: mix($cor, $white, 12%);
+}
+
+.banner--progress {
+    @include banner-estado($status-in-progress);
+}
+
+.banner--fixed {
+    @include banner-estado($status-resolved);
+}
+
+.banner--closed {
+    @include banner-estado($status-closed);
+}
+
+.banner--unknown {
+    @include banner-estado($status-analysis);
+}
+
+.banner--hidden {
+    @include banner-estado($error_color);
+}
+
+// Alvos de toque.
+//
+// Vale para controles autonomos — navegacao, acoes de rodape da ocorrencia,
+// botoes. Links dentro de um paragrafo ficam de fora de proposito: a WCAG 2.5.8
+// isenta links em linha com o texto, e forcar 44px neles quebraria a entrelinha
+// do paragrafo sem ganho nenhum de acessibilidade.
+.nav-menu a,
+.nav-menu span,
+#key-tools a,
+#report-cta {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+}
+//
+// Nota: a primeira versao desta regra usava display:flex e incluia
+// .item-list__item a. As duas coisas quebraram layout. O flex tornou os links da
+// navegacao blocos de largura total, e o cabecalho cresceu ate cobrir o h1 do
+// hero; e o link do item de lista envolve miniatura, titulo e data, que o flex
+// jogou lado a lado em vez de empilhados. O item de lista, alias, nunca foi um
+// alvo pequeno — ja passava de 44px. Foi erro de escopo, nao de medida.

@@ -102,3 +102,17 @@ $geolocation-link-background-color: $teal;
 // de padding em cima e embaixo. Fixa de proposito — as paginas de mapa precisam
 // somar exatamente este valor aos seus offsets absolutos.
 $dev-notice-height: 40px;
+
+// Campos de formulario. O upstream usa #aaa, que sobre branco da 2.32 — abaixo
+// de 3:1, o minimo que a WCAG 1.4.11 pede para a borda de um controle.
+// #767C82 da 4.03 e mantem a borda discreta.
+$form-control-border-color: rgb(118, 124, 130);
+
+$error_color: rgb(179, 38, 30); // #B3261E — branco sobre ele: 6.54
+
+// Estados das ocorrencias, em variaveis SCSS para as regras que o upstream
+// compila. Os mesmos valores existem como custom properties no base.scss.
+$status-analysis: rgb(245, 166, 35);
+$status-in-progress: rgb(46, 196, 182);
+$status-resolved: rgb(55, 168, 102);
+$status-closed: rgb(135, 148, 154);

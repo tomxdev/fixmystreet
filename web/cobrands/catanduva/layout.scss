@@ -18,9 +18,18 @@ a.platform-logo {
 // de aviso passaria por cima dele. Mapa e barra lateral partem de
 // $mappage-header-height, que tambem ignora a barra.
 //
-// Mesma condicao do base: ancorado na presenca da barra, para nao deslocar nada
-// em producao.
-.dev-site-notice ~ .wrapper {
+// Duas condicoes, e as duas importam.
+//
+// .mappage limita tudo isto as paginas de mapa. Sem ele, o top: $dev-notice-height
+// alcanca o #site-header das paginas comuns — onde ele e position: relative, e
+// nao absolute. Em relative o deslocamento e visual e o espaco original continua
+// ocupado, entao o cabecalho descia 40px por cima do hero e cortava o h1 da home.
+// Foi exatamente o que aconteceu: a regra entrou sem .mappage na Fase 2 e passou,
+// porque revalidei /report/:id depois dela, mas nao revalidei a home em desktop.
+//
+// .dev-site-notice ~ ancora na presenca da barra, que nao existe em producao
+// (decisao D-011).
+.mappage .dev-site-notice ~ .wrapper {
     #site-header {
         top: $dev-notice-height;
     }
