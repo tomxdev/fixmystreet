@@ -121,3 +121,81 @@ h2 {
         color: $base_fg;
     }
 }
+
+// Logotipo do cobrand.
+//
+// Sem esta regra o header herda /cobrands/fixmystreet/images/site-logo.svg — a
+// marca generica da plataforma, que numa caixa de 175x60 renderiza a palavra
+// "FixMy" cortada, em amarelo, e nunca mostra o nome do municipio. Era UI-002.
+//
+// O lockup e de duas linhas, entao a caixa precisa ser mais alta que a tira de
+// 175x35 que o upstream assume.
+// A altura fica em 60px de proposito, e nao maior: o offset do mapa nas paginas
+// de celular e calculado a partir de 60px, e um logotipo mais alto empurra o
+// cabecalho para fora dessa conta — foi o que deixou 4px do logotipo debaixo do
+// mapa na primeira tentativa.
+#site-logo {
+    width: 190px;
+    height: 60px;
+    background-image: url("/cobrands/catanduva/images/site-logo.svg");
+    background-size: 190px 50px;
+}
+
+// Faixa "Area de teste".
+//
+// O aviso continua — e o que impede alguem de confundir o piloto com o servico
+// oficial da prefeitura, e removê-lo seria pior que o problema que causa
+// (decisao D-007). O que muda e a forma.
+//
+// Como fita diagonal ela era um quadrado de 330x330 em position: absolute com
+// z-index 2, ancorado no canto superior esquerdo. Cobria o logotipo em todas as
+// paginas, o link de volta em /report/:id, e a instrucao do mapa e o botao de
+// geolocalizacao em /around. No mobile era ela, e nao uma regra de display, que
+// fazia a marca sumir: o logotipo estava la embaixo, visivel, coberto.
+//
+// Em fluxo normal, como barra de largura total, o aviso fica legivel (texto
+// horizontal, nao rotacionado a 45 graus) e deixa de sobrepor qualquer coisa.
+.dev-site-notice {
+    position: static;
+    transform: none;
+    top: auto;
+    left: auto;
+    padding: 0.5em 1em;
+    font-size: 1em;
+    font-weight: bold;
+    text-align: center;
+    background-color: #b3261e;
+    color: $white;
+    letter-spacing: 0.02em;
+}
+
+// Logotipo da plataforma no rodape.
+//
+// A partir da largura de desktop o upstream esconde o texto com text-indent e
+// poe no lugar um wordmark branco, que sobre o fundo claro da pagina nao se le.
+// Estava invisivel ja no baseline, antes da troca de paleta — era UI-014.
+//
+// Devolver o texto e mais simples que manter uma segunda versao do arquivo, e
+// resolve nas duas larguras de uma vez.
+a.platform-logo {
+    text-indent: 0;
+    background-image: none;
+    width: auto;
+    height: auto;
+}
+
+// Paginas de mapa, largura de celular.
+//
+// O mapa e posicionado em absoluto a partir de um offset calibrado para o
+// cabecalho comecar no topo da janela. Com a barra de aviso em fluxo, o
+// cabecalho desce, mas o offset do mapa nao acompanha — e o mapa passa a cobrir
+// o proprio logotipo, que foi o que a validacao da Fase 2 flagrou.
+//
+// O seletor parte da propria barra: em producao ela nao e renderizada, a regra
+// nao casa, e os offsets do upstream seguem valendo. Sem isso a correcao
+// deslocaria o mapa em 40px justamente onde a barra nao existe.
+.map-fullscreen .dev-site-notice ~ .wrapper {
+    #map_box {
+        top: calc(60px + 0.25em + #{$dev-notice-height});
+    }
+}

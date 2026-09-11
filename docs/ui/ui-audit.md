@@ -321,3 +321,73 @@ conhecidos**, ambos verificados manualmente e descartados:
 
 A varredura passou a descartar elementos com `x < -1000` e os que estão dentro da
 atribuição do mapa.
+
+---
+
+# Situação após a Fase 2 — Identidade e header
+
+> Revalidado com Playwright MCP em 390 / 768 / 1024 / 1440, nas rotas `/`,
+> `/around`, `/report/:id` e `/reports`.
+
+## Uma correção da auditoria anterior
+
+O baseline registrou, sobre `UI-002`, que *"no viewport de 390px o header
+desaparece por completo"*. **Isso estava errado.** A medição da Fase 2 mostra o
+logotipo em `x:16, y:4`, com 190x60 e `display: block` — ele sempre esteve lá,
+visível.
+
+Quem o escondia era a faixa `UI-004`: um quadrado de 330x330 rotacionado a 45
+graus, em `position: absolute` com `z-index: 2`, ancorado em `x:-94, y:-99`.
+Os dois achados tinham a mesma causa, e o segundo nunca foi um problema de
+`display`.
+
+## Resolvidos
+
+| Achado | Como | Verificação |
+|---|---|---|
+| `UI-002` | Logotipo próprio em `web/cobrands/catanduva/images/site-logo.svg` | "FixMyStreet / CATANDUVA" legível; nome do município presente pela primeira vez |
+| `UI-004` | Faixa passou de fita diagonal absoluta a barra de largura total em fluxo | **Zero** colisões com logo, navegação, link de volta, badge e mapa, nos quatro viewports |
+| `UI-014` | `text-indent` e `background-image` revertidos em `base` **e** `layout` | Link "plataforma FixMyStreet" legível em teal |
+
+A faixa também ganhou legibilidade por tabela: texto horizontal em vez de
+rotacionado, branco sobre `#B3261E` a **6.54:1**.
+
+## Encontrados e corrigidos durante a validação
+
+### `UI-018` · O mapa cobria o próprio logotipo
+
+Tirar a faixa do posicionamento absoluto e colocá-la em fluxo empurrou o
+cabeçalho 40px para baixo. As páginas de mapa não acompanharam: o mapa é
+`position: absolute` com offset calibrado para o cabeçalho começar no topo da
+janela.
+
+```
+.dev-site-notice   0 → 40
+#site-header      40 → 108
+#map_box          top: 64px     ← ainda a conta antiga
+```
+
+Resultado: o mapa começava 44px acima de onde o cabeçalho terminava, e cobria o
+logotipo que a mesma fase acabara de tornar visível.
+
+Três offsets precisaram somar a altura da barra — `#map_box` no mobile,
+`#site-header` e `#map_box`/`#map_sidebar` no desktop. Faltou um na primeira
+tentativa: `.nav-wrapper` tem posicionamento próprio, ancorado na borda superior
+da página e não no cabeçalho, e o menu ficou por cima da barra vermelha com texto
+escuro sobre vermelho.
+
+### `UI-019` · Sobra de 4px sob o mapa
+
+Com os offsets corrigidos ainda restava uma faixa de 4px do logotipo sob o mapa.
+O logotipo de duas linhas pedia mais altura que a tira de 175x35 do upstream, e
+eu havia posto 64px — mas o offset do mapa no mobile parte de `60px + 0.25em`, um
+número que assume um cabeçalho de 64px no total.
+
+Corrigido reduzindo o logotipo a 60px de altura, em vez de empilhar mais um
+offset: a conta do upstream volta a fechar sozinha.
+
+## Continuam abertos
+
+`UI-003`, `UI-005`, `UI-006`, `UI-007`, `UI-010`, `UI-011`, `UI-012`, `UI-016`, e
+a parte não aplicada de `UI-008` — todos nas fases às quais o roadmap já os
+atribuiu.

@@ -1,2 +1,39 @@
 @import "_colours";
 @import "../sass/layout";
+
+// A partir daqui o upstream troca o texto do link por um wordmark branco, que
+// sobre o fundo claro da pagina nao se le — UI-014. A mesma correcao existe no
+// base.scss, mas esta folha carrega depois e venceria a de la, entao precisa ser
+// repetida. Ver docs/ui/decisions.md D-010.
+a.platform-logo {
+    text-indent: 0;
+    background-image: none;
+    width: auto;
+    height: auto;
+}
+
+// Paginas de mapa, largura de desktop.
+//
+// Aqui o proprio #site-header vira position: absolute com top: 0, entao a barra
+// de aviso passaria por cima dele. Mapa e barra lateral partem de
+// $mappage-header-height, que tambem ignora a barra.
+//
+// Mesma condicao do base: ancorado na presenca da barra, para nao deslocar nada
+// em producao.
+.dev-site-notice ~ .wrapper {
+    #site-header {
+        top: $dev-notice-height;
+    }
+
+    // A navegacao nao acompanha o #site-header: .nav-wrapper tem posicionamento
+    // proprio, ancorado na borda superior da pagina. Sem esta linha o menu fica
+    // por cima da barra vermelha, com texto escuro sobre vermelho.
+    .nav-wrapper {
+        top: calc(#{$header-top-border-width} + #{$dev-notice-height});
+    }
+
+    #map_box,
+    #map_sidebar {
+        top: calc(#{$mappage-header-height} + #{$dev-notice-height});
+    }
+}
