@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 72" width="260" height="72" role="img" aria-label="FixMyStreet Catanduva">
+  <!--
+    Marca do piloto municipal de Catanduva.
+
+    O texto acessivel vive no proprio <a id="site-logo">, escondido por
+    text-indent, entao este arquivo e decorativo do ponto de vista do leitor de
+    tela — dai o aria-label servir apenas para quando o SVG for aberto sozinho.
+
+    Sem webfont: um SVG carregado como background-image nao acessa as fontes da
+    pagina, entao a pilha e generica de proposito. Cores da paleta oficial
+    (docs/ui/design-system.md); ambas passam AA sobre o header branco.
+  -->
+  <g font-family="'Helvetica Neue', Helvetica, Arial, sans-serif">
+    <text x="0" y="30" font-size="29" font-weight="700" fill="#126782" letter-spacing="-0.5">FixMyStreet</text>
+    <text x="2" y="58" font-size="19" font-weight="600" fill="#0B4357" letter-spacing="3.4">CATANDUVA</text>
+    <rect x="176" y="43" width="80" height="3" rx="1.5" fill="#2EC4B6"/>
+  </g>
+</svg>

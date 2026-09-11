@@ -38,13 +38,17 @@ aqui por serem consequência direta da paleta.
 
 ---
 
-## Phase 2 — Identidade e header
+## Phase 2 — Identidade e header ✅
 
-- [ ] `UI-002` — logotipo próprio do cobrand com o nome do município
-- [ ] `UI-002` — marca visível no viewport de 390px
-- [ ] `UI-014` — logotipo da plataforma no rodapé, branco sobre fundo claro
-- [ ] `UI-004` / `D-007` — reposicionar a faixa "Área de teste"
-- [ ] Validar que logo, link de volta, instrução do mapa e geolocalização
+Concluída. A validação mostrou que "sem marca no mobile" e a faixa eram o mesmo
+problema, e que tirar a faixa do posicionamento absoluto quebrava os offsets das
+páginas de mapa — `UI-018` e `UI-019`, corrigidos aqui.
+
+- [x] `UI-002` — logotipo próprio do cobrand com o nome do município
+- [x] `UI-002` — marca visível no viewport de 390px
+- [x] `UI-014` — logotipo da plataforma no rodapé, branco sobre fundo claro
+- [x] `UI-004` / `D-007` — reposicionar a faixa "Área de teste"
+- [x] Validar que logo, link de volta, instrução do mapa e geolocalização
       deixaram de ficar cobertos
 
 ---

@@ -97,3 +97,8 @@ $col_fixed_label: rgb(55, 168, 102); // #37A866
 // Assim: em repouso, branco sobre teal (6.39); em hover, teal sobre branco (6.10).
 $geolocation-link: $white;
 $geolocation-link-background-color: $teal;
+
+// Altura da barra "Area de teste": 1em de texto com entrelinha 1.5, mais 0.5em
+// de padding em cima e embaixo. Fixa de proposito — as paginas de mapa precisam
+// somar exatamente este valor aos seus offsets absolutos.
+$dev-notice-height: 40px;

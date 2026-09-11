@@ -130,3 +130,38 @@ era, então o problema já existia e não foi criado pela troca de paleta.
 ainda não auditadas (`/auth`, `/alert`, `/faq`, telas de administração). A
 varredura de contraste precisa rodar em cada rota nova antes de declará-la
 pronta — não basta ter validado a Home.
+
+---
+
+## `D-010` · Correções que valem nas duas larguras precisam ser escritas duas vezes
+
+**Decisão.** Quando uma regra do upstream existir em `_base.scss` **e** em
+`_layout.scss`, a sobrescrita do cobrand vai nos dois arquivos.
+
+**Porquê.** Descoberto ao corrigir `UI-014`: a sobrescrita foi escrita só em
+`base.scss` e não teve efeito nenhum no desktop. `layout.css` é carregado depois
+de `base.css` e vence por ordem de cascata com a mesma especificidade.
+
+**Consequência.** Duplicação deliberada. A alternativa — inflar a especificidade
+no `base.scss` para vencer o `layout.scss` — cria uma regra que é difícil de
+sobrescrever depois e esconde a intenção. Duplicar é mais honesto e mais fácil de
+apagar quando o upstream mudar.
+
+---
+
+## `D-011` · Ajustes que compensam a faixa de teste são ancorados na presença dela
+
+**Decisão.** Toda regra que compensa a altura da faixa "Área de teste" é escrita
+a partir do seletor `.dev-site-notice ~ .wrapper`, nunca solta.
+
+**Porquê.** A faixa só é renderizada quando `STAGING_SITE` está ligado e
+`hide_staging_banner` está desligado — ou seja, **não existe em produção**. Os
+offsets de mapa que a compensam somam 40px a posições absolutas; incondicionais,
+deslocariam o mapa em 40px justamente no ambiente onde a barra não aparece.
+
+O seletor de irmão funciona porque `.dev-site-notice` e `.wrapper` são filhos
+diretos de `body`. Sem a faixa no DOM, a regra não casa e os valores do upstream
+seguem valendo.
+
+**Consequência.** Vale para qualquer ajuste futuro ligado à faixa. Um valor
+absoluto solto é um bug de produção esperando o deploy.
