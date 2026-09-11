@@ -5,32 +5,95 @@
 
 /* COLOURS */
 
-// Contrast against white was checked for every colour used on text:
-// $green on white is 4.6:1, $darkgrey on white is 13.9:1. Both clear AA at
-// normal body size, which WCAG puts at 4.5:1.
+// Paleta oficial do MyFixStreet — docs/UI_EVOLUTION_PLAN.md secao 13.1.
+// Contraste de cada combinacao validado com a formula WCAG 2.1 e registrado em
+// docs/ui/design-system.md. Os numeros nos comentarios abaixo sao razoes medidas,
+// nao estimativas: AA para texto normal exige 4.5:1.
 
-$green: rgb(0, 105, 62);
-$darkgreen: rgb(0, 82, 48);
-$lightgreen: rgb(230, 243, 237);
-$yellow: rgb(255, 196, 0);
-$darkgrey: rgb(43, 47, 51);
-$mediumgrey: rgb(118, 124, 130);
+$teal: rgb(18, 103, 130); // #126782 — branco sobre ele: 6.39
+$darkteal: rgb(11, 67, 87); // #0B4357 — branco sobre ele: 10.74
+$mint: rgb(46, 196, 182); // #2EC4B6 — so com texto escuro: 6.76
+$coral: rgb(255, 107, 94); // #FF6B5E — so com texto escuro: 5.24
+
+$softblue: rgb(223, 243, 245); // #DFF3F5
+$softmint: rgb(230, 247, 243); // #E6F7F3
+
+$background: rgb(248, 250, 251); // #F8FAFB
+$surface: rgb(255, 255, 255); // #FFFFFF
+
+// Texto secundario escurecido de #687B84 para #62747C: o valor original dava
+// 4.22 sobre o fundo, reprovando AA por pouco. Ver decisions.md D-003.
+$textprimary: rgb(23, 43, 53); // #172B35 — sobre o fundo: 13.99
+$textsecondary: rgb(98, 116, 124); // #62747C — sobre o fundo: 4.66
+
+$darkgrey: $textprimary;
+$mediumgrey: $textsecondary;
 $lightgrey: rgb(240, 241, 242);
 $black: rgb(0, 0, 0);
 $white: rgb(255, 255, 255);
 
-$primary: $green;
-$primary_b: $darkgreen;
+$primary: $teal;
+$primary_b: $darkteal;
 $primary_text: $white;
 
-$base_bg: $white;
-$base_fg: $darkgrey;
+$base_bg: $background;
+$base_fg: $textprimary;
 
-$nav_background_colour: $white;
-$nav_colour: $darkgrey;
-$nav_hover_background_colour: $lightgreen;
+$nav_background_colour: $surface;
+$nav_colour: $textprimary;
+$nav_hover_background_colour: $softblue;
+
+// Links: o upstream usa #005ea5, um azul que nao pertence a esta identidade.
+$link-color: $teal;
+$link-hover-color: $darkteal;
+$link-visited-color: $teal;
+
+// Fundo do hero da home.
+//
+// Sem estas duas linhas o h1 e o h2 herdam $primary_text (branco) sobre um fundo
+// que o upstream deixa transparente, e ficam brancos sobre branco — contraste
+// 1:1, em todos os viewports. Era o achado UI-001, e a correcao e esta.
+//
+// A variante sem sufixo vale no base (mobile); a com sufixo, no layout (>=768px).
+$front-main-background: $teal;
+$front-main-background-desktop: $teal;
+
+// Com o hero ja colorido, a caixa do CEP nao precisa de fundo proprio: no mobile
+// o upstream a pintava de $primary, o que agora duplicaria o bloco.
+$postcodeform-background: transparent;
+
+// Botao primario: coral com texto escuro. Branco sobre coral da 2.79 e reprova
+// ate no criterio de texto grande — ver decisions.md D-004.
+$button-primary-bg-top: $coral;
+$button-primary-bg-bottom: $coral;
+$button-primary-border: $coral;
+$button-primary-text: $textprimary;
+
+$button-primary-hover-bg-top: mix($coral, $black, 88%);
+$button-primary-hover-bg-bottom: mix($coral, $black, 88%);
+$button-primary-hover-border: mix($coral, $black, 88%);
+$button-primary-hover-text: $textprimary;
+
+$button-primary-focus-bg-top: $coral;
+$button-primary-focus-bg-bottom: $coral;
+$button-primary-focus-border: $darkteal;
+$button-primary-focus-text: $textprimary;
 
 // Colour used for front page 'how to report a problem' steps
-$col_big_numbers: $green;
+$col_big_numbers: $teal;
 
-$col_click_map: $green;
+$col_click_map: $teal;
+
+// Estado "resolvido" na linguagem de cor de estados da secao 13.1.
+$col_fixed_label: rgb(55, 168, 102); // #37A866
+
+// Link "usar minha localizacao atual", que fica dentro do hero.
+//
+// O upstream o deixa em #222, o que sobre o teal da 2.49 e reprova. As duas
+// variaveis precisam ser definidas juntas: a regra de :hover troca texto e fundo
+// entre si, e se o fundo continuasse transparente o hover cairia no ramo que
+// pinta o texto de branco — branco sobre branco.
+//
+// Assim: em repouso, branco sobre teal (6.39); em hover, teal sobre branco (6.10).
+$geolocation-link: $white;
+$geolocation-link-background-color: $teal;
