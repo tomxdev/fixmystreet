@@ -6,73 +6,63 @@
 
 ## Fase atual
 
-**Phase 2 — Identidade e header** — concluída e validada.
-Próxima: **Phase 3 — Componentes fundamentais**.
+**Phase 3 — Componentes fundamentais** — concluída e validada.
+Próxima: **Phase 4 — Home**.
 
 ## Última etapa concluída
 
-Logotipo próprio do cobrand, faixa "Área de teste" reposicionada, e os offsets de
-página de mapa que a mudança da faixa quebrou.
+Botão, campos de formulário, anel de foco, badges de estado e alvos de toque,
+todos sobre tokens. Mais a correção de `UI-020`, regressão da Fase 2.
 
 ## Etapas concluídas
 
 ### Phase 0 — Baseline e auditoria
-
-Stack identificada, baseline nos quatro viewports, inventário de 7 rotas, 13
-achados P0–P3, contraste da paleta oficial validado, Design System e roadmap.
+Stack, baseline nos quatro viewports, inventário de 7 rotas, 13 achados P0–P3,
+contraste da paleta validado, Design System e roadmap.
 
 ### Phase 1 — Fundação visual
-
-- `UI-001` — hero de 1:1 para **6.39:1**
-- `D-002` — `$primary` de `#00693E` para `#126782`; zero verde no CSS compilado
-- `UI-009`, `UI-013`, `UI-015`, `UI-017`, e a parte tipográfica de `UI-008`
+`UI-001` (hero de 1:1 para 6.39), `D-002` (verde → teal, zero verde no CSS),
+`UI-009`, `UI-013`, `UI-015`, `UI-017`, parte tipográfica de `UI-008`.
 
 ### Phase 2 — Identidade e header
+`UI-002` (logotipo próprio), `UI-004` (faixa de fita diagonal para barra em
+fluxo), `UI-014`, `UI-018`, `UI-019`.
 
-- `UI-002` — logotipo próprio em `web/cobrands/catanduva/images/site-logo.svg`
-- `UI-004` — faixa de fita diagonal absoluta para barra em fluxo; **zero**
-  colisões nos quatro viewports
-- `UI-014` — logotipo da plataforma no rodapé, legível nas duas larguras
-- `UI-018` — quatro offsets de página de mapa somando a altura da barra
-- `UI-019` — logotipo reduzido a 60px, devolvendo a conta do upstream
+### Phase 3 — Componentes fundamentais
+- Botão neutro e `.btn--primary` sobre tokens, com `:hover` e `:disabled`
+- Campos: borda de `#aaa` (2.32) para `#767C82` (**4.03**), acima do 3:1 que a
+  WCAG 1.4.11 pede para contorno de controle
+- Anel de foco de duas camadas (`D-013`)
+- `UI-007`, metade visual — cada `.banner--*` com a cor do seu estado (`D-014`)
+- `UI-012` — alvos de toque de 44px em controles autônomos (`D-012`)
+- `UI-020` — regressão da Fase 2, corrigida (`D-015`)
 
 ## Validações realizadas
 
-### Colisões da faixa e layout
+| Viewport | Rotas | Overflow X | Alvos < 44px | Contraste | Cabeçalho sobre `h1` |
+|---|---|---|---|---|---|
+| 390 | `/`, `/around`, `/report/31` | **PASS** | **0** | **0 falhas** | não |
+| 768 | `/` | **PASS** | **0** | **0 falhas** | não |
+| 1024 | `/` | **PASS** | **0** | **0 falhas** | não |
+| 1440 | `/`, `/report/31` | **PASS** | **0** | **0 falhas** | não |
 
-| Viewport | Rota | Overflow X | Colisões da faixa | Falhas de contraste |
-|---|---|---|---|---|
-| 390 | `/` | **PASS** | **0** | **0** |
-| 390 | `/around` | **PASS** | **0** | **0** |
-| 390 | `/reports` | **PASS** | **0** | **0** |
-| 768 | `/report/31` | **PASS** | **0** | **0** |
-| 1024 | `/report/31` | **PASS** | **0** | **0** |
-| 1440 | `/` | **PASS** | **0** | **0** |
-| 1440 | `/report/31` | **PASS** | **0** | **0** |
+Páginas de mapa revalidadas após o escopo `.mappage`: em `/around` a 390px e
+`/report/31` a 1440px o mapa não cobre o logotipo e a faixa não colide com nada.
 
-Colisões medidas por interseção de retângulos entre `.dev-site-notice` e
-`#site-logo`, `.nav-wrapper`, `#map_box` e `.banner`.
+**Fluxo funcional PASS** — busca por endereço em 390px geocodifica e chega a
+"Registrando um problema".
 
-Empilhamento verificado em `/around` a 390px: faixa `0→40`, cabeçalho `40→104`,
-mapa a partir de `104`. Sem sobreposição.
+Evidências: `docs/ui/screenshots/fase3-*.png`.
 
-### Fluxo funcional
+## O que a medição não pegou
 
-**PASS** — busca por "Rua Cuiabá, Centro, Catanduva" em 390px geocodifica e leva
-a "Registrando um problema".
+Duas quebras de layout desta fase apareceram **na captura, não na varredura**: a
+navegação virou blocos de largura total e a lista de ocorrências desempilhou.
+A varredura numérica reportava "0 alvos pequenos, 0 falhas de contraste" com a
+lista quebrada na tela.
 
-### Contraste da faixa
-
-Branco sobre `#B3261E`: **6.54:1** PASS.
-
-Evidências: `docs/ui/screenshots/fase2-*.png`, contra as `fase1-*` e `baseline-*`.
-
-## Correção da auditoria anterior
-
-O baseline afirmava que em 390px *"o header desaparece por completo"*. **Estava
-errado.** O logotipo sempre esteve em `x:16, y:4`, `display: block`. Quem o
-escondia era a faixa. `UI-002` e `UI-004` tinham a mesma causa, e o segundo nunca
-foi um problema de `display`. Registrado em `ui-audit.md`.
+É o §37 do plano em forma concreta. A medição serve para o que é medível;
+a página renderizada continua sendo a fonte final de verdade para layout.
 
 ## Problemas encontrados
 
@@ -81,71 +71,84 @@ foi um problema de `display`. Registrado em `ui-audit.md`.
 - `UI-003` (P1) — Home sem CTA de registrar. **Phase 4**
 - `UI-005` (P1) — CTA do mapa sem destaque. **Phase 5**
 - `UI-006` (P1) — metadados da ocorrência com argumentos trocados. **Phase 6**
-- `UI-007` (P1) — estado em inglês e sem cor semântica. **Phase 6**
+- `UI-007` (P1, **metade**) — a cor foi resolvida; a tradução não. **Phase 6**
 - `UI-010` (P2) — 404 de miniatura em `/around`. **Phase 5**
 - `UI-011` (P2) — "Todas as ocorrências" versus "Painel de Controle". **Phase 7**
-- `UI-012` (P3) — alvos de toque abaixo de 44px. **Phase 3**
 - `UI-016` (P2, latente) — caixa de rascunho não traduzida. **Phase 5**
 - `UI-008` (parcial) — os sete degraus da escala nas demais superfícies
+- Card da lista de ocorrências — só o título foi tratado; superfície, raio e
+  sombra ainda não
+- Alert, Loading e Empty state
 
 ### Encerrados até aqui
 
-`UI-001`, `UI-002`, `UI-004`, `UI-009`, `UI-013`, `UI-014`, `UI-015`, `UI-017`,
-`UI-018`, `UI-019`.
+`UI-001`, `UI-002`, `UI-004`, `UI-009`, `UI-012`, `UI-013`, `UI-014`, `UI-015`,
+`UI-017`, `UI-018`, `UI-019`, `UI-020`.
 
 ## Pendências
 
-- **`D-009` tem alcance maior do que o já varrido.** O upstream assume cobrands
-  de `$primary` claro; o nosso é escuro. `/reports` tinha esse padrão e foi
-  corrigido, mas `/auth`, `/alert`, `/faq` e as telas de administração ainda não
-  foram auditadas e podem esconder o mesmo.
-- **`D-011` precisa valer para todo ajuste futuro ligado à faixa.** Um valor
-  absoluto solto é um bug que só aparece em produção, onde a barra não existe.
-- `UI-006` e `UI-007` são de conteúdo traduzido, não de CSS — podem exigir sair
-  do cobrand, contra `D-001`. Decidir no início da Phase 6.
+- **`D-015` é a lição mais cara até agora.** Um offset precisa responder a duas
+  perguntas: em que **ambiente** existe (`D-011`, a faixa não existe em produção)
+  e em que **páginas** se aplica (`D-015`, mapa e comum posicionam o cabeçalho de
+  formas diferentes). Antes de encerrar uma unidade, revalidar uma página de cada
+  tipo.
+- **`D-009` segue com alcance maior do que o varrido.** `/auth`, `/alert`, `/faq`
+  e as telas de administração ainda não foram auditadas.
+- `UI-006` e `UI-007` são de conteúdo traduzido — podem exigir sair do cobrand,
+  contra `D-001`. Decidir no início da Phase 6.
 - `UI_EVOLUTION_PLAN.md` está em `docs/`, não na raiz do repositório.
-- **Três branches encadeadas.** PRs [#32](https://github.com/tomxdev/fixmystreet/pull/32)
-  (fase 0 → `develop`) e [#33](https://github.com/tomxdev/fixmystreet/pull/33)
-  (fase 1 → fase 0) estão abertos. `feature/ui-fase2-identidade` ainda **sem PR**.
-  A ordem de merge é 32 → 33 → fase 2.
+
+## Estado do Git
+
+`develop` contém a **Phase 0** e a **Phase 1** (PRs #32 e #35, em `b5f3571ee7`).
+
+| PR | Unidade | Base | Situação |
+|---|---|---|---|
+| [#34](https://github.com/tomxdev/fixmystreet/pull/34) | Phase 2 | `develop` | aberto, aguardando Suite Perl |
+| Phase 3 | `feature/ui-fase3-componentes` | `feature/ui-fase2-identidade` | PR a abrir |
+
+Ordem de merge: **#34 → Phase 3**.
+
+> **Não usar `--delete-branch` ao mesclar.** Foi o que fechou o PR #33 em vez de
+> reapontá-lo, quando a branch base do #32 foi apagada — e um PR fechado cuja
+> base sumiu não pode ser reaberto nem ter a base trocada. O #35 é o substituto
+> do #33, com o mesmo conteúdo.
 
 ## MCPs
 
 | MCP | Disponível | Situação |
 |---|---|---|
 | **Playwright** | **Sim** | Usado para medir, validar e revalidar toda a unidade |
-| Figma | Não | Sem arquivo Figma no projeto; §3 o torna condicional. Sem bloqueio. |
-| UI/UX | Não | §3: "quando disponível". Análise por medição direta no navegador. Sem bloqueio. |
-| Context7 | Não | §3: "quando houver necessidade". Nenhuma biblioteca nova (`D-006`). Sem bloqueio. |
+| Figma | Não | Sem arquivo Figma; §3 o torna condicional. Sem bloqueio. |
+| UI/UX | Não | §3: "quando disponível". Medição direta no navegador. Sem bloqueio. |
+| Context7 | Não | §3: "quando houver necessidade". Nenhuma lib nova (`D-006`). Sem bloqueio. |
 
 Nenhum MCP obrigatório para a etapa atual está faltando.
 
 ## Próxima etapa
 
-**Phase 3 — Componentes fundamentais.** Unidade única e verificável:
+**Phase 4 — Home.** Unidade única e verificável:
 
-1. Button — primário, secundário e destaque, todos sobre tokens, com `:hover`,
-   `:focus` e `:disabled` derivados (nunca uma cor nova por estado, §13.1)
-2. Input, Select, Textarea e Form field, com estado de erro visível
-3. Card e lista de ocorrências
-4. Badge de estado — `UI-007` na parte visual, respeitando `D-004`: nada de texto
-   branco sobre as cores de status
-5. `UI-012` — alvos de toque ≥ 44px em todos os viewports
-6. Validar cada componente nos quatro viewports, e em `/report/:id` e no
-   formulário de nova ocorrência, onde a maioria deles aparece junta
+1. `UI-003` — CTA de registrar ocorrência com o Accent, respeitando `D-004`
+   (texto escuro) e a escassez que §13.1 pede para a cor de destaque
+2. Hierarquia do hero: `h1`, subtítulo e campo de busca competindo hoje pelo
+   mesmo peso visual
+3. Tratamento de card da lista de ocorrências — superfície, raio e sombra a
+   partir dos tokens já declarados
+4. Validar nos quatro viewports, incluindo a checagem de que o cabeçalho não
+   cobre o `h1` (`UI-020` não pode voltar)
 
 ## Arquivos modificados nesta unidade
 
 ```
-web/cobrands/catanduva/images/site-logo.svg   novo — marca do piloto
-web/cobrands/catanduva/_colours.scss          $dev-notice-height
-web/cobrands/catanduva/base.scss              logo, faixa, rodapé, offset mobile
-web/cobrands/catanduva/layout.scss            rodapé e offsets de desktop
-docs/ui/ui-audit.md                           seção "Situação após a Fase 2"
-docs/ui/decisions.md                          D-010 e D-011
-docs/ui/ui-roadmap.md                         Phase 2 marcada
-docs/ui/execution-state.md                    este checkpoint
-docs/ui/screenshots/fase2-*.png               4 evidências
+web/cobrands/catanduva/_colours.scss   borda de campo, erro, cores de estado
+web/cobrands/catanduva/base.scss       botão, campos, foco, badges, alvos de toque
+web/cobrands/catanduva/layout.scss     escopo .mappage (UI-020)
+docs/ui/ui-audit.md                    seção "Situação após a Fase 3"
+docs/ui/decisions.md                   D-012 a D-015
+docs/ui/ui-roadmap.md                  Phase 3 marcada
+docs/ui/execution-state.md             este checkpoint
+docs/ui/screenshots/fase3-*.png        2 evidências
 ```
 
 Nenhum arquivo do core foi tocado (`D-001`). O CSS compilado é ignorado pelo
@@ -153,17 +156,16 @@ Nenhum arquivo do core foi tocado (`D-001`). O CSS compilado é ignorado pelo
 
 ## Último commit relacionado
 
-- `a29aa7debb` — feat(ui): identidade do cobrand, e a faixa de teste que escondia a marca
+- `e4b3a02844` — feat(ui): componentes sobre tokens, e uma regressao da Fase 2 que escapou
 
 Anteriores:
 
+- `3be754d415` — docs(ui): checkpoint da Fase 2
+- `a29aa7debb` — feat(ui): identidade do cobrand, e a faixa de teste que escondia a marca
 - `bd95d0d1db` — docs(ui): registra a Fase 1 e o que a validacao revelou
 - `9860287b3f` — feat(ui): fundacao visual do cobrand, e o titulo da home que ninguem via
-- `acecaac7ae` — docs(ui): checkpoint da Fase 0, com o estado recuperavel
-- `2bd10c6630` — docs(ui): auditoria de baseline da interface, medida no navegador
-- `adac5ba633` — chore(ui): versiona o plano de evolucao e ignora a saida do Playwright
 
-Branch atual: `feature/ui-fase2-identidade`.
+Branch atual: `feature/ui-fase3-componentes`.
 
 ## Atualizado em
 
