@@ -1,0 +1,106 @@
+# Roadmap de evolução de UI
+
+> §21 e §32 do `UI_EVOLUTION_PLAN.md`. Uma tarefa só é marcada concluída depois
+> da validação correspondente com Playwright nos quatro viewports.
+
+Legenda dos achados: ver `ui-audit.md`.
+
+---
+
+## Phase 0 — Baseline e auditoria ✅
+
+- [x] Levantar stack, templates, CSS e fluxo local
+- [x] Confirmar aplicação acessível pelo navegador
+- [x] Baseline visual em 390 / 768 / 1024 / 1440
+- [x] Inventário de páginas (`pages-inventory.md`)
+- [x] Auditoria e classificação P0–P3 (`ui-audit.md`)
+- [x] Validar contraste da paleta oficial (§13.1)
+- [x] Registrar decisões de fundação (`decisions.md`)
+
+---
+
+## Phase 1 — Fundação visual
+
+A unidade de trabalho seguinte. Corrige os dois P0.
+
+- [ ] Criar os tokens (cor, tipografia, espaçamento, raio, sombra) no cobrand
+- [ ] `UI-001` — definir `$front-main-background-desktop` e a variante mobile
+- [ ] `UI-001` — validar contraste do hero ≥ 4.5:1 nos quatro viewports
+- [ ] `D-002` — migrar `$primary` do verde para `#126782`
+- [ ] `UI-009` — eliminar os literais `#00693e` / `#005230` de `base.scss`
+- [ ] `UI-008` — aplicar a escala tipográfica
+- [ ] `UI-013` — corrigir a entrelinha do `h1`
+- [ ] Validar ausência de regressão em `/`, `/around`, `/report/:id`, `/reports`
+- [ ] Screenshots pós-mudança nos quatro viewports
+
+---
+
+## Phase 2 — Identidade e header
+
+- [ ] `UI-002` — logotipo próprio do cobrand com o nome do município
+- [ ] `UI-002` — marca visível no viewport de 390px
+- [ ] `UI-004` / `D-007` — reposicionar a faixa "Área de teste"
+- [ ] Validar que logo, link de volta, instrução do mapa e geolocalização
+      deixaram de ficar cobertos
+
+---
+
+## Phase 3 — Componentes fundamentais
+
+- [ ] Button (primário, secundário, destaque) sobre tokens
+- [ ] Input, Select, Textarea e Form field
+- [ ] Card e lista de ocorrências
+- [ ] Badge de estado (`UI-007`, regra `D-004`)
+- [ ] Alert, Loading, Empty state, Error state
+- [ ] `UI-012` — alvos de toque ≥ 44px
+
+---
+
+## Phase 4 — Home
+
+- [ ] `UI-003` — CTA de registrar ocorrência com o Accent
+- [ ] Hierarquia do hero
+- [ ] Distinguir título e data nas ocorrências recentes
+- [ ] Validar nos quatro viewports
+
+---
+
+## Phase 5 — Fluxo de registro e mapa
+
+- [ ] `UI-005` — destaque do CTA em `/around`
+- [ ] `UI-010` — 404 de miniatura
+- [ ] Formulário de nova ocorrência: erro, loading e sucesso
+- [ ] Mapa no mobile: controles, toque e scroll
+
+---
+
+## Phase 6 — Detalhe da ocorrência
+
+- [ ] `UI-006` — ordem dos argumentos nos metadados
+- [ ] `UI-007` — traduzir os estados e aplicar cor semântica
+- [ ] Hierarquia entre descrição, foto, mapa e formulário
+
+---
+
+## Phase 7 — Listagem e navegação
+
+- [ ] `UI-011` — reconciliar "Todas as ocorrências" e "Painel de Controle"
+- [ ] Auditar `/auth`, `/alert`, `/faq`
+- [ ] Navegação mobile além do botão "Registrar"
+
+---
+
+## Phase 8 — Acessibilidade
+
+- [ ] Revalidar contraste com os tokens aplicados
+- [ ] Estados de foco visíveis em todos os interativos
+- [ ] Navegação por teclado e ordem de tabulação
+- [ ] Cruzar com `docs/ACESSIBILIDADE.md` (UX-006) sem repetir o que já foi feito
+
+---
+
+## Phase 9 — Polimento
+
+- [ ] Varredura de consistência entre páginas
+- [ ] Revisão de microcópia
+- [ ] Screenshots finais dos quatro viewports
