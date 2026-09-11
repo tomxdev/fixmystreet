@@ -4,8 +4,9 @@
 > inventa paleta: registra a oficial, o resultado da validação de contraste
 > exigida por §13.1 e as regras de uso que decorrem dela.
 >
-> Status: **definido, ainda não implementado.** A implementação é a Fase 1 do
-> roadmap. O código hoje usa a paleta verde herdada — ver `decisions.md` `D-002`.
+> Status: **implementado na Fase 1.** A paleta, os tokens e a correção do hero
+> estão no cobrand e validados no navegador — o verde herdado não aparece mais no
+> CSS compilado. O que ainda não foi aplicado está assinalado em cada seção.
 
 ---
 
@@ -141,6 +142,10 @@ Escala proposta, substituindo os `32 / 24 / 19 / 16 / 15.84 / 14.4px` de hoje:
 Correções que a escala já resolve: `UI-013` (entrelinha 1.0 no `h1`) e a parte
 tipográfica de `UI-008` — títulos de ocorrência passam a `--font-heading-md` com
 peso 700, contra a data em `--font-body-sm`.
+
+**Aplicado até aqui:** entrelinha de `h1` (1.15) e `h2` (1.3), e
+`.item-list__heading` em 18px/700. Os sete degraus ainda não substituíram os
+tamanhos herdados nas demais superfícies — está no roadmap da Phase 1.
 
 ---
 

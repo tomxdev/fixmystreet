@@ -19,19 +19,22 @@ Legenda dos achados: ver `ui-audit.md`.
 
 ---
 
-## Phase 1 — Fundação visual
+## Phase 1 — Fundação visual ✅
 
-A unidade de trabalho seguinte. Corrige os dois P0.
+Concluída. Corrigiu `UI-001` — o outro P0, `UI-002`, é identidade e foi para a
+Phase 2. Durante a validação apareceram `UI-015` e `UI-017`, ambos corrigidos
+aqui por serem consequência direta da paleta.
 
-- [ ] Criar os tokens (cor, tipografia, espaçamento, raio, sombra) no cobrand
-- [ ] `UI-001` — definir `$front-main-background-desktop` e a variante mobile
-- [ ] `UI-001` — validar contraste do hero ≥ 4.5:1 nos quatro viewports
-- [ ] `D-002` — migrar `$primary` do verde para `#126782`
-- [ ] `UI-009` — eliminar os literais `#00693e` / `#005230` de `base.scss`
-- [ ] `UI-008` — aplicar a escala tipográfica
-- [ ] `UI-013` — corrigir a entrelinha do `h1`
-- [ ] Validar ausência de regressão em `/`, `/around`, `/report/:id`, `/reports`
-- [ ] Screenshots pós-mudança nos quatro viewports
+- [x] Criar os tokens (cor, tipografia, espaçamento, raio, sombra) no cobrand
+- [x] `UI-001` — definir `$front-main-background-desktop` e a variante mobile
+- [x] `UI-001` — validar contraste do hero ≥ 4.5:1 nos quatro viewports
+- [x] `D-002` — migrar `$primary` do verde para `#126782`
+- [x] `UI-009` — eliminar os literais `#00693e` / `#005230` de `base.scss`
+- [x] `UI-008` — entrelinhas de `h1`/`h2` e título da ocorrência em 18px/700
+- [ ] `UI-008` — aplicar os sete degraus da escala às demais superfícies
+- [x] `UI-013` — corrigir a entrelinha do `h1`
+- [x] Validar ausência de regressão em `/`, `/around`, `/report/:id`, `/reports`
+- [x] Screenshots pós-mudança nos quatro viewports
 
 ---
 
@@ -39,6 +42,7 @@ A unidade de trabalho seguinte. Corrige os dois P0.
 
 - [ ] `UI-002` — logotipo próprio do cobrand com o nome do município
 - [ ] `UI-002` — marca visível no viewport de 390px
+- [ ] `UI-014` — logotipo da plataforma no rodapé, branco sobre fundo claro
 - [ ] `UI-004` / `D-007` — reposicionar a faixa "Área de teste"
 - [ ] Validar que logo, link de volta, instrução do mapa e geolocalização
       deixaram de ficar cobertos
@@ -70,6 +74,7 @@ A unidade de trabalho seguinte. Corrige os dois P0.
 - [ ] `UI-005` — destaque do CTA em `/around`
 - [ ] `UI-010` — 404 de miniatura
 - [ ] Formulário de nova ocorrência: erro, loading e sucesso
+- [ ] `UI-016` — caixa de rascunho não traduzida e com cor herdada
 - [ ] Mapa no mobile: controles, toque e scroll
 
 ---
