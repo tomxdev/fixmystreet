@@ -228,3 +228,96 @@ Registrado para não ser "corrigido" à toa:
 Isso é coerente com `docs/ACESSIBILIDADE.md` (UX-006): a base herdada é sólida em
 semântica. Os problemas desta auditoria são de **cor, hierarquia e identidade** —
 camadas que o cobrand deveria ter definido e não definiu.
+
+---
+
+# Situação após a Fase 1 — Fundação visual
+
+> O baseline acima fica como estava: é o registro do ponto de partida. Esta
+> seção diz o que mudou, o que continua aberto e o que a validação da Fase 1
+> encontrou de novo.
+>
+> Revalidado com Playwright MCP em 390 / 768 / 1024 / 1440, nas rotas `/`,
+> `/around`, `/report/:id` e `/reports`.
+
+## Resolvidos
+
+| Achado | Como | Verificação |
+|---|---|---|
+| `UI-001` | `$front-main-background` e `-desktop` definidos como `$teal` | `h1` do hero a **6.39:1** nos quatro viewports, contra 1:1 antes |
+| `UI-008` (parte tipográfica) | `.item-list__heading` em 18px/700 | Título da ocorrência agora distinto da data |
+| `UI-009` | Literais `#00693e`/`#005230` removidos; `$button-primary-*` passou a alimentar `.btn--primary` | **Zero** ocorrências de verde no CSS compilado |
+| `UI-013` | `line-height: 1.15` no `h1` | 32px → entrelinha de 36.8px |
+
+## Encontrados durante a validação da Fase 1
+
+### `UI-014` · O logotipo da plataforma no rodapé é invisível (P2)
+
+```
+a.platform-logo   text-indent .... -1000%          (texto escondido)
+                  background-image  fms-platform-logo.svg   (wordmark branco)
+                  background-color  transparent
+```
+
+A partir da largura de desktop o texto some e entra uma marca **branca** sobre o
+fundo quase branco da página. O link existe, ocupa 260x27 e não se lê.
+
+Pré-existente: está igualmente invisível na captura de baseline. Não foi
+introduzido pela mudança de paleta — mas o fundo `#F8FAFB` o deixa levemente
+perceptível, o que ajudou a encontrá-lo.
+
+### `UI-015` · Cabeçalho do painel com texto escuro sobre `$primary` — **corrigido**
+
+```
+.dashboard-header   background-color: $primary   (sem cor de texto definida)
+.dashboard-search   idem
+```
+
+`_dashboard.scss` pinta os dois com `$primary` e não define cor de texto, então o
+conteúdo herdava o `#222` da página: **2.49:1**. A regra do upstream só funciona
+para cobrands de `$primary` claro.
+
+Não é regressão da troca de paleta — com o verde anterior o resultado era o
+mesmo. A auditoria de baseline não o pegou porque ali eu só procurei *texto
+branco sobre fundo branco*, e este é o caso oposto. Corrigido na mesma unidade,
+por sobrescrita no cobrand: **6.39:1**.
+
+### `UI-016` · Caixa de rascunho não traduzida (P2, latente)
+
+```
+div.hidden.js-continue-draft.draft-info-box    display: none
+  "You have a draft report made whi…"  ·  "Continue draft report"  ·  "Cancel"
+```
+
+Fica oculta até existir um rascunho, então não aparece hoje — mas o texto está em
+inglês e herda `color: #fff`, o que sobre o hero teal funciona e sobre superfície
+clara não. Precisa ser revisto quando a Fase 5 exercitar o fluxo com rascunho.
+
+### `UI-017` · Link de geolocalização sobre o hero — **corrigido**
+
+`$geolocation-link` é `#222` por padrão, o que sobre o hero teal dá **2.49:1**.
+As duas variáveis precisaram ser definidas juntas: a regra de `:hover` do
+upstream troca texto e fundo entre si, e com fundo transparente o hover cairia no
+ramo que pinta o texto de branco — branco sobre branco. Agora 6.39 em repouso e
+6.10 em hover.
+
+## Continuam abertos
+
+`UI-002` (P0) e `UI-004` (P1) vão para a Fase 2 — são identidade e posicionamento
+da faixa, não fundação de cor. `UI-003`, `UI-005`, `UI-006`, `UI-007`, `UI-010`,
+`UI-011`, `UI-012` seguem nas fases às quais o roadmap já os atribuiu.
+
+## Notas sobre o método
+
+A varredura de contraste calcula o fundo efetivo subindo a árvore até achar o
+primeiro elemento com fundo pintado. Isso produz **dois falsos positivos
+conhecidos**, ambos verificados manualmente e descartados:
+
+- **`a.skiplink`** ("Pular o mapa") — está em `position: absolute` com
+  `x: -159520`, o padrão de link de pulo que só aparece no foco. Não é texto
+  ilegível: é texto fora da tela por projeto.
+- **`.olControlAttribution`** ("OpenStreetMap") — fica sobre os ladrilhos do
+  mapa, que são imagem. Não há fundo pintado para medir.
+
+A varredura passou a descartar elementos com `x < -1000` e os que estão dentro da
+atribuição do mapa.

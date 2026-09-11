@@ -97,3 +97,36 @@ conteúdo funcional — não apagando-a.
 com o serviço oficial da prefeitura. O problema é que ela cobre logo, navegação
 de volta, instrução do mapa e botão de geolocalização. Reposicionar preserva o
 aviso e devolve o conteúdo.
+
+---
+
+## `D-008` · O botão "Ir" da home fica em Primary Dark, não no Accent
+
+**Decisão.** `input#sub` da caixa de CEP usa `$primary_b` (`#0B4357`) com texto
+branco. O Accent fica reservado para `.btn--primary`, que é o botão de enviar a
+ocorrência.
+
+**Porquê.** O botão precisa ser visível sobre o hero teal, e havia duas saídas:
+coral ou um teal mais escuro. §13.1 diz que *"o Accent não deve ser utilizado
+indiscriminadamente"*, e o "Ir" é uma busca por endereço, não o ato de registrar.
+Gastar o coral aqui enfraqueceria o sinal no lugar onde ele importa.
+
+Branco sobre `#0B4357` dá 10.74 — o botão não perde presença por não ser coral.
+
+---
+
+## `D-009` · O upstream assume `$primary` claro; o nosso é escuro
+
+**Decisão.** Onde um parcial compartilhado pinta um bloco com `$primary` sem
+definir a cor do texto, o cobrand corrige por sobrescrita, elemento a elemento,
+conforme forem aparecendo.
+
+**Porquê.** Descoberto na validação da Fase 1: `_dashboard.scss` faz
+`background-color: $primary` e deixa o texto herdar `#222`. Isso só é legível se
+`$primary` for uma cor clara. O nosso teal é escuro — e o verde anterior também
+era, então o problema já existia e não foi criado pela troca de paleta.
+
+**Consequência.** Outros blocos com o mesmo padrão devem aparecer em páginas
+ainda não auditadas (`/auth`, `/alert`, `/faq`, telas de administração). A
+varredura de contraste precisa rodar em cada rota nova antes de declará-la
+pronta — não basta ter validado a Home.
