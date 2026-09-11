@@ -802,3 +802,56 @@ small,
         color: transparentize($primary_text, 0.2);
     }
 }
+
+// ---------------------------------------------------------------------------
+// PROPOSTA v3 — presenca de marca
+// ---------------------------------------------------------------------------
+//
+// A secao 13.1 reserva o Accent para registrar ocorrencia e avisa para nao
+// espalha-lo. "Mais de um ponto" aqui sao dois, os dois ligados a mesma acao: o
+// botao de busca do hero, que abre o fluxo, e o botao do menu. Nao vai para
+// links, bordas nem decoracao.
+//
+// Texto escuro sobre coral em ambos, por D-004: branco sobre coral da 2.79.
+.postcode-form-box input#sub {
+    background: var(--color-accent);
+    color: var(--color-text-primary);
+
+    &:hover,
+    &:focus {
+        background: mix($coral, $black, 88%);
+        color: var(--color-text-primary);
+    }
+}
+
+// Ritmo cromatico dos blocos.
+//
+// Ate aqui a pagina era teal, branco e cinza: a paleta tinha soft-blue e
+// soft-mint declarados e nao usados. Os blocos passam a alternar superficie
+// branca e fundo suave, o que separa as secoes sem precisar de linha nem sombra.
+.frontpage {
+    // Coluna dos passos: superficie branca, como estava.
+    // Os contadores dentro dela ganham fundo proprio, virando um bloco dentro do
+    // bloco em vez de um rodape solto separado por uma regua.
+    .full-width {
+        background: var(--color-soft-mint);
+        border-radius: var(--radius-md);
+        padding: var(--space-6) var(--space-4);
+        margin-top: var(--space-6);
+        border-top: none;
+    }
+
+    // Cartoes da lista sobre soft-blue bem diluido, para a coluna da direita ter
+    // corpo proprio e nao parecer flutuar no fundo da pagina.
+    .item-list--front-page .item-list__item {
+        background: var(--color-surface);
+        border-color: mix($teal, $white, 18%);
+    }
+}
+
+// O marcador de passo passa a soft-mint, para conversar com o bloco de
+// contadores logo abaixo em vez de repetir o azul do hero.
+.frontpage .big-numbers > li:before {
+    background: var(--color-soft-mint);
+    color: var(--color-primary-dark);
+}

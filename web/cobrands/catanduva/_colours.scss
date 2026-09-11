@@ -142,3 +142,11 @@ $content-background-desktop: $background;
 $body-font: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
 $meta-font: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
 $heading-font: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+// PROPOSTA v3 — mais contraste de marca.
+//
+// O hero passa de $teal para $darkteal: branco sobre ele da 10.74, contra 6.39
+// do tom anterior. O bloco fica mais firme e abre espaco para o teal medio ser
+// usado como cor de apoio no resto da pagina, em vez de ser a unica cor forte.
+$front-main-background: $darkteal;
+$front-main-background-desktop: $darkteal;
