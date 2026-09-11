@@ -339,8 +339,14 @@ select {
 // botoes. Links dentro de um paragrafo ficam de fora de proposito: a WCAG 2.5.8
 // isenta links em linha com o texto, e forcar 44px neles quebraria a entrelinha
 // do paragrafo sem ganho nenhum de acessibilidade.
-.nav-menu a,
-.nav-menu span,
+// A navegacao saiu desta regra. Forcar 44px nos links deixava o menu 1px mais
+// alto que o #main-nav, que tem overflow: auto — e 1px de estouro basta para o
+// navegador desenhar uma barra de rolagem dentro do cabecalho, que ainda comia
+// 15px de largura. Aparecia em /auth e /alert.
+//
+// Os links ficam em 43px. Passam a WCAG 2.5.8, que pede 24x24 em AA, e perdem
+// por 1px o alvo de 44 que a secao 7 do design system adota como meta. Trocar
+// um pixel de folga por uma barra de rolagem no cabecalho e um mau negocio.
 #key-tools a,
 #report-cta {
     min-height: 44px;
@@ -532,4 +538,32 @@ small,
 // em 64px no celular, abrindo um vazio branco antes do hero.
 .frontpage .content {
     padding-block: var(--space-8);
+}
+
+// Caixa de CEP fora da home.
+//
+// A Fase 1 deixou $postcodeform-background transparente para o hero virar um
+// bloco teal unico. Dentro do hero o texto branco funciona; fora dele, nao —
+// e a mesma caixa aparece em /alert, onde o label e a dica ficaram brancos
+// sobre branco, contraste 1. Era o UI-001 outra vez, agora causado por mim, numa
+// rota que eu nunca tinha auditado.
+body:not(.frontpage) {
+    .postcode-form-box {
+        color: $base_fg;
+
+        label {
+            color: $base_fg;
+        }
+
+        .form-hint {
+            color: $mediumgrey;
+        }
+    }
+}
+
+// No celular o menu fica colapsado e o #report-cta e o unico atalho visivel de
+// registro. Na home ele aponta para "/", a propria pagina, entao some aqui pela
+// mesma razao que o botao do menu some no desktop.
+.frontpage #report-cta {
+    display: none;
 }

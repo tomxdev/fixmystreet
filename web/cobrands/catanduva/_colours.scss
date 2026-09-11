@@ -132,7 +132,3 @@ $button-border-radius: 8px;
 // Com o bloco no tom da pagina, os cartoes da lista passam a ter contra o que
 // contrastar — antes eram brancos sobre branco.
 $content-background-desktop: $background;
-
-// Largura reservada para o CTA no cabecalho, para o menu nao escorregar por
-// baixo dele. Declarada uma vez e lida pelos dois lados.
-$cta-slot: 11rem;

@@ -69,33 +69,36 @@ h1 {
     font-size: var(--font-body-sm);
 }
 
-// No desktop o upstream esconde o CTA do cabecalho. Traze-lo de volta e o que
-// resolve UI-003 sem tocar em template — o elemento sempre esteve no HTML.
-#report-cta {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-}
-
 // Respiro maior no desktop, onde ha espaco para ele.
 .frontpage .content {
     padding-block: var(--space-12);
 }
 
-// O CTA e absoluto e ancorado a direita, onde no desktop mora a navegacao. Sem
-// reservar a faixa, ele cai por cima de "Alertas locais" e "Ajuda" — foi o que
-// a primeira validacao desta fase mostrou.
-#report-cta {
-    #{$right}: 0;
-    min-width: $cta-slot;
-    justify-content: center;
-}
+// CTA de registrar ocorrencia, no desktop.
+//
+// A primeira versao desta fase trazia de volta o #report-cta, que o upstream
+// esconde aqui. Era duplicacao: o upstream ja poe .report-a-problem-btn dentro
+// do menu, com o mesmo href "/" e o mesmo proposito. Dois botoes de destaque
+// para a mesma acao enfraquecem os dois, e o segundo ainda precisava de uma
+// faixa reservada para nao cair por cima de "Alertas locais" e "Ajuda".
+//
+// Agora o destaque vai no botao que ja existe, no lugar onde ele ja esta.
+// O seletor acompanha o do upstream, que e .nav-menu--main a.report-a-problem-btn.
+// Um .report-a-problem-btn simples perde por especificidade, independentemente da
+// ordem no arquivo — terceira vez que a cascata aparece nesta iniciativa, depois
+// do rodape na Fase 2 e da navegacao na Fase 4.
+.nav-menu--main a.report-a-problem-btn {
+    background: var(--color-accent);
+    color: var(--color-text-primary);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-4);
+    font-weight: 700;
 
-// A reserva vai na margem do #main-nav, e nao no padding do .container: o
-// container e content-box, entao padding ali alargava a caixa em vez de
-// empurrar o menu, e o CTA continuava por cima.
-#main-nav {
-    margin-#{$right}: calc(#{$cta-slot} + var(--space-6));
+    &:hover,
+    &:focus {
+        background: mix($coral, $black, 90%);
+        color: var(--color-text-primary);
+    }
 }
 
 // As duas colunas da home sao celulas de tabela, e celula de tabela iguala a
@@ -120,13 +123,12 @@ h1 {
     }
 }
 
-// Na propria home o CTA aponta para "/", ou seja, para a pagina onde ja se esta.
-// Mostra-lo ali seria um botao de destaque que nao leva a lugar nenhum, e o
-// caminho de registro na home e a busca por endereco dentro do hero.
+// Na home o botao aponta para "/", ou seja, para a pagina onde ja se esta.
+// Mostrar um destaque que nao leva a lugar nenhum e pior que nao mostrar nada,
+// e o caminho de registro na home e a busca por endereco dentro do hero.
 //
-// Isto deixa UI-003 parcialmente aberto de proposito: o CTA agora existe no
-// desktop das demais paginas, mas dar a home um CTA de verdade exige um href
+// Por isso UI-003 continua aberto: dar a home um CTA de verdade exige um href
 // diferente, e href e template — fora do que D-001 permite mexer sem combinar.
-.frontpage #report-cta {
+.frontpage .report-a-problem-btn {
     display: none;
 }
