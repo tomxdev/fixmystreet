@@ -1,13 +1,20 @@
 #!/usr/bin/env perl
 #
-# Cria ocorrencias de exemplo, com fotografia, para ver o piloto povoado - mapa,
-# listagem e pagina de ocorrencia. So faz sentido em ambiente local; recusa
-# rodar fora de STAGING_SITE.
+# Cria o conjunto de ocorrencias de exemplo do piloto. So faz sentido em
+# ambiente local; recusa rodar fora de STAGING_SITE.
 #
-# Idempotente: identifica pelo titulo e nao duplica.
+# Nao e so povoamento: as coordenadas, os estados, as datas e a presenca ou
+# ausencia de fotografia foram escolhidos para que a faixa do mapa possa ser
+# *conferida* - quantas aparecem no enquadramento, quais vem depois do divisor,
+# quais mostram endereco, distancia, pilula e icone. Ver o comentario do
+# @EXEMPLOS.
+#
+# Idempotente na criacao: identifica pelo titulo e nao duplica.
 #
 #   bin/catanduva/dados-exemplo            cria as ocorrencias
-#   bin/catanduva/dados-exemplo --limpar   remove as que ele criou
+#   bin/catanduva/dados-exemplo --limpar   apaga TODAS as ocorrencias do banco,
+#                                          com comentarios, alertas de
+#                                          acompanhamento e fotografias em disco
 
 use strict;
 use warnings;
@@ -24,6 +31,9 @@ BEGIN {
 use FixMyStreet;
 use FixMyStreet::DB;
 use FixMyStreet::PhotoStorage;
+use Memcached;
+use FixMyStreet::Cobrand::Catanduva;
+use File::Spec;
 use Getopt::Long;
 use Image::Magick;
 
@@ -36,61 +46,174 @@ GetOptions(\%opt, 'limpar', 'help|h') or exit 1;
 die "Recusando: isto so roda em ambiente de teste (STAGING_SITE).\n"
     unless FixMyStreet->config('STAGING_SITE');
 
-my $MARCA = '[exemplo]';   # fica no campo 'note'? nao ha - usamos o detail
-my $BODY  = 'Prefeitura de Catanduva';
+my $BODY = 'Prefeitura de Catanduva';
 
-# Espalhadas pelo municipio, todas dentro do bounding box do cobrand.
+# Onde as ocorrencias ficam, e por que nestes pontos.
+#
+# Este conjunto existe para poder *verificar* a faixa inferior do mapa, e nao so
+# para povoar a tela. Cada campo do cartao tem aqui um caso que o exercita:
+#
+#   endereco    vem do reverse geocoding, gravado em problem.geocode no momento
+#               da criacao (o mesmo caminho que o formulario usa)
+#   distancia   so existe para as que estao FORA do enquadramento; sao elas, e
+#               so elas, que entram depois do divisor da faixa
+#   contagem    o titulo da faixa conta o que esta DENTRO do enquadramento
+#   icone       as quatro categorias reais do piloto, uma por icone
+#   pilula      os quatro estados que o cartao sabe pintar
+#   tempo       "Hoje", "Ha 1 dia" e varios "Ha N dias"
+#   miniatura   com e sem fotografia, para ver o espaco reservado
+#
+# Os enquadramentos foram medidos em /around?lat=-21.1383&lon=-48.9728&zoom=3,
+# que e a vista padrao do piloto:
+#
+#   desktop 1440   lon -48.98825 .. -48.95735   lat -21.14568 .. -21.13091
+#   tablet   768   lon -48.98104 .. -48.96456   lat -21.14713 .. -21.12947
+#   celular  390   lon -48.97718 .. -48.96842   lat -21.14532 .. -21.13127
+#
+# DENTRO cabe no menor dos tres (o do celular), com folga, para a contagem dar
+# o mesmo numero nas tres larguras. FORA fica alem do maior dos tres (o do
+# desktop), para nunca aparecer no quadro em nenhuma delas - e perto o bastante
+# para o servidor ainda oferece-las como "proximas".
 my @EXEMPLOS = (
+    # -- dentro do enquadramento, nas tres larguras ------------------- 8 itens
     { titulo => 'Buraco fundo na Rua São Paulo',
       detalhe => 'Buraco de uns 40 cm na faixa da direita, bem no cruzamento. Já vi duas motos desviarem em cima da hora.',
-      categoria => 'Buraco na via',   lat => '-21.1383', lon => '-48.9736',
-      cep => '15800-000', estado => 'confirmed',        cor => '#8B5A2B' },
+      categoria => 'Buraco na via',          estado => 'confirmed',
+      lat => '-21.1350', lon => '-48.9745',  dias => 0,  dentro => 1, cor => '#8B5A2B' },
 
-    { titulo => 'Poste apagado há duas semanas',
+    { titulo => 'Poste apagado na esquina da praça',
       detalhe => 'A rua inteira ficou escura. À noite ninguém passa a pé por ali.',
-      categoria => 'Iluminacao publica', lat => '-21.1290', lon => '-48.9650',
-      cep => '15801-100', estado => 'investigating',    cor => '#2F4F4F' },
+      categoria => 'Iluminacao publica',     estado => 'investigating',
+      lat => '-21.1362', lon => '-48.9710',  dias => 1,  dentro => 1, cor => '#2F4F4F' },
 
-    { titulo => 'Entulho abandonado na esquina',
+    { titulo => 'Entulho na calçada do mercado',
       detalhe => 'Restos de obra deixados na calçada, ocupando metade da passagem.',
-      categoria => 'Lixo acumulado',  lat => '-21.1450', lon => '-48.9800',
-      cep => '15802-200', estado => 'confirmed',        cor => '#556B2F' },
+      categoria => 'Lixo acumulado',         estado => 'confirmed',
+      lat => '-21.1395', lon => '-48.9750',  dias => 3,  dentro => 1, cor => undef },
 
     { titulo => 'Placa de pare torta e ilegível',
       detalhe => 'A placa girou e aponta para o lado errado. Quem vem da subida não vê.',
-      categoria => 'Sinalizacao danificada', lat => '-21.1200', lon => '-48.9550',
-      cep => '15803-300', estado => 'action scheduled', cor => '#B22222' },
+      categoria => 'Sinalizacao danificada', estado => 'action scheduled',
+      lat => '-21.1405', lon => '-48.9705',  dias => 7,  dentro => 1, cor => '#B22222' },
 
     { titulo => 'Asfalto afundado perto da escola',
       detalhe => 'Afundamento no meio da via, bem na entrada da escola. Piorou depois da chuva.',
-      categoria => 'Buraco na via',   lat => '-21.1500', lon => '-48.9600',
-      cep => '15804-400', estado => 'confirmed',        cor => '#6B4423' },
+      categoria => 'Buraco na via',          estado => 'fixed - council',
+      lat => '-21.1338', lon => '-48.9722',  dias => 15, dentro => 1, cor => '#6B4423' },
 
-    { titulo => 'Lâmpada piscando na praça',
+    { titulo => 'Lâmpada piscando na avenida',
       detalhe => 'Fica acendendo e apagando a noite toda.',
-      categoria => 'Iluminacao publica', lat => '-21.1350', lon => '-48.9900',
-      cep => '15805-500', estado => 'fixed - council',  cor => '#4682B4' },
+      categoria => 'Iluminacao publica',     estado => 'confirmed',
+      lat => '-21.1420', lon => '-48.9735',  dias => 28, dentro => 1, cor => undef },
 
     { titulo => 'Lixo acumulado no ponto de ônibus',
       detalhe => 'Sacos rasgados há dias, com mau cheiro forte. Quem espera o ônibus fica em pé na calçada.',
-      categoria => 'Lixo acumulado',  lat => '-21.1100', lon => '-48.9700',
-      cep => '15806-600', estado => 'confirmed',        cor => '#6E7B8B' },
+      categoria => 'Lixo acumulado',         estado => 'confirmed',
+      lat => '-21.1375', lon => '-48.9698',  dias => 45, dentro => 1, cor => '#6E7B8B' },
 
     { titulo => 'Faixa de pedestre apagada',
       detalhe => 'A pintura sumiu quase toda. No horário de saída da escola é perigoso.',
-      categoria => 'Sinalizacao danificada', lat => '-21.1420', lon => '-48.9500',
-      cep => '15807-700', estado => 'confirmed',        cor => '#708090' },
+      categoria => 'Sinalizacao danificada', estado => 'investigating',
+      lat => '-21.1430', lon => '-48.9718',  dias => 90, dentro => 1, cor => '#708090' },
+
+    # -- fora do enquadramento, em todas as larguras ------------------ 5 itens
+    { titulo => 'Bueiro sem tampa no Jardim Norte',
+      detalhe => 'A tampa sumiu e o buraco ficou aberto na calçada, na passagem de quem vai para o ponto.',
+      categoria => 'Buraco na via',          estado => 'confirmed',
+      lat => '-21.1250', lon => '-48.9728',  dias => 2,  dentro => 0, cor => '#7B683F' },
+
+    { titulo => 'Mato alto no terreno da creche',
+      detalhe => 'O mato passou da altura do muro e já tem gente reclamando de bicho.',
+      categoria => 'Lixo acumulado',         estado => 'confirmed',
+      lat => '-21.1560', lon => '-48.9740',  dias => 9,  dentro => 0, cor => undef },
+
+    { titulo => 'Semáforo apagado na avenida leste',
+      detalhe => 'O semáforo do cruzamento não liga desde ontem e ninguém sabe de quem é a vez.',
+      categoria => 'Sinalizacao danificada', estado => 'investigating',
+      lat => '-21.1380', lon => '-48.9500',  dias => 20, dentro => 0, cor => '#8B3A3A' },
+
+    { titulo => 'Poste caído após o temporal',
+      detalhe => 'O poste cedeu com o vento e ficou apoiado no muro da casa da esquina.',
+      categoria => 'Iluminacao publica',     estado => 'action scheduled',
+      lat => '-21.1390', lon => '-49.0000',  dias => 5,  dentro => 0, cor => '#3C4E5A' },
+
+    { titulo => 'Calçada quebrada no Jardim Augusta',
+      detalhe => 'A calçada afundou junto ao meio-fio e virou um degrau de uns 15 cm.',
+      categoria => 'Buraco na via',          estado => 'fixed - council',
+      lat => '-21.1270', lon => '-48.9560',  dias => 60, dentro => 0, cor => undef },
 );
 
 my $problems = FixMyStreet::DB->resultset('Problem');
 
+# A home nao le o banco a cada visita: as ocorrencias recentes e os quatro
+# numeros de "Catanduva em numeros" passam pelo Memcached.
+#
+# Sem esvaziar, a home continua mostrando o que havia antes - e, logo depois de
+# uma limpeza, ela anuncia "Ainda nao ha ocorrencias registradas" com o banco
+# cheio, ou os numeros antigos com o banco vazio. Foi exatamente o que aconteceu
+# na primeira vez que este script apagou tudo, e leva um tempo ate desconfiar do
+# cache em vez da pagina.
+#
+# `flush_all` porque as chaves carregam a data e o intervalo no nome: apagar
+# uma a uma exigiria reproduzir aqui a regra de nomeacao de quem as escreve, o
+# que fica errado no dia em que ela mudar. Num ambiente de teste, esvaziar tudo
+# nao custa nada.
+sub esvazia_cache {
+    my $mc = Memcached::instance();
+    return unless $mc && $mc->get_sock;
+    $mc->flush_all;
+    say 'cache da home esvaziado';
+}
+
 # ------------------------------------------------------------------- limpar
+#
+# Apaga TODAS as ocorrencias, e nao so as que este script criou.
+#
+# A versao anterior casava pelo titulo, o que servia para desfazer um povoamento
+# e nao servia para o que este script passou a ser: a base de um ambiente em que
+# se possa *verificar* a faixa do mapa. Uma ocorrencia de teste esquecida entra
+# na contagem e na faixa como qualquer outra, e ai o numero que se foi conferir
+# ja nao e o numero que o conjunto previa.
+#
+# Vai junto o que pende das ocorrencias: os comentarios, por chave estrangeira,
+# e os alertas de acompanhamento, que guardam o id da ocorrencia em `parameter`
+# sem chave nenhuma e por isso sobreviveriam apontando para o vazio.
+#
+# E vao as fotografias. Elas nao estao no banco: `PHOTO_STORAGE_BACKEND` e
+# `FileSystem`, e os arquivos ficam em `UPLOAD_DIR` - fora do repositorio, o que
+# e justamente por que o `upload/` da arvore aparece vazio e as miniaturas
+# davam 404 (UI-010).
 if ($opt{limpar}) {
-    my $rs = $problems->search({ title => [ map { $_->{titulo} } @EXEMPLOS ] });
-    my $n = $rs->count;
-    $_->comments->delete for $rs->all;
-    $rs->delete;
-    say "removidas: $n";
+    my $n = $problems->count;
+
+    for my $p ($problems->all) {
+        $p->comments->delete;
+    }
+
+    # Alertas cujo alvo e uma ocorrencia. Os de area (`local_problems` e afins)
+    # nao apontam para nenhuma e continuam validos.
+    my $alertas = FixMyStreet::DB->resultset('Alert')->search({
+        alert_type => [ 'new_updates', 'questionnaire' ],
+    });
+    my $na = $alertas->count;
+    $alertas->delete;
+
+    $problems->delete;
+
+    my $dir = FixMyStreet->config('PHOTO_STORAGE_OPTIONS')->{UPLOAD_DIR};
+    my $nf = 0;
+    if ($dir && -d $dir) {
+        opendir(my $dh, $dir) or die "nao consegui abrir $dir: $!\n";
+        for my $f (readdir $dh) {
+            next unless $f =~ /\.(jpeg|jpg|png|gif|tiff)$/i;
+            unlink File::Spec->catfile($dir, $f) and $nf++;
+        }
+        closedir $dh;
+    }
+
+    esvazia_cache();
+
+    say "removidas: $n ocorrencias, $na alertas de acompanhamento, $nf fotografias";
     exit 0;
 }
 
@@ -123,6 +246,22 @@ sub gera_foto {
     return $blobs[0];
 }
 
+# ---------------------------------------------------------------- endereco
+# O endereco do cartao sai de `problem.geocode`, e quem o preenche no fluxo real
+# e o `report_new_munge_before_insert` do cobrand, com o mesmo geocodificador
+# reverso que resolve o CEP. Aqui chamamos o mesmo metodo: a resposta gravada e
+# a de verdade, para aquelas coordenadas, e nao um endereco escrito a mao.
+#
+# Nominatim pede cerca de uma consulta por segundo. Sao treze.
+my $cobrand = FixMyStreet::Cobrand::Catanduva->new;
+
+sub geocodifica {
+    my ($lat, $lon) = @_;
+    my $r = $cobrand->reverse_geocode_pin($lat, $lon);
+    sleep 1;
+    return $r;
+}
+
 # -------------------------------------------------------------------- criar
 my $criadas = 0;
 for my $e (@EXEMPLOS) {
@@ -131,10 +270,19 @@ for my $e (@EXEMPLOS) {
         next;
     }
 
-    my $blob = gera_foto($e->{titulo}, $e->{cor});
-    my $fileid = FixMyStreet::PhotoStorage->backend->store_photo($blob);
+    # `cor` ausente significa, de proposito, ocorrencia sem fotografia: o cartao
+    # tem de mostrar o espaco reservado, e isso tambem precisa ser visto.
+    my $foto;
+    if ($e->{cor}) {
+        my $blob = gera_foto($e->{titulo}, $e->{cor});
+        my $fileid = FixMyStreet::PhotoStorage->backend->store_photo($blob);
+        $foto = "$fileid.jpeg";
+    }
 
-    my $quando = DateTime->now->subtract(days => 1 + $criadas * 3);
+    my $geocode = geocodifica($e->{lat}, $e->{lon});
+    my $cep = $geocode ? $cobrand->normalise_cep($geocode->{address}{postcode}) : '';
+
+    my $quando = DateTime->now->subtract(days => $e->{dias});
 
     my $p = $problems->create({
         title      => $e->{titulo},
@@ -142,7 +290,8 @@ for my $e (@EXEMPLOS) {
         category   => $e->{categoria},
         latitude   => $e->{lat},
         longitude  => $e->{lon},
-        postcode   => $e->{cep},
+        postcode   => $cep,
+        geocode    => $geocode,
         state      => $e->{estado},
         cobrand    => 'catanduva',
         bodies_str => $body->id,
@@ -154,16 +303,31 @@ for my $e (@EXEMPLOS) {
         confirmed  => $quando,
         lastupdate => $quando,
         whensent   => $quando,
-        photo      => "$fileid.jpeg",
+        photo      => $foto,
     });
 
     # Aprovadas de proposito: sem isto o MOD-002 as esconde, e o objetivo aqui
     # e justamente ver as fotografias no mapa e na listagem.
-    $p->set_extra_metadata(publish_photo => 1);
-    $p->update;
+    if ($foto) {
+        $p->set_extra_metadata(publish_photo => 1);
+        $p->update;
+    }
 
-    say sprintf('criada #%d  %-38s  %s', $p->id, $e->{titulo}, $e->{estado});
+    my $rua = $geocode ? $cobrand->short_address($p) : '';
+    say sprintf('criada #%-4d %-36s %-18s %-7s %s',
+        $p->id, $e->{titulo}, $e->{estado},
+        $e->{dentro} ? 'no quadro' : 'fora',
+        $rua || '(sem endereco)');
     $criadas++;
+}
+
+if ($criadas) {
+    my $dentro = grep { $_->{dentro} } @EXEMPLOS;
+    say '';
+    say sprintf('%d ocorrencias: %d dentro do enquadramento padrao, %d fora.',
+        scalar(@EXEMPLOS), $dentro, scalar(@EXEMPLOS) - $dentro);
+    say "A faixa do mapa deve anunciar \"Ocorrencias proximas ($dentro)\" em";
+    say 'qualquer uma das tres larguras, e as demais vem depois do divisor.';
 }
 
 # Regenera o resumo que a pagina "Todas as ocorrencias" le. Sem isto ela
@@ -187,6 +351,7 @@ if ($criadas) {
             or warn "aviso: falhou update-all-reports @$args\n";
     }
     say 'resumos de /reports regenerados';
+    esvazia_cache();
 }
 
 say '';
