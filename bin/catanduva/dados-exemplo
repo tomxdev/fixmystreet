@@ -59,7 +59,12 @@ my $BODY = 'Prefeitura de Catanduva';
 #               so elas, que entram depois do divisor da faixa
 #   contagem    o titulo da faixa conta o que esta DENTRO do enquadramento
 #   icone       as quatro categorias reais do piloto, uma por icone
-#   pilula      os quatro estados que o cartao sabe pintar
+#   pilula      os quatro estados que o cartao sabe pintar, mais `closed` e
+#               `duplicate`, que so existem para o distintivo deles ser visto
+#   galeria     uma ocorrencia com tres fotografias, a unica: as miniaturas da
+#               ficha so aparecem com mais de uma
+#   duplicidade um par vizinho da mesma categoria, para a subetapa "Ja foi
+#               relatado?" abrir com duas e o carrossel ter o que navegar
 #   tempo       "Hoje", "Ha 1 dia" e varios "Ha N dias"
 #   miniatura   com e sem fotografia, para ver o espaco reservado
 #
@@ -141,6 +146,42 @@ my @EXEMPLOS = (
       detalhe => 'A calçada afundou junto ao meio-fio e virou um degrau de uns 15 cm.',
       categoria => 'Buraco na via',          estado => 'fixed - council',
       lat => '-21.1270', lon => '-48.9560',  dias => 60, dentro => 0, cor => undef },
+
+    # -- o que a validacao precisava e nao existia --------------------- 4 itens
+    #
+    # Ate aqui a lista foi montada para a faixa do mapa. Estes quatro existem
+    # para as telas que vieram depois - a subetapa "Ja foi relatado?", a ficha
+    # da ocorrencia existente e o vocabulario de estados -, e cada validacao
+    # delas precisou forjar dado no banco a mao e reverter. Uma vez basta.
+
+    # Galeria: a unica com mais de uma fotografia. Sem ela, as miniaturas da
+    # ficha nao aparecem, porque com uma foto so nao ha o que escolher.
+    { titulo => 'Cratera na saída do posto',
+      detalhe => 'Abriu depois da chuva e já engoliu uma roda. Passei três fotos: de longe, de perto e com o pé ao lado para dar a escala.',
+      categoria => 'Buraco na via',          estado => 'investigating',
+      lat => '-21.1348', lon => '-48.9738',  dias => 2,  dentro => 1,
+      cores => [ '#6B4423', '#8B5A2B', '#4A3728' ] },
+
+    # Vizinha da anterior, e da mesma categoria: e este par que faz a subetapa
+    # de duplicidade aparecer com DUAS ocorrencias, que e o caso em que o
+    # carrossel tem o que fazer. Sozinha, uma so nao exercita a navegacao.
+    { titulo => 'Buraco no cruzamento, a 100 metros',
+      detalhe => 'Do outro lado da esquina, menor que o da saída do posto, mas fundo o bastante para torcer a direção.',
+      categoria => 'Buraco na via',          estado => 'action scheduled',
+      lat => '-21.1341', lon => '-48.9744',  dias => 9,  dentro => 1, cor => '#7A4B2A' },
+
+    # Dois estados de fechamento, que nao apareciam em lugar nenhum. Sem eles,
+    # o distintivo "Fechada" e o "Duplicada" nunca sao vistos - e um rotulo que
+    # ninguem nunca viu e um rotulo que ninguem revisou.
+    { titulo => 'Poste trocado na Vila Rica',
+      detalhe => 'A concessionária trocou o poste na semana passada. Registro fica para consulta.',
+      categoria => 'Iluminacao publica',     estado => 'closed',
+      lat => '-21.1310', lon => '-48.9690',  dias => 45, dentro => 1, cor => '#3A4A5A' },
+
+    { titulo => 'Mesmo entulho já relatado antes',
+      detalhe => 'Registrado duas vezes no mesmo dia por pessoas diferentes.',
+      categoria => 'Lixo acumulado',         estado => 'duplicate',
+      lat => '-21.1399', lon => '-48.9753',  dias => 4,  dentro => 1, cor => undef },
 );
 
 my $problems = FixMyStreet::DB->resultset('Problem');
@@ -272,11 +313,27 @@ for my $e (@EXEMPLOS) {
 
     # `cor` ausente significa, de proposito, ocorrencia sem fotografia: o cartao
     # tem de mostrar o espaco reservado, e isso tambem precisa ser visto.
+    #
+    # `cores`, no plural, gera uma galeria. A ficha da ocorrencia so mostra as
+    # miniaturas quando ha mais de uma foto - com uma so ela ja esta em cima, e
+    # nao ha o que escolher -, entao sem um exemplo de galeria esse trecho da
+    # tela nao pode ser conferido sem forjar dado no banco a mao. Foi o que a
+    # validacao precisou fazer, e o que este campo existe para evitar.
     my $foto;
-    if ($e->{cor}) {
-        my $blob = gera_foto($e->{titulo}, $e->{cor});
-        my $fileid = FixMyStreet::PhotoStorage->backend->store_photo($blob);
-        $foto = "$fileid.jpeg";
+    my @cores = $e->{cores} ? @{ $e->{cores} }
+              : $e->{cor}   ? ( $e->{cor} )
+              :               ();
+
+    if (@cores) {
+        my @ids;
+        my $i = 0;
+        for my $cor (@cores) {
+            $i++;
+            my $texto = @cores > 1 ? "$e->{titulo} ($i)" : $e->{titulo};
+            my $blob = gera_foto($texto, $cor);
+            push @ids, FixMyStreet::PhotoStorage->backend->store_photo($blob) . '.jpeg';
+        }
+        $foto = join(',', @ids);
     }
 
     my $geocode = geocodifica($e->{lat}, $e->{lon});
