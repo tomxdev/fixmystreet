@@ -1,0 +1,25 @@
+Subject: Confirme seu comentário no [% site_name %]
+
+Olá[% IF update.name %], [% update.name %][% END %],
+
+Clique no link abaixo para confirmar o comentário que você escreveu no
+[% site_name %]:
+
+[% token_url %]
+
+Se o seu programa de e-mail não deixar clicar, copie o endereço e cole na barra
+do navegador.
+
+O que você escreveu:
+
+[% update.text %]
+
+Se mudou de ideia, não precisa fazer nada: sem o clique no link, o comentário
+não é publicado.
+
+[% INCLUDE 'update-confirm-donotsend.txt' %]
+
+[% signature %]
+
+Esta mensagem foi enviada automaticamente, de uma caixa que não é lida - por
+favor, não responda a ela.

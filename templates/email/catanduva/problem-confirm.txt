@@ -1,0 +1,35 @@
+Subject: Confirme sua ocorrência no [% site_name %]
+
+Olá[% IF report.name %], [% report.name %][% END %],
+
+Falta um passo para a sua ocorrência ser registrada: clique no link abaixo para
+confirmar que quer enviá-la para [% report.body %].
+
+[% token_url %]
+
+Se o seu programa de e-mail não deixar clicar, copie o endereço e cole na barra
+do navegador.
+[% IF report.non_public %]
+Ela não será publicada para consulta pública no [% site_name %], mas será
+enviada para [% report.body %].
+[% ELSE %]
+Depois de confirmada, ela aparece no mapa do [% site_name %] e é enviada para
+[% report.body %]. Você recebe um e-mail quando houver resposta.
+[% END %]
+[% TRY %][% INCLUDE '_problem-confirm_extra.txt' %][% CATCH file %][% END %]
+O que você escreveu:
+
+[% report.title %]
+
+[% report.detail %]
+
+Se mudou de ideia, não precisa fazer nada: sem o clique no link, a ocorrência
+não é registrada nem enviada a ninguém.
+
+Obrigado por contribuir para uma cidade melhor.
+
+
+[% signature %]
+
+Esta mensagem foi enviada automaticamente, de uma caixa que não é lida - por
+favor, não responda a ela.

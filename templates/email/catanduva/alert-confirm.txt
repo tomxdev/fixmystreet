@@ -1,0 +1,18 @@
+Subject: Confirme seu alerta do [% site_name %]
+
+Clique no link abaixo para confirmar o alerta que você pediu no [% site_name %]:
+
+   [% token_url %]
+
+Se não conseguir clicar, copie o endereço e cole na barra do navegador.
+
+A partir daí você recebe um e-mail quando houver novidade no que escolheu
+acompanhar.
+
+Os alertas são gratuitos, e você pode cancelá-los quando quiser pelo link que
+vai em cada mensagem.
+
+[% signature %]
+
+Esta mensagem foi enviada automaticamente, de uma caixa que não é lida - por
+favor, não responda a ela.
