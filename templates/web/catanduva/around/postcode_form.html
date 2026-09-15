@@ -1,0 +1,123 @@
+[%# Hero da home e barra de busca — UI Evolution V2.
+
+    Substitui templates/web/base/around/postcode_form.html. O upstream renderiza
+    um <main id="front-main"> com titulo, subtitulo e o formulario de CEP; a
+    referencia acrescenta a esse bloco a imagem da cidade, o cartao flutuante e a
+    linha de exemplos.
+
+    O formulario e o mesmo, campo por campo. Nome, id, action, method, os campos
+    escondidos de filtro, o token de rascunho e o bloco de geolocalizacao seguem
+    iguais — o JS do upstream procura #postcodeForm, #pc e .js-geolocate pelo
+    nome, e a busca por endereco e o caminho principal de registro. O que mudou
+    foi so a moldura.
+
+    Este template tambem e usado em /around quando a busca falha, entao nada aqui
+    pode depender de estar na home.
+%]
+[%- SET is_home = c.req.uri.path == '/' -%]
+[%- question = c.cobrand.enter_postcode_text || loc('Enter a nearby street name and area') -%]
+
+<main id="front-main" class="home-hero">
+    [% IF is_home %]
+        <span class="home-hero__blob home-hero__blob--a" aria-hidden="true"></span>
+        <span class="home-hero__blob home-hero__blob--b" aria-hidden="true"></span>
+
+        <div class="home-hero__media" aria-hidden="true">
+            <img class="home-hero__photo" src="/cobrands/catanduva/images/hero-catanduva.svg" alt="" width="800" height="560">
+
+            <figure class="home-hero__badge">
+                <span class="c-icon-circle c-icon-circle--sm">[% INCLUDE '_ui-icon.html' icon = 'pin' %]</span>
+                <figcaption>
+                    <span class="home-hero__badge-title">Catanduva</span>
+                    <span class="home-hero__badge-text">Nossa cidade,<br>nossa responsabilidade.</span>
+                </figcaption>
+            </figure>
+
+            <p class="home-hero__script">Cidades melhores são feitas por pessoas.</p>
+        </div>
+    [% END %]
+
+    <div class="container home-hero__inner">
+        <div id="front-main-container" class="home-hero__copy">
+            [% IF is_home %]
+                <h1 class="home-hero__title">
+                    Uma Catanduva melhor começa
+                    <span class="home-hero__accent">com você.</span>
+                </h1>
+                <p class="home-hero__lead">
+                    Registre, acompanhe e ajude a resolver problemas na sua cidade.
+                    Juntos por uma Catanduva mais limpa, segura e acolhedora.
+                </p>
+            [% ELSE %]
+                [% UNLESS possible_location_matches %]
+                    [% PROCESS 'around/intro.html' %]
+                [% END %]
+            [% END %]
+
+            [%# Rascunho salvo offline. Fica escondido ate o JS encontrar um. %]
+            <div class="hidden js-continue-draft draft-info-box">
+                <p>Você tem uma ocorrência começada enquanto estava sem conexão.</p>
+                <a href="#" class="btn btn--primary continue-draft-btn">Continuar a ocorrência</a>
+            </div>
+            <div class="hidden js-setting-location-for-draft draft-info-box">
+                <p>Para continuar a ocorrência<span class="js-draft-name"></span>, informe onde ela está.</p>
+                <a href="/" class="btn">Cancelar</a>
+            </div>
+
+            <form action="[% c.uri_for('/around') %]" method="get" name="postcodeForm" id="postcodeForm"
+                  class="postcode-form-box js-geolocate home-search[% ' home-search--error' IF location_error_pc_lookup %]">
+
+                <label for="pc"[% ' class="visuallyhidden"' IF is_home %]>[% question %]:</label>
+
+                <div class="home-search__box">
+                    <span class="home-search__icon" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'search' %]</span>
+                    <input type="text" name="pc" value="[% pc | html %]" id="pc" size="10" maxlength="200" required
+                           placeholder="Digite um CEP, rua, bairro ou o problema..."
+                           aria-describedby="pc-hint[% ' search-help pc-error' IF location_error_pc_lookup %]"
+                           aria-label="[% question %]">
+                    <input type="submit" value="Buscar" id="sub" class="btn btn--primary">
+                </div>
+
+                [% IF location_error_pc_lookup %]
+                    <p id="pc-error" class="home-search__error">
+                        <span class="visuallyhidden">Erro:</span>
+                        [% loc('Please enter a valid postcode or area') %]
+                    </p>
+                [% END %]
+
+                [% IF partial_token %]
+                    <input type="hidden" name="partial" value="[% partial_token.token %]">
+                [% END %]
+
+                [% IF c.get_param('filter_category') OR c.get_param('filter_group') %]
+                    <input type="hidden" name="filter_category" value="[% c.get_param('filter_category') | html %]">
+                    <input type="hidden" name="filter_group" value="[% c.get_param('filter_group') | html %]">
+                [% ELSIF c.user_exists AND c.user.categories.size %]
+                    <input type="hidden" name="filter_category" value="[% c.user.categories_string | html %]">
+                [% END %]
+
+                [%~ SET link_params = { geolocate = 1 };
+                    IF c.get_param('filter_category'); link_params.filter_category = c.get_param('filter_category'); END;
+                    IF c.get_param('filter_group'); link_params.filter_group = c.get_param('filter_group'); END;
+                %]
+                [% INCLUDE 'around/_postcode_form_geolocation.html' url=c.uri_for('/around', link_params) %]
+
+                [% UNLESS possible_location_matches OR location_error_pc_lookup %]
+                    [% INCLUDE 'around/_postcode_form_post.html' %]
+                [% END %]
+            </form>
+
+            [%# Exemplos do que se pode digitar. Sao exemplos de formato, nao dados
+                da aplicacao: nao ha consulta por tras deles. %]
+            <div class="home-search__examples" id="pc-hint">
+                <span>Exemplos:</span>
+                <ul>
+                    <li>Rua Brasil, Centro</li>
+                    <li>poste apagado</li>
+                    <li>buraco na via</li>
+                    <li>iluminação pública</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</main>

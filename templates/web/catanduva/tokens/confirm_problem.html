@@ -1,0 +1,195 @@
+[%# Estado 09 — Ocorrencia enviada.
+
+    Substitui templates/web/base/tokens/confirm_problem.html.
+
+    Esta e a unica tela do fluxo de registro que nao vive dentro da pagina de
+    mapa. O envio e um POST de verdade: a pessoa sai do /around e o servidor
+    decide para onde ela vai. Sao dois caminhos, e os dois terminam aqui:
+
+      ja autenticada  POST /report/new -> redirect /report/confirmation/<id>
+                      (Report.pm, sub confirmation) -> created_report = loggedin
+      nao autenticada POST /report/new -> email_sent.html ("verifique seu
+                      e-mail") -> link do e-mail /P/<token> ->
+                      New.pm, sub process_confirmation -> created_report =
+                      fromemail
+
+    O mapa nao vem de graca nessas rotas — nenhuma das duas monta `map`. Quem
+    monta e o gancho confirmation_page_extra do cobrand, chamado dos dois lados.
+    Se um dia ele nao rodar, `map.type` fica vazio e esta pagina cai num cartao
+    centrado, sem mapa, em vez de quebrar.
+
+    O que a referencia mostra e nao esta aqui, com o motivo:
+
+      "Passo 9 de 9"  o fluxo real nao tem nove passos — tem os que a categoria
+                      escolhida exigir, e o contador do painel conta isso. Nesta
+                      tela nao ha mais passo nenhum: a ocorrencia foi enviada.
+                      Escrever 9 de 9 seria decoracao com cara de informacao.
+
+      "#CTD-12345"    nao existe numeracao CTD. O identificador que o sistema
+                      devolve, e que o proprio upstream manda citar em qualquer
+                      contato, e o id da ocorrencia. E ele que aparece.
+%]
+[%
+    PROCESS "maps/${map.type}.html" IF map.type;
+
+    SET bodyclass = 'mappage mappage--catanduva mappage--sent' IF map.type;
+    SET extra_js = [ version('/cobrands/catanduva/catanduva-map.js') ];
+
+    INCLUDE 'header.html',
+        title  => loc('Confirmation'),
+        robots => 'noindex,nofollow';
+%]
+
+[% IF map.type %]
+    [%# map_html abre <div id="map_box"> e nao fecha; quem fecha e este arquivo. %]
+    [% map_html | safe %]
+    </div>
+[% END %]
+
+<div id="map_sidebar" class="map-panel map-panel--sent">
+
+    <div class="map-panel__flow-head">
+        [%# Volta para o mapa no ponto da ocorrencia, e nao para a home: e de la
+            que a pessoa veio e e la que ela ve o que acabou de registrar. %]
+        <a href="[% c.uri_for('/around', { lat = report.latitude, lon = report.longitude }) %]" class="map-panel__back">
+            [% INCLUDE '_ui-icon.html' icon = 'arrow-left' %]
+            <span>Voltar para o mapa</span>
+        </a>
+    </div>
+
+    <div class="map-sent">
+
+        <p class="map-sent__mark" aria-hidden="true">
+            [% INCLUDE '_ui-icon.html' icon = 'check-badge' %]
+        </p>
+
+        <h1 class="map-sent__title">Ocorrência enviada!</h1>
+
+        <p class="map-sent__lead">
+            Obrigado por contribuir para uma cidade melhor.
+            [% IF report.bodies_str %]
+                Sua ocorrência foi registrada e será encaminhada para análise.
+            [% ELSE %]
+                Sua ocorrência foi registrada.
+            [% END %]
+        </p>
+
+        [%# ---- Protocolo ----
+            report.id e o identificador real da ocorrencia. A data e a de
+            confirmacao quando ha, porque e o momento em que a ocorrencia passou
+            a existir publicamente; antes disso ela estava so esperando o clique
+            no e-mail. prettify_dt formata no fuso e no idioma configurados. %]
+        <div class="map-sent__protocol">
+            <span class="map-sent__protocol-icon" aria-hidden="true">
+                [% INCLUDE '_ui-icon.html' icon = 'clipboard' %]
+            </span>
+            <span class="map-sent__protocol-body">
+                <span class="map-sent__protocol-label">Protocolo da ocorrência</span>
+                <span class="map-sent__protocol-value" id="js-protocol">#[% report.id %]</span>
+                [%# Sem `a OR b` aqui de proposito: o TT chama o metodo do objeto
+                    em contexto de lista e, quando o passa por um operador, o que
+                    chega em prettify_dt e uma referencia crua, nao o DateTime —
+                    e o filtro morre com "Can't call method strftime on
+                    unblessed reference". Um IF resolve e diz a mesma coisa. %]
+                <span class="map-sent__protocol-date">
+                    [% IF report.confirmed %]
+                        Registrada em [% prettify_dt( report.confirmed ) %]
+                    [% ELSE %]
+                        Registrada em [% prettify_dt( report.created ) %]
+                    [% END %]
+                </span>
+            </span>
+            [%# Escondido ate catanduva-map.js confirmar que ha area de
+                transferencia — um botao de copiar que nao copia e pior do que
+                nenhum. %]
+            <button type="button" class="map-sent__copy js-copy-protocol hidden"
+                    data-copy-target="js-protocol"
+                    data-copy-done="Copiado"
+                    aria-label="Copiar o protocolo da ocorrência">
+                [% INCLUDE '_ui-icon.html' icon = 'copy' %]
+            </button>
+        </div>
+
+        [%# ---- Acompanhamento ----
+            So aparece quando ha de fato uma assinatura de atualizacoes por
+            e-mail. create_related_things inscreve quem relata, a menos que
+            no_reporter_alert esteja marcado — entao a promessa abaixo e
+            verdadeira nesse caso, e so nele. %]
+        [% IF report.user.email AND NOT no_reporter_alert %]
+        <div class="map-sent__follow">
+            <span class="map-sent__follow-icon" aria-hidden="true">
+                [% INCLUDE '_ui-icon.html' icon = 'mail' %]
+            </span>
+            <div class="map-sent__follow-body">
+                <h2 class="map-sent__follow-title">Acompanhe por e-mail</h2>
+                <p>Vamos enviar as atualizações desta ocorrência para
+                   <strong>[% report.user.email | html %]</strong>.</p>
+                [% IF c.user_exists AND c.user.id == report.user.id %]
+                <p class="map-sent__follow-action">
+                    <a href="[% c.uri_for('/auth/change_email') %]">
+                        Editar e-mail cadastrado
+                        [% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]
+                    </a>
+                </p>
+                [% END %]
+            </div>
+        </div>
+        [% END %]
+
+        [%# ---- Acoes ----
+            Ver no mapa vai para a pagina da ocorrencia — relative_url_for_report
+            porque uma ocorrencia pode pertencer a outro cobrand e o link
+            precisaria sair daqui. Registrar outra volta ao formulario no mesmo
+            ponto, que e o que o upstream ja oferecia nesta tela. %]
+        <div class="map-sent__actions">
+            <a href="[% c.cobrand.relative_url_for_report( report ) %][% report.url %]" class="btn btn--primary btn--block">
+                [% INCLUDE '_ui-icon.html' icon = 'map' %]
+                <span>Ver ocorrência no mapa</span>
+            </a>
+            <a href="[% c.uri_for('/report/new', { latitude = report.latitude, longitude = report.longitude }) %]" class="btn btn--block">
+                [% INCLUDE '_ui-icon.html' icon = 'plus-circle' %]
+                <span>Registrar outra ocorrência</span>
+            </a>
+        </div>
+
+        <p class="map-sent__note">
+            <span class="map-sent__note-icon" aria-hidden="true">
+                [% INCLUDE '_ui-icon.html' icon = 'leaf' %]
+            </span>
+            <span>
+                <strong>Juntos por uma Catanduva melhor!</strong>
+                Sua participação faz a diferença.
+            </span>
+        </p>
+
+        [% TRY %][% INCLUDE 'tokens/_extras_confirm.html' %][% CATCH file %][% END %]
+
+    </div>
+</div>
+
+[%# Faixa inferior — as ocorrencias proximas a que acabou de ser registrada.
+
+    Fica vazia no HTML de proposito: quem a preenche e catanduva-map.js, com o
+    que /around/nearby responder para estas coordenadas. E o mesmo endpoint que
+    o passo de similares usa. Sem JS, ou se a resposta vier vazia, a faixa nao
+    aparece — e uma comodidade, nao parte da confirmacao. %]
+[% IF map.type %]
+<section class="map-strip map-strip--nearby js-nearby-strip hidden"
+         data-lat="[% report.latitude %]" data-lon="[% report.longitude %]"
+         aria-labelledby="map-strip-title">
+    <div class="map-strip__head">
+        <h2 class="map-strip__title" id="map-strip-title">Ocorrências próximas</h2>
+        [% IF c.cobrand.council_area %]
+            [% SET all_uri = '/reports/' _ c.cobrand.council_area | uri %]
+        [% ELSE %]
+            [% SET all_uri = '/reports' %]
+        [% END %]
+        <a class="map-strip__all" href="[% all_uri %]">
+            Ver todas [% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]
+        </a>
+    </div>
+    <div class="map-strip__list js-nearby-list"></div>
+</section>
+[% END %]
+
+[% INCLUDE 'footer.html' %]

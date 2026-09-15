@@ -1,0 +1,15 @@
+[%# Campo "Resumir o problema".
+
+    Substitui templates/web/base/report/new/form_title.html. A unica diferenca
+    em relacao ao upstream e o `placeholder` que a referencia pede: o rotulo, a
+    dica, o `name`, o `id`, o `aria-describedby` e a marcacao de obrigatorio
+    continuam os mesmos, porque e por eles que a validacao e o envio funcionam.
+%]
+<label id="title-label" for="form_title">[% form_title %]</label>
+<p class="form-hint" id="title-hint">[% contact_title_hint OR form_title_placeholder %]</p>
+[% IF field_errors.title %]
+    <p class='form-error'>[% field_errors.title %]</p>
+[% END %]
+<input class="form-control" type="text" value="[% report.title | html %]" name="title" id="form_title"
+       placeholder="Ex.: Buraco na rua..."
+       aria-describedby="title-hint"[% field_required %] autocomplete="off">

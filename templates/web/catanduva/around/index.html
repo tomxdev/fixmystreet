@@ -1,0 +1,71 @@
+[%# Resultado de uma busca que nao virou um ponto no mapa.
+
+    Substitui templates/web/base/around/index.html.
+
+    Esta pagina aparece em dois momentos, e so neles: quando a busca casa com
+    mais de um lugar, e quando nao casa com nenhum. E por isso que ela escapou
+    das passagens anteriores de migracao — nenhuma delas buscou algo ambiguo.
+
+    O que havia de errado, medido:
+
+    - o titulo dizia "Registrando um problema". Quem buscou um endereco nao
+      comecou a registrar nada;
+    - `bodyclass = frontpage` trazia o layout da home sem o conteudo da home, e
+      abria um vao de umas trezentas linhas em branco entre o campo de busca e a
+      lista de resultados;
+    - a lista saia com marcadores quadrados, herdados de `ul li`, e com o
+      `display_name` cru do Nominatim em cada item: seis linhas terminando em
+      ", Brasil".
+%]
+[%
+    SET bodyclass = 'busca-sem-ponto';
+
+    # "Usar minha localizacao atual" tambem aqui. Sem estes dois scripts o botao
+    # aparecia e nao fazia nada: o common_scripts.html do upstream so carrega o
+    # geolocation.js em frontpage, alertpage, offlinepage e para quem e da
+    # equipe, e esta pagina cai no ramo generico. Clicar nele navegava para
+    # /around?geolocate=1, que, sem `pc` e sem coordenadas, devolve a home.
+    #
+    # Aqui nao ha mapa; o catanduva-map.js percebe isso e faz o que da para
+    # fazer sem mapa, que e o que o upstream faz: levar a pessoa ao mapa naquele
+    # ponto.
+    SET extra_js = [
+        version('/js/geolocation.js'),
+        version('/cobrands/catanduva/catanduva-map.js'),
+    ];
+
+    INCLUDE 'header.html',
+        title  => 'Buscar no mapa',
+        robots => 'noindex,nofollow';
+%]
+
+<div class="busca">
+    <h1 class="busca__titulo">Buscar no mapa</h1>
+
+    [%# O campo, e nao o `around/postcode_form.html` inteiro.
+
+        Aquele arquivo monta o hero da home — duas colunas, ilustracao, frase de
+        chamada — e traz 504px de altura consigo, dos quais a coluna da
+        ilustracao fica vazia aqui. Era esse o vao de trezentos pixels entre a
+        busca e os resultados. O componente reaproveitado e a caixa, que e o que
+        esta pagina precisa. %]
+    <form action="[% c.uri_for('/around') %]" method="get" class="busca__form js-geolocate">
+        <label for="pc">[% c.cobrand.enter_postcode_text %]:</label>
+
+        <div class="home-search__box">
+            <span class="home-search__icon" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'search' %]</span>
+            <input type="text" name="pc" id="pc" value="[% pc | html %]" maxlength="200" required
+                   placeholder="Ex.: Rua São Paulo, Centro...">
+            <input type="submit" value="Buscar" class="btn btn--primary">
+        </div>
+
+        <div class="busca__acoes">
+            [% INCLUDE 'around/_postcode_form_geolocation.html' url=c.uri_for('/around', { geolocate = 1 }) %]
+            <p class="map-geo-status js-geo-status" role="status" aria-live="polite" hidden></p>
+        </div>
+    </form>
+
+    [% INCLUDE 'around/_error_multiple.html' %]
+</div>
+
+[% INCLUDE 'footer.html' %]

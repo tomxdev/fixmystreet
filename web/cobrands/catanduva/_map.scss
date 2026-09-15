@@ -1,0 +1,5320 @@
+// ---------------------------------------------------------------------------
+// Pagina de mapa — Map Evolution
+// ---------------------------------------------------------------------------
+//
+// Implementa a composicao de docs/ui/map/reference/ sobre a maquina de estados
+// que o upstream ja tem. O mapeamento funcional esta em
+// docs/ui/map/MAP_COMPONENT_MAPPING.md.
+//
+// Nada aqui reinventa token: cor, tipo, espaco, raio e sombra vem de
+// _tokens.scss, e os componentes (botao, campo, cartao, pilula) de
+// _components.scss. Este arquivo so compoe.
+//
+// A geometria de desktop — onde ficam mapa, painel e faixa — vive em
+// layout.scss, porque o _layout.scss do upstream posiciona #map_box e
+// #map_sidebar em absoluto e carrega depois deste arquivo.
+
+.mappage--catanduva {
+    // Altura da faixa inferior. Entra na conta do mapa e do painel, entao e um
+    // token: mudar aqui move os tres juntos.
+    //
+    // Quem manda no numero e o cartao, e o cartao e a soma do que ele mostra:
+    //
+    //   cabecalho da faixa                       56
+    //   titulo, duas linhas travadas             39
+    //   endereco                                 18
+    //   data e distancia                         18
+    //   pilula de estado                         26
+    //   tres vaos de 2px entre eles               6
+    //   respiro interno do link (12 em cima e em baixo)  24
+    //   faixa de categoria                       38
+    //   moldura do cartao                         2
+    //   respiro embaixo da lista                 20
+    //                                           ---
+    //                                           247
+    //
+    // 15.5rem = 248. Menos que isso e o flex tira a diferenca de alguem — e
+    // quem ele escolhe e sempre texto, que encolhe sem avisar.
+    --map-strip-height: 14.25rem;
+
+    // Largura **externa** do painel, moldura incluida: ele e border-box, porque
+    // a altura maxima dele e uma conta sobre a janela e precisa bater com o que
+    // aparece na tela.
+    //
+    // O valor ja foi 25rem quando a largura era do conteudo e a moldura vinha
+    // por fora, dando 442px na tela. Trocar o modelo de caixa sem trocar o token
+    // encolheu a area util em 42px e o painel ganhou uma barra de rolagem
+    // horizontal de 2px — que foi como isto apareceu.
+    --map-panel-width: 27.5rem;
+    // 16, e nao 24. O recuo das duas superficies flutuantes entra duas vezes na
+    // conta da altura do painel: cada 8px aqui sao 16px que o painel deixa de
+    // ter para mostrar os controles sem rolagem. Como moldura flutuante 16
+    // continua lendo como recuo — o que nao pode e encostar na borda.
+    --map-panel-inset: var(--space-2);
+}
+
+// ---------------------------------------------------------------------------
+// 1. Painel contextual
+// ---------------------------------------------------------------------------
+//
+// Uma superficie so, que troca de conteudo conforme o estado do fluxo. No
+// desktop ela flutua sobre o mapa; no celular vira folha inferior.
+
+.mappage--catanduva #map_sidebar {
+    background: var(--c-surface);
+    color: var(--c-text-body);
+
+    // 4em de espaco morto no fim do painel.
+    //
+    // O upstream os cria com um ::after porque a barra "Receber atualizacoes"
+    // (.shadow-wrap) era fixa no rodape da janela e cobria o fim da lista. Aqui
+    // ela nao e fixa — e nesta tela nem existe mais —, entao o que sobrava eram
+    // 64px em branco no fim de um painel que precisa caber na janela. Foi o
+    // maior desperdicio isolado do painel.
+    &::after {
+        display: none;
+    }
+}
+
+// O painel tem de caber na janela sem rolagem, e a conta e apertada: em
+// 1440x900 sobram 428px de altura para ele. Cada bloco daqui para baixo foi
+// medido e cortado no espaco, nao na letra — o menor tamanho de texto do painel
+// continua sendo 13px e nenhum alvo de toque desceu de 40px.
+// Medidas da referencia (tela_pesquisa_espacamentos_base.png, 382x622, 1:1):
+//
+//   titulo        duas linhas, caixa alta de ~14 -> ~19px de corpo, 25 de
+//                 entrelinha (y 23..41 e 48..66)
+//   apoio         duas linhas de 13px (y 78..90 e 96..108)
+//   vao titulo -> apoio                 12 de tinta -> ~6 de margem
+//   vao apoio -> primeiro rotulo        20 de tinta -> ~14
+//   rotulo -> controle                   ~4
+//   controle -> proximo rotulo           ~12
+//   ordenacao -> busca                   ~20
+//   busca -> localizacao                 ~20
+//   localizacao -> indicadores           ~20
+//   indicadores -> instrucao             ~22
+//   recuo do painel                      20 (conteudo de 344 em 382)
+.map-panel__header {
+    margin-bottom: var(--space-4);
+}
+
+.map-panel__title {
+    margin: 0 0 var(--space-2);
+    color: var(--c-text);
+    font-size: var(--fs-h3);
+    font-weight: var(--fw-black);
+    line-height: var(--lh-heading);
+    letter-spacing: var(--ls-heading);
+}
+
+.map-panel__lead {
+    margin: 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+}
+
+.map-panel__body > * + * {
+    margin-top: var(--space-2);
+}
+
+// Filtros, campo de busca e botao de localizacao sao uma secao so — as tres
+// maneiras de dizer *onde* olhar —, mas sao tres controles, e tres controles
+// encostados leem como um bloco so.
+//
+// Ja estiveram sem vao nenhum, para pagar a altura dos indicadores. Nao deu:
+// "Ordenar por" colava no campo de busca, e o botao de localizacao ficava
+// espremido entre o campo em cima e os indicadores embaixo. Os 16px voltaram, e
+// a conta foi refeita nos blocos que podiam ceder.
+.map-panel__buscar > * + * {
+    margin-top: var(--space-5);
+}
+
+// A busca abre um grupo novo — nao e mais um filtro —, e a referencia separa os
+// dois com um vao maior: a ordenacao termina em 263 e o rotulo da busca comeca
+// em 297.
+.map-panel__buscar > .map-panel__field {
+    margin-top: var(--space-6);
+}
+
+.map-panel__field label {
+    display: block;
+    margin: 0 0 var(--space-1);
+    color: var(--c-text);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+}
+
+// A caixa de busca e a mesma da home: mesmo componente, mesma forma. So o
+// tamanho muda, porque aqui ela divide espaco com o mapa.
+//
+// O icone da lupa herdava da home uma caixa de 44px, pensada para um campo de
+// 56px de altura e largura de hero. Num painel de 440px isso empurrava o texto
+// 60px para dentro e deixava um vao entre a lupa e o que se digita — a caixa
+// media 60px de altura para um campo de 44.
+// O que restava de desalinhado era uma margem: `input { margin-bottom: 1em }`
+// do upstream valia tambem para o campo dentro da caixa. Com `align-items:
+// center`, a caixa centrava um bloco de 44+16px — o texto e a lupa subiam 8px
+// em relacao ao botao, que nao tem margem. A caixa media 70px de altura para um
+// campo de 44. Zerar a margem alinha os tres e devolve 18px ao painel.
+.map-panel .home-search__box {
+    // A caixa tem `width: 100%` e padding proprio; sem isto ela media 408 dentro
+    // de uma coluna de 398 e passava da borda direita do painel — tanto aqui
+    // quanto no painel de explorar.
+    box-sizing: border-box;
+    align-items: stretch;
+    gap: var(--space-2);
+    padding: var(--space-1);
+    box-shadow: none;
+    border-color: var(--c-border-strong);
+
+    .home-search__icon {
+        display: flex;
+        align-items: center;
+        flex: 0 0 auto;
+        width: auto;
+        margin-inline-start: var(--space-2);
+        color: var(--c-text-muted);
+
+        svg {
+            display: block;
+            width: 18px;
+            height: 18px;
+        }
+    }
+
+    input[type="text"] {
+        flex: 1 1 auto;
+        min-width: 0;
+        // Zera a margem do upstream: e ela que desalinhava.
+        margin: 0;
+        padding-block: 0;
+        padding-inline: 0;
+        // 32: a referencia desenha a caixa com 42 de altura (y 316..357) e o
+        // botao verde dentro dela com 32 (y 321..352). Com 4 de respiro em
+        // cima e embaixo, 32 + 8 + 2 de moldura da os 42.
+        min-height: 32px;
+        font-size: var(--fs-body);
+    }
+
+    // Mesma altura do campo, mesmo raio interno: as duas bordas param na mesma
+    // linha e o botao deixa de parecer colado por cima.
+    input[type="submit"] {
+        flex: 0 0 auto;
+        // 77px na referencia, num painel de 382; aqui o painel e mais largo e a
+        // medida sobe na mesma proporcao.
+        min-width: 5.25rem;
+        min-height: 32px;
+        margin: 0;
+        padding-block: 0;
+        border-radius: calc(var(--radius-md) - 2px);
+        line-height: 1;
+    }
+}
+
+// -- Filtros do upstream, dentro do painel -----------------------------------
+//
+// O markup e o de reports/_list-filters.html, intocado. O que muda e a forma:
+// situacao e categoria dividem a linha, ordenacao ocupa a linha inteira.
+
+.map-panel {
+    .report-list-filters-wrapper {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+    }
+
+    fieldset {
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .filter-group {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: var(--space-2) var(--space-3);
+        // 12 entre a linha de situacao/categoria e a de ordenacao, como na
+        // referencia (controle termina em 184, rotulo seguinte comeca em 202).
+        margin: 0 0 var(--space-3);
+    }
+
+    .report-list-filters {
+        margin: 0;
+        min-width: 0;
+
+        // O upstream marca com .hidden-js o rotulo que so serve sem script: com
+        // script, quem rotula o filtro e o <span> que o multi-select desenha.
+        // A regra de label abaixo era generica demais e vencia o
+        // `.js .hidden-js { display: none }` do upstream — o nome do filtro
+        // aparecia duas vezes, e a copia de cima custava 24px por filtro.
+        label.hidden-js {
+            display: none;
+        }
+
+        // O <span> do multi-select e o rotulo de verdade quando ha script. Sem
+        // esta regra ele saia sem estilo nenhum: 16px, sem peso, 25px de altura.
+        // `:not(...)` porque os itens do menu aberto tambem sao <label> e vivem
+        // dentro deste mesmo bloco. Sem a excecao, esta regra — que e mais
+        // especifica — zerava o respiro deles e os deixava com 20px de altura:
+        // era essa a "lista comprimida" do menu.
+        // `.hidden-js` tambem: o seletor acima tem a mesma especificidade do
+        // que o esconde e vem depois dele, entao sem esta segunda excecao o
+        // rotulo duplicado voltava — 24px por filtro, os mesmos de antes.
+        label:not(.govuk-multi-select__label):not(.hidden-js),
+        > span {
+            display: block;
+            // O GOV.UK acrescenta 11px de respiro em cima e 10 embaixo de cada
+            // rotulo, para uma pele de campos de 50px de altura. Aqui o campo
+            // tem 40, e esse respiro era espaco vazio entre o rotulo e o
+            // controle dele — 21px por filtro, quatro filtros.
+            margin: 0 0 var(--space-1);
+            padding: 0;
+            color: var(--c-text);
+            font-size: var(--fs-xs);
+            font-weight: var(--fw-semibold);
+            line-height: var(--lh-snug);
+        }
+
+        select,
+        .multi-select-button {
+            width: 100%;
+        }
+
+        // O <span> nao e um rotulo de verdade — nao ha `for` —, mas o
+        // multi-select ja liga o botao ao texto por aria-labelledby. Aqui ele so
+        // precisa parecer o que e.
+        > span {
+            margin: 0 0 var(--space-1);
+        }
+
+        // 40px continua sendo alvo de toque confortavel e e a mesma medida do
+        // campo de busca e do botao de localizacao: o painel inteiro passa a
+        // ter uma altura de controle so.
+        select,
+        .govuk-select,
+        .multi-select-button {
+            min-height: 40px;
+            margin-bottom: 0;
+            padding-block: var(--space-2);
+        }
+    }
+
+    // Ordenacao e "mostrar relatos antigos" ocupam a largura toda: sao uma
+    // decisao de leitura da lista, nao um par de filtros.
+    .sort-container,
+    #show_old_reports_wrapper {
+        grid-column: 1 / -1;
+    }
+
+    // O upstream esconde este botao por JS quando ha script. Sem JS ele e o
+    // unico jeito de aplicar os filtros, entao a regra so o alinha.
+    [type="submit"][name="filter_update"] {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
+}
+
+
+// -- Duas linhas: situacao e categoria em cima, ordenacao embaixo -------------
+//
+// Houve uma versao com os tres numa linha. Cabia em 83px em vez de 143, e era
+// densa demais: com 127px por coluna, "Aguardando aprovacao" e "Mais antigo"
+// nao cabiam no controle e o rotulo "Situacao da ocorrencia" quebrava em duas
+// linhas. Espaco economizado em cima de leitura nao e espaco economizado.
+//
+// Os 60px de diferenca foram buscados nos blocos vizinhos, e nao aqui.
+//
+// Abaixo de 30em cada filtro ocupa a linha inteira: em 407px de folha, duas
+// colunas dariam 184px por controle, que e menos do que as opcoes precisam.
+@media (max-width: 30em) {
+    .map-panel .filter-group {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+// O botao do multi-select traz uma largura minima gravada pelo plugin: ele mede
+// a opcao mais larga ("Aguardando aprovacao", 184px) e escreve `min-width` no
+// proprio elemento. Com duas colunas de 196px isso passava despercebido; com
+// tres de 127 o botao passava por cima do vizinho.
+//
+// `!important` porque o valor e inline — e um estilo escrito por JS de
+// terceiro, e nao ha folha para vencer por especificidade.
+.map-panel .multi-select-button {
+    min-width: 0 !important;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+// -- A lista que abre dentro dos filtros -------------------------------------
+//
+// Os dois filtros do painel nao sao <select> nativos: o upstream esconde o
+// <select> e desenha um botao mais um menu de caixas de selecao
+// (`multi-select-button` + `multi-select-menu`), com a pele do GOV.UK.
+//
+// Essa pele tem proporcoes de outro sistema: a caixa de selecao mede 24px com
+// 44px de recuo, a moldura e cinza #aaa sem raio, e a sombra e preta a 20%.
+// Ao lado de um painel cujos campos tem 20px de controle, raio 10 e borda de
+// token, o menu aberto parecia de outro site — que foi como isto apareceu.
+//
+// Só dentro do painel: em /reports o mesmo componente continua como esta.
+.map-panel {
+    .multi-select-menu {
+        // Nunca mais estreito que o campo que o abriu, e nunca mais largo que o
+        // painel.
+        min-width: 100%;
+        max-width: 100%;
+        margin: var(--space-1) 0 0;
+        padding: var(--space-1);
+        // Com muitas categorias a lista rola dentro de si mesma. `contain`
+        // impede que a rolagem escorra para o painel quando ela chega ao fim —
+        // sem isso, rolar o menu movia a pagina atras dele.
+        max-height: 15rem;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        border: 1px solid var(--c-border);
+        border-radius: var(--radius-md);
+        background: var(--c-surface);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .govuk-multi-select__label {
+        display: flex;
+        align-items: center;
+        // 40px, a mesma altura dos controles do painel: uma opcao de 20px e um
+        // alvo que erra.
+        min-height: 40px;
+        margin: 0;
+        padding: var(--space-2) var(--space-3) var(--space-2) 2.5rem;
+        border-radius: var(--radius-sm);
+        color: var(--c-text);
+        font-size: var(--fs-sm);
+        line-height: var(--lh-snug);
+        cursor: pointer;
+
+        &:hover {
+            background: var(--c-surface-alt);
+        }
+
+        // O foco do teclado: o <input> real e invisivel, entao quem mostra onde
+        // se esta e a linha.
+        &:focus-within {
+            background: var(--c-surface-alt);
+            box-shadow: var(--shadow-focus);
+        }
+
+        // Marcado: fundo da marca, texto em peso semibold. A caixa desenhada ja
+        // dizia, mas dizia so no canto esquerdo.
+        &:has(input:checked) {
+            background: var(--c-primary-soft);
+            color: var(--c-primary-ink);
+            font-weight: var(--fw-semibold);
+        }
+
+        // O <input> de verdade fica por cima, invisivel: e ele que recebe o
+        // clique e o teclado. So o alvo encolhe junto com a linha.
+        input {
+            width: 100%;
+            height: 100%;
+        }
+
+        // A caixa desenhada. 20px e o mesmo tamanho dos controles do resto do
+        // sistema; o verde e o da marca, e nao o preto do GOV.UK.
+        &::before {
+            width: 20px;
+            height: 20px;
+            top: 50%;
+            left: var(--space-3);
+            transform: translateY(-50%);
+            border: 2px solid var(--c-border-strong);
+            border-radius: var(--radius-sm);
+            background: var(--c-surface);
+        }
+
+        // O GOV.UK desenha um halo cinza de 10px em volta da caixa no hover e um
+        // anel amarelo de 7px no foco. Os dois existem para a pele preta dele;
+        // aqui viravam uma mancha em volta de um controle que ja tem estado
+        // proprio — o fundo da linha muda, e e isso que se le.
+        &:hover::before,
+        &:focus-within::before,
+        &:focus-within:hover::before {
+            outline: none;
+            box-shadow: none;
+        }
+    }
+
+    // A marca de selecionado: o tique e o ponto.
+    //
+    // Aqui estava o defeito que parecia erro de renderizacao. O upstream desenha
+    // as duas com `top` e `left` fixos — 12px e 15px —, medidos para a caixa
+    // dele, que fica em `top: 10px` numa linha de 44px. A nossa caixa passou a
+    // ser centrada verticalmente numa linha de 56, e a marca ficou onde estava:
+    // 16px acima da caixa, invadindo a opcao de cima.
+    //
+    // Os seletores precisam ser tao especificos quanto os do upstream, que usam
+    // `:has(> input[type=checkbox])` — (0,2,1). Com `.map-panel` na frente sao
+    // (0,3,1), e a marca passa a seguir a caixa.
+    //
+    // Cor: o tique e feito **so de borda** (20x20 com `border: solid 10px` e um
+    // `clip-path` em forma de V), entao quem o pinta e `border-color`. Pintar o
+    // `background` nao mudava nada — o tique continuava preto.
+    .govuk-multi-select__label:has(> input[type="checkbox"])::after {
+        top: 50%;
+        left: var(--space-3);
+        transform: translateY(-50%);
+        border-color: var(--c-primary);
+        border-radius: 0;
+        background: none;
+    }
+
+    // O ponto do radio tem 14px e mora dentro de uma caixa de 20: 3px de cada
+    // lado.
+    .govuk-multi-select__label:has(> input[type="radio"])::after {
+        top: 50%;
+        left: calc(var(--space-3) + 3px);
+        transform: translateY(-50%);
+        background-color: var(--c-primary);
+    }
+
+    // Radio (o "Tudo" dos presets) e redondo, e nao quadrado.
+    .multi-select-presets .govuk-multi-select__label {
+        &::before,
+        &::after {
+            border-radius: 50%;
+        }
+    }
+
+    // Separa os presets das opcoes sem uma regua a mais: o espaco basta.
+    .multi-select-presets {
+        margin-bottom: var(--space-1);
+        padding-bottom: var(--space-1);
+        border-bottom: 1px solid var(--c-border);
+    }
+}
+
+// -- Acoes e indicadores -----------------------------------------------------
+
+.map-panel__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+// "Usar minha localizacao" e um <a> do upstream com id #geolocate_link, que o
+// geolocation.js procura. Vira botao sem virar outro elemento.
+//
+// Largura cheia, e nao do tamanho do texto: ele fica sozinho entre a caixa de
+// busca e os indicadores, e como pastilha curta nao se alinhava com nem um nem
+// outro — ficava um botao solto no meio da coluna. Sendo a segunda forma de
+// fazer a mesma coisa que a busca faz, o lugar dele e debaixo dela, com a mesma
+// medida.
+.map-panel #geolocate_link {
+    @include btn-base;
+    display: flex;
+    // 56px: e a altura do bloco na referencia (y 381..436). Ele e maior que os
+    // controles de cima de proposito — e uma acao, nao um campo.
+    min-height: 56px;
+    height: 56px;
+    margin: 0;
+    padding-block: 0;
+    width: 100%;
+    background: var(--c-primary-soft);
+    border-color: var(--c-primary-line);
+    color: var(--c-primary-ink);
+
+    &:hover {
+        background: var(--c-surface-alt);
+        color: var(--c-primary-hover);
+        text-decoration: none;
+    }
+
+    // O icone vem do upstream com width/height de atributo; sem isto ele
+    // desalinha da linha de texto por um pixel e meio.
+    .geolocate-link__icon {
+        flex: 0 0 auto;
+        width: 18px;
+        height: 18px;
+    }
+}
+
+// Bloco de indicadores.
+//
+// Reproduz docs/ui/map/reference/flows/samples/tela_pesquisa_informacoes.png.
+// As medidas abaixo saem de amostragem de pixel naquela imagem (478x92), nao de
+// estimativa a olho:
+//
+//   disco do check      28px de diametro     (x 187..215, y 31..58)
+//   disco do relogio    28px                 (x 329..355, y 31..58)
+//   pino                28 de largura por 39 de altura (x 33..60, y 24..62)
+//   numero              15px de altura de caixa alta -> ~22px de corpo
+//   rotulo              ~9px de altura -> ~13px de corpo
+//   vao numero/rotulo   11px entre a base de um e o topo do outro
+//   separador           2px, cinza claro, em x=166
+//   verde               #008366   -> --c-primary (#00845F)
+//   ambar               #F7A600   -> --c-progress-solid
+//   numero              #111633   -> --c-text (#0E1C2B)
+//   rotulo              #7E8897   -> --c-text-muted
+//
+// A composicao e horizontal, como na referencia: icone a esquerda, numero a
+// direita dele e rotulo debaixo do numero. Houve uma versao vertical
+// (icone/numero/rotulo empilhados e centrados); nao e o que a imagem mostra.
+.map-panel__stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    // 20 acima e 22 abaixo: sao as medidas da referencia (a localizacao
+    // termina em 436 e o bloco comeca em 459; ele termina em 533 e a instrucao
+    // comeca em 558).
+    margin: var(--space-5) 0 22px;
+    // 20 em cima e embaixo: na referencia o conteudo ocupa 38px de uma caixa de
+    // ~86, ou seja 24 de respiro. O painel e mais estreito, entao 20 mantem a
+    // proporcao sem esticar o bloco.
+    padding: var(--space-5) 0;
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
+    background: var(--c-surface);
+    box-shadow: var(--shadow-sm);
+    list-style: none;
+}
+
+.map-stat {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    // 8px entre o icone e o texto. Chegou a ser 6, para caber "em andamento" a
+    // 13px; com o rotulo a 12 a largura sobra e o vao volta ao valor do sistema.
+    gap: var(--space-2);
+    list-style: none;
+    margin: 0;
+    // Sem respiro lateral proprio: o painel tem 414px contra os 478 da
+    // referencia, e "em andamento" precisa de 94px numa coluna de 137. Com 8px
+    // de cada lado sobravam 83 e o rotulo quebrava em duas linhas. Quem separa
+    // as colunas e o divisor, nao o vao.
+    padding: 0;
+    min-width: 0;
+    text-align: start;
+}
+
+// Separador entre as colunas: 1px na cor de borda, discreto, como na imagem.
+.map-stat + .map-stat {
+    border-inline-start: 1px solid var(--c-border);
+}
+
+// Sem pastilha: o simbolo cheio **e** o icone, do jeito que a referencia
+// desenha. O disco verde ou ambar vem do proprio SVG, com o sinal em branco por
+// dentro.
+.map-stat__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    // 28: na referencia os discos medem 23 num painel de 382, o que da 26 na
+    // largura deste painel; 28 mantem a presenca sem tirar largura do rotulo.
+    width: 28px;
+    height: 28px;
+    margin: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--c-primary);
+
+    svg {
+        width: 28px;
+        height: 28px;
+    }
+}
+
+// O pino nao e um disco: na referencia ele mede 28 de largura por 39 de altura,
+// mais alto que os dois circulos. Numa grade de 24 o desenho ocupa 16 por 20,
+// entao a caixa precisa ser maior para chegar a mesma presenca.
+.map-stat:first-child .map-stat__icon,
+.map-stat:first-child .map-stat__icon svg {
+    width: 40px;
+    height: 40px;
+}
+
+.map-stat__icon--ok {
+    background: none;
+    color: var(--c-primary);
+}
+
+.map-stat__icon--wip {
+    background: none;
+    color: var(--c-progress-solid);
+}
+
+.map-stat__text {
+    display: block;
+    min-width: 0;
+}
+
+.map-stat__value {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--c-text);
+    font-size: var(--fs-h2);
+    font-weight: var(--fw-black);
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+
+// 12px, e nao 13. O rotulo e o texto mais longo da coluna — "em andamento" pede
+// 94px a 13px numa coluna de 133 — e era ele que ditava o quanto sobrava para o
+// icone e para o vao ao lado dele. A 12px pede 86, e a composicao volta a ter
+// folga sem que o numero, que e o que se le, perca nada.
+//
+// Sem `nowrap` e sem reticencias: se um dia nao couber, e melhor que quebre do
+// que que suma.
+.map-stat__label {
+    display: block;
+    color: var(--c-text-muted);
+    font-size: var(--fs-2xs);
+    line-height: var(--lh-snug);
+}
+
+// Instrucao e atalho, as duas linhas centradas dentro da mesma superficie de
+// 38px (y 558..595 na referencia), como ela desenha.
+.map-panel__hint {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin: 0;
+    padding: var(--space-1) var(--space-3);
+    background: var(--c-primary-soft);
+    border-radius: var(--radius-md);
+    color: var(--c-primary-ink);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+    text-align: center;
+
+    svg {
+        flex: 0 0 auto;
+        width: 15px;
+        height: 15px;
+        vertical-align: -2px;
+        margin-inline-end: var(--space-1);
+    }
+}
+
+.map-panel__hint-text {
+    display: block;
+}
+
+// Discreto, mas nao escondido: e o caminho funcional de quem nao opera um mapa.
+.map-panel__hint-skip {
+    flex: 0 0 auto;
+    color: var(--c-primary-ink);
+    font-size: var(--fs-2xs);
+    font-weight: var(--fw-semibold);
+    text-decoration: underline;
+
+    &:hover {
+        color: var(--c-primary-hover);
+    }
+}
+
+.map-panel__back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    margin-bottom: var(--space-3);
+    color: var(--c-primary);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+}
+
+// "Receber atualizacoes" da area.
+//
+// No layout antigo esta barra era fixa no rodape da janela, sobre uma lista que
+// rolava por baixo. Com o painel flutuante ela volta para o fluxo, no fim do
+// proprio painel — e o problema de sobreposicao que a exigia deixa de existir.
+.mappage--catanduva {
+    .shadow-wrap {
+        position: static;
+        width: auto;
+        margin: var(--space-3) 0 0;
+        padding: 0;
+        overflow: visible;
+        background: none;
+    }
+
+    #key-tools {
+        margin: 0;
+        border-top: 1px solid var(--c-border);
+        background: transparent;
+        box-shadow: none;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 2. Faixa inferior
+// ---------------------------------------------------------------------------
+//
+// A regiao de listagem e selecao das ocorrencias existentes. O painel nao repete
+// esta lista.
+
+.map-strip {
+    display: flex;
+    flex-direction: column;
+    position: relative; // contexto das setas de rolagem
+    background: var(--c-surface);
+    border-top: 1px solid var(--c-border);
+}
+
+.map-strip__head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    flex: 0 0 auto;
+    // 8 em vez de 12, e o respiro embaixo da lista de 20 para 12: sao os 16px
+    // que o bloco de indicadores foi buscar aqui. Sai do respiro da faixa, e
+    // nao dos cartoes — nenhuma parcela da conta do cartao mudou.
+    padding: var(--space-2) var(--space-6);
+}
+
+.map-strip__title {
+    margin: 0;
+    color: var(--c-text);
+    font-size: var(--fs-h3);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-heading);
+}
+
+.map-strip__all {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 32px;
+    color: var(--c-primary);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+
+    svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+// A paginacao do upstream vive aqui, discreta: a faixa rola na horizontal, e a
+// paginacao e o que alcanca o que esta alem da rolagem.
+.map-strip__pagination {
+    margin-left: auto;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+
+    // O `padding` e tao necessario quanto o `margin`: o upstream da 1em aos dois,
+    // o que faz sentido para a paginacao no fim de uma pagina longa e nenhum
+    // para uma linha de cabecalho. Sem zerar os dois, este bloco media 46px de
+    // altura por causa de 13px de folga em volta de uma linha de 20 — e era ele,
+    // e nao o titulo, que definia a altura do cabecalho e empurrava os cartoes
+    // para baixo.
+    .pagination {
+        margin: 0;
+        padding: 0;
+        gap: var(--space-1);
+        font-size: var(--fs-xs);
+    }
+
+    .pagination a {
+        min-width: 32px;
+        min-height: 32px;
+        padding: 0 var(--space-2);
+    }
+
+    // A contagem do upstream conta so `on_map`; a faixa mostra `on_map` mais as
+    // proximas. Quem diz quantas ha na faixa e o titulo dela, contado do que
+    // esta no DOM (catanduva-map.js). Duas contagens diferentes lado a lado, uma
+    // delas sobre outra lista, seria pior do que nenhuma.
+    //
+    // Os links ficam: sao eles que alcancam o que esta alem desta pagina.
+    .pagination__count {
+        display: none;
+    }
+
+    // Sem a contagem, uma pagina unica deixa o <nav> sem nada dentro — e ele
+    // continuaria ocupando a linha e empurrando "Ver todas" para a esquerda.
+    .pagination:not(:has(a)) {
+        display: none;
+    }
+}
+
+// A lista rola na horizontal. `overscroll-behavior-x: contain` evita que o
+// gesto de rolagem lateral vire navegacao de historico no trackpad.
+.map-strip__list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    padding: 0 var(--space-6) var(--space-2);
+
+    // A barra de rolagem nativa sai de vista, e so ela: a rolagem continua
+    // inteira — gesto, roda, trackpad, teclado e as setas.
+    //
+    // Esconder barra de rolagem costuma ser um mau negocio, porque tira a unica
+    // pista de que ha mais conteudo. Aqui ela nao e a unica: as setas dizem a
+    // mesma coisa, e dizem melhor, porque aparecem so quando ha para onde ir.
+    // O que ela fazia de fato era comer 16px da altura do cartao e encostar a
+    // faixa de categoria na borda de baixo.
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+// A fila de cartoes.
+//
+// `width: max-content` e `overflow: visible` nao sao enfeite: sem os dois a
+// faixa nao rolava, e tudo depois do quarto cartao ficava inalcancavel.
+//
+// O `<ul>` carrega `.item-list--reports`, que traz `overflow: hidden`. Como
+// bloco, ele nasce com a largura do contentor; a fila de cartoes transbordava
+// dele e era recortada ali mesmo, entao o contentor que rola
+// (`.map-strip__list`) nunca via transbordo nenhum — `scrollWidth` igual a
+// `clientWidth`, barra de rolagem nenhuma, e 15 ocorrencias fora de alcance.
+//
+// Com a largura pelo conteudo, a fila passa a medir o que ela de fato ocupa e o
+// transbordo chega a quem sabe rolar. `min-width: 100%` mantem o fundo cobrindo
+// a faixa quando ha poucos cartoes.
+// `.map-strip` na frente nao e enfeite: a fila tambem carrega
+// `.item-list--reports`, e essa classe tem uma pele propria — definida em
+// `base.scss`, depois de todos os @import, portanto a ultima a falar em caso de
+// empate. Uma classe sozinha aqui perderia dela sempre.
+.map-strip .map-strip__cards {
+    display: flex;
+    align-items: stretch;
+
+    // 12px: junto o bastante para a fila ler como uma fila, longe o bastante
+    // para cada cartao continuar sendo um cartao. Com 16 a faixa parecia mais
+    // espacada do que cheia; encostados, pareceriam uma tabela.
+    gap: var(--space-3);
+
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    height: 100%;
+    width: max-content;
+    min-width: 100%;
+    overflow: visible;
+
+    // A fila sai da pele de "lista de ocorrencias".
+    //
+    // `.item-list--reports` da ao `<ul>` borda, fundo, raio e `overflow: hidden`
+    // — e faz sentido onde ela nasceu, em /reports, onde o `<ul>` **e** a
+    // superficie da lista. Aqui a superficie e cada cartao.
+    //
+    // Como esta fila e tao larga quanto o seu conteudo, as bordas de cima e de
+    // baixo dela atravessavam os vaos entre os cartoes: dois tracos ligando um
+    // ao outro, como se fossem celulas de uma mesma tabela.
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+// -- Setas de rolagem --------------------------------------------------------
+//
+// A faixa rola na horizontal, e ate aqui nada dizia isso: sem barra de rolagem
+// visivel e sem gesto obvio no desktop, a unica pista de que havia mais
+// ocorrencias era o cartao cortado na borda.
+//
+// Sao criadas por catanduva-map.js, e nao no template, por dois motivos: sem
+// script elas nao teriam o que fazer, e assim as duas faixas do projeto — a do
+// mapa e a da confirmacao — ganham o mesmo comportamento sem repetir markup.
+//
+// Ficam sobre a lista, centradas na altura dos cartoes, e somem quando nao ha
+// para onde rolar naquela direcao.
+.map-strip__nav {
+    position: absolute;
+
+    // Centradas nos cartoes, e nao na faixa: o deslocamento e metade da altura
+    // do cabecalho, que fica inteiro acima da area de rolagem. Sem ele as setas
+    // subiam 28px e ficavam pescando a borda de cima dos cartoes.
+    top: calc(50% + 1.75rem);
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    transform: translateY(-50%);
+    border: 1px solid var(--c-border);
+    border-radius: 50%;
+    background: var(--c-surface);
+    box-shadow: var(--shadow-md);
+    color: var(--c-text);
+    cursor: pointer;
+    transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+
+    &:hover {
+        background: var(--c-primary);
+        border-color: var(--c-primary);
+        color: var(--c-text-inverse);
+    }
+
+    &:focus-visible {
+        @include foco-visivel;
+    }
+
+    &[hidden] {
+        display: none;
+    }
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+.map-strip__nav--prev {
+    left: var(--space-3);
+}
+
+.map-strip__nav--next {
+    right: var(--space-3);
+}
+
+// -- Divisor entre o que esta no quadro e o que esta por perto ---------------
+//
+// A faixa mostra dois grupos, e sem a separacao eles liam como um so — uma faixa
+// anunciando 20 ocorrencias sobre um mapa com 14 pinos no enquadramento.
+//
+// O rotulo e vertical porque numa fila horizontal ele nao tem largura para ser
+// outra coisa: deitado, custaria a largura de um cartao para dizer quatro
+// palavras.
+.map-strip__divisor {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    height: 100%;
+    margin: 0;
+    padding: 0 var(--space-3);
+    border: 0;
+    border-left: 1px dashed var(--c-border-strong);
+    background: transparent;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+
+    span {
+        writing-mode: vertical-rl;
+        white-space: nowrap;
+    }
+}
+
+.map-strip__empty {
+    display: flex;
+    align-items: center;
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+
+    p {
+        margin: 0;
+    }
+}
+
+// -- Cartao ------------------------------------------------------------------
+
+// Altura fixa, definida pela faixa.
+//
+// Os cartoes nao tem todos a mesma quantidade de linhas — nem toda ocorrencia
+// tem endereco geocodificado, e a distancia so existe nas que vem de around_map.
+// Com altura livre, o cartao mais alto empurrava a faixa de categoria para fora
+// da area visivel. Com 100% da faixa, todos tem a mesma altura e a categoria
+// nunca sai: quem cede e o miolo, que recorta.
+.map-card {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+
+    // 21rem, e nao 19: com a categoria alinhada a coluna de texto, o nome mais
+    // longo do piloto — "Sinalizacao danificada" — passava 13px da largura util
+    // e cortava. Cortar justamente o dado que se quis destacar seria trocar um
+    // problema por outro. A faixa rola; dois centimetros a menos de cartao por
+    // tela nao custam nada.
+    //
+    // border-box pela mesma razao que o painel: a largura aqui e a que o cartao
+    // ocupa na tela, e nao a que sobra depois da moldura. Sem isto o mesmo
+    // numero significaria uma coisa nos dois lugares.
+    box-sizing: border-box;
+    width: 21rem;
+    height: 100%;
+    list-style: none;
+    margin: 0;
+
+    // Esta e do upstream mesmo, e nao da pele deste cobrand:
+    // `.item-list__item { padding: 0.5em 1em }`, em sass/_base.scss.
+    //
+    // Quem paga o respiro aqui e o link, que tem o seu, e a categoria, que tem o
+    // dela. O padding do <li> vinha por cima dos dois: somava 16px ao recuo
+    // lateral de tudo e deixava 8px mortos embaixo da categoria, que era o que
+    // a encostava na borda de baixo.
+    padding: 0;
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
+    overflow: hidden;
+    transition: border-color var(--dur) var(--ease),
+        box-shadow var(--dur) var(--ease);
+
+    &:hover {
+        border-color: var(--c-primary-line);
+        box-shadow: var(--shadow-md);
+    }
+
+    // Estado selecionado: o cartao cujo detalhe esta aberto no painel.
+    &.map-card--selected {
+        border-color: var(--c-primary);
+        box-shadow: var(--shadow-focus);
+    }
+}
+
+.map-card__link {
+    display: flex;
+    gap: var(--space-3);
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    padding: var(--space-3);
+    color: inherit;
+
+    &:hover {
+        text-decoration: none;
+    }
+
+    &:focus-visible {
+        @include foco-visivel;
+        outline-offset: -3px;
+    }
+}
+
+// A miniatura acompanha a altura do miolo do cartao em vez de ter altura fixa.
+//
+// Com 72px fixos ela ocupava pouco mais da metade da altura disponivel e
+// sobrava uma faixa vazia embaixo dela. Esticada, a foto da ocorrencia — que e
+// o que identifica o problema de relance — fica do tamanho do que o cartao tem
+// para dar, e acompanha qualquer mudanca na altura da faixa.
+// -- O cartao sai da pele de "item de lista" ---------------------------------
+//
+// O cartao mantem a classe `.item-list__item` porque e por ela que o JS do
+// upstream acha os itens. Junto com a classe vem a pele que **este cobrand**
+// escreveu para ela em `_components.scss`, pensada para uma lista vertical:
+//
+//   .item-list__item .img, img { width: 88px; height: 56px }
+//   .item-list__item > a       { display: flex; align-items: center; gap; padding }
+//   .item-list__item           { border-bottom: 1px solid }
+//
+// Todas (0,2,0) ou mais, contra a classe simples que eu tinha aqui. E, do
+// upstream de verdade, `.item-list__item { padding: 0.5em 1em }`.
+//
+// Nenhuma dessas se anuncia: aparecem como poucos pixels de desalinhamento que
+// so a medicao explica. A das imagens era a mais discreta — as fotos ficavam em
+// 88x56 enquanto o espaco reservado, um <span> que a regra nao alcanca, ficava
+// em 104x108. Duas alturas de miniatura no mesmo cartao, conforme houvesse foto
+// ou nao.
+//
+// Dai o `.map-card` na frente de tudo aqui: iguala ou supera a especificidade.
+//
+// A largura da miniatura e o recuo interno viram tokens porque a categoria, que
+// mora **fora** do link, precisa se alinhar com o texto que mora **dentro**
+// dele. Sem um numero em comum, o alinhamento seria uma conta repetida em dois
+// lugares — e o padding horizontal do link nao e o que esta folha escreve.
+.map-card {
+    --map-card-thumb: 104px;
+    --map-card-inset: var(--space-4);
+    --map-card-gap: var(--space-3);
+}
+
+.map-card .map-card__link {
+    align-items: stretch;
+    gap: var(--map-card-gap);
+    padding: var(--space-3) var(--map-card-inset);
+}
+
+.map-card .map-card__thumb {
+    flex: 0 0 auto;
+    align-self: stretch;
+    width: var(--map-card-thumb);
+    height: auto;
+    min-height: 0;
+    border-radius: var(--radius-md);
+    background: var(--c-surface-alt);
+    object-fit: cover;
+}
+
+.map-card__thumb--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--c-primary-soft);
+    color: var(--c-primary);
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+.map-card__body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    flex: 1 1 auto;
+    min-width: 0;
+
+    // Nada aqui dentro encolhe na vertical.
+    //
+    // Este cartao ja foi cortado duas vezes pelo mesmo mecanismo, e a segunda
+    // foi consequencia da correcao da primeira: ao travar a altura do titulo,
+    // o flex passou a tirar a diferenca dos vizinhos — endereco e data ficaram
+    // com 12px de caixa para 18px de texto, decepados na horizontal.
+    //
+    // Texto encolhido nao avisa que encolheu: nao ha reticencias, nao ha barra,
+    // nao ha nada. Some meia letra e pronto. Por isso a regra aqui e categorica,
+    // e quem tem de dar conta da soma e a altura da faixa, que e um token.
+    > * {
+        flex: 0 0 auto;
+    }
+}
+
+// Duas linhas, sempre duas, e nunca meia.
+//
+// Com uma linha so, quase todo titulo real virava reticencias — "Lixo acumulado
+// no ponto de…" nao diz onde. Com duas, doze dos treze titulos deste piloto
+// cabem inteiros no desktop.
+//
+// `flex: 0 0 auto` e `min-height` nao sao detalhe, sao a correcao de um defeito
+// que so a medicao denunciou: o corpo do cartao e um flex column de altura
+// limitada, e ele encolhia a caixa do titulo abaixo do proprio conteudo — 33px
+// para 39px de texto. O `-webkit-line-clamp` nao chegava a agir, porque nao
+// havia linha demais: havia caixa de menos. O que aparecia era a **segunda linha
+// cortada na horizontal, no meio das letras** — sem reticencias, sem pista de
+// que havia mais, so um texto decepado.
+//
+// Com a altura travada em duas linhas, o corte volta a ser o do clamp, com
+// reticencias, e os cartoes ficam com endereco, data e pilula alinhados entre
+// si — que e o que faz uma fila parecer uma fila.
+.map-card__title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: calc(2em * var(--lh-snug));
+    max-height: calc(2em * var(--lh-snug));
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+    overflow: hidden;
+}
+
+.map-card__place,
+.map-card__meta {
+    display: block;
+    width: 100%;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.map-card__sep {
+    color: var(--c-border-strong);
+}
+
+.map-card__state {
+    margin-top: var(--space-1);
+}
+
+// A categoria fecha o cartao.
+//
+// Sem o traco que a separava do resto: ele nao dividia duas coisas de natureza
+// diferente — e tudo descricao da mesma ocorrencia —, e cobrava uma linha
+// inteira mais o respiro dos dois lados dela para nao dizer nada. O alinhamento
+// a esquerda, comum a todo o cartao, ja diz onde a linha comeca.
+//
+// O padding de cima e menor que o de baixo de proposito: o miolo do cartao ja
+// tem o seu, e somados os dois criavam um vao.
+.map-card .map-card__category {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex: 0 0 auto;
+    margin-top: auto;
+
+    // Alinhada com o texto do cartao, e nao com a borda dele: recuo do link,
+    // mais a miniatura, mais o vao entre as duas. Sem isto a categoria comecava
+    // debaixo da foto, sem alinhar com nada — nem com o titulo, nem com a
+    // miniatura, que ainda ficava 4px a esquerda dela.
+    // O respiro de baixo e maior que o de cima (16 contra os 12 que o link ja
+    // poe): assim a categoria fica mais perto do conteudo que ela descreve do
+    // que da borda do cartao. Com os dois iguais ela lia como encostada embaixo.
+    padding: 0 var(--map-card-inset) var(--space-4)
+        calc(var(--map-card-inset) + var(--map-card-thumb) + var(--map-card-gap));
+
+    // A categoria diz de que tipo e o problema, que e a segunda coisa que se
+    // quer saber depois do titulo. Estava em 13px, peso normal e cinza — o
+    // mesmo tratamento da data, que e informacao de contexto.
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+
+    svg {
+        flex: 0 0 auto;
+        width: 18px;
+        height: 18px;
+        color: var(--c-primary);
+    }
+
+    span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 3. Celular
+// ---------------------------------------------------------------------------
+//
+// Sem coluna e sem faixa: o mapa ocupa a janela e o painel vira folha inferior.
+// A faixa de cartoes passa a ser um carrossel acima da folha, com a mesma
+// responsabilidade conceitual.
+
+@media (max-width: 47.99em) {
+    .mappage--catanduva {
+        --map-strip-height: 11.5rem;
+    }
+
+    .map-panel__title {
+        font-size: var(--fs-h3);
+    }
+
+    .map-strip__head {
+        padding: var(--space-3) var(--space-4) var(--space-2);
+    }
+
+    .map-strip__list {
+        padding: 0 var(--space-4) var(--space-4);
+    }
+
+    .map-card {
+        width: 16rem;
+    }
+
+    // No cartao estreito a categoria volta a ocupar a linha inteira.
+    //
+    // Alinhada com a coluna de texto, como no desktop, sobravam 74px para ela —
+    // nem "Buraco na via", que e a menor das categorias do piloto, cabia. Entre
+    // alinhar e ser legivel, ser legivel vale mais: aqui ela recomeca na borda
+    // do cartao e usa a largura toda, que e o que a referencia faz.
+    .map-card .map-card__category {
+        padding-left: var(--map-card-inset);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 4. Modo mapa-cheio (celular e tablet)
+// ---------------------------------------------------------------------------
+//
+// A partir daqui o seletor e html.mobile, e nao um media query, porque quem
+// decide este modo e o JS do upstream: common_header_tags.html testa
+// Modernizr.mq('(min-width: 48em)') e, quando falso, marca <html> com .mobile —
+// e fixmystreet.mobile_reporting.apply_ui() acrescenta .only-map e companhia.
+//
+// A 768 reais isso ja da falso, porque a barra de rolagem deixa o clientWidth em
+// 767. Ou seja: o "tablet" do plano cai neste modo, e nao no de desktop.
+//
+// Neste modo o mapa cobre a janela e o conteudo fica em fluxo por baixo, fora de
+// alcance (body tem overflow: hidden). As duas regioes que o plano exige —
+// faixa de cartoes e filtros — precisam portanto flutuar sobre o mapa.
+
+html.mobile {
+    // -- Carrossel de cartoes -------------------------------------------------
+    //
+    // Mesma responsabilidade da faixa do desktop: listar e permitir selecionar
+    // as ocorrencias existentes. So a forma muda.
+    .map-strip {
+        position: fixed;
+        left: 0;
+        right: 0;
+
+        // Acima de duas coisas, nao de uma: a barra de acoes do mapa (2.75rem) e
+        // o botao "Registrar nova ocorrencia aqui", que o upstream mantem
+        // flutuando logo acima dela em toda tela estreita — .map-mobile-report-button,
+        // cerca de 41px mais o respiro.
+        //
+        // Com os 2.75rem de antes a faixa cobria esse botao. Ele continuava no
+        // DOM e visivel para quem olha o HTML, mas quem tocava nele acertava um
+        // cartao: era o caminho principal para registrar uma ocorrencia no
+        // celular, engolido pela lista das que ja existem.
+        bottom: 6.5rem;
+        height: auto;
+        padding: 0;
+        background: transparent;
+        border-top: 0;
+        z-index: 2;
+
+        // O gesto de arrastar precisa chegar ao mapa em toda a area que nao for
+        // cartao; so a lista volta a receber toque.
+        pointer-events: none;
+    }
+
+    .map-strip__head {
+        gap: var(--space-2);
+        padding: 0 var(--space-4) var(--space-2);
+        pointer-events: auto;
+    }
+
+    // O titulo continua no documento, para leitor de tela, mas cede a altura:
+    // sobre o mapa, cada linha custa contexto.
+    .map-strip__title {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .map-strip__all,
+    .map-strip__pagination {
+        padding: var(--space-1) var(--space-3);
+        background: var(--c-surface);
+        border-radius: var(--radius-pill);
+        box-shadow: var(--shadow-md);
+    }
+
+    .map-strip__list {
+        padding: var(--space-1) var(--space-4) var(--space-3);
+        pointer-events: auto;
+    }
+
+    .map-card {
+        width: 15.5rem;
+        height: auto;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .map-strip__empty {
+        padding: var(--space-3) var(--space-4);
+        background: var(--c-surface);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        pointer-events: auto;
+    }
+
+    // -- Barra de acoes do mapa ----------------------------------------------
+    //
+    // O upstream a pinta de preto translucido. Aqui ela e uma superficie do
+    // sistema, com o mesmo contraste de texto do resto.
+    .sub-map-links {
+        background: var(--c-surface);
+        border-top: 1px solid var(--c-border);
+        color: var(--c-text-body);
+
+        a {
+            color: var(--c-text-body);
+            font-size: var(--fs-sm);
+            font-weight: var(--fw-semibold);
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        a:hover {
+            background: var(--c-surface-alt);
+            text-decoration: none;
+        }
+    }
+
+    // O filtro ativo fica marcado pela cor da marca, nao pelo preto do upstream.
+    // So quando ativo: a primeira versao desta regra casava tambem com
+    // `html.mobile #map_filter` e deixava o botao verde o tempo todo, dizendo
+    // que havia filtro aplicado quando nao havia.
+    .mobile-filters-active #map_filter {
+        background: var(--c-primary);
+        color: var(--c-text-inverse);
+    }
+
+    // Com a folha de filtros aberta, o carrossel sai da tela. Sao duas camadas
+    // sobre o mesmo canto do mapa, e o upstream ja faz o mesmo com o botao de
+    // registrar (.map-mobile-report-button). Sem isto os cartoes ficavam por
+    // cima dos campos da folha.
+    #mapForm.mobile-filters-active .map-strip {
+        display: none;
+    }
+
+    // As setas de rolagem sao uma pista de desktop: no toque, arrastar a faixa
+    // e o gesto natural, e duas pastilhas de 40px sobre uma tira ja estreita
+    // cobririam justamente os cartoes que elas serviriam para alcancar.
+    .map-strip__nav {
+        display: none;
+    }
+
+    // E sai da tela tambem durante os passos de formulario, pela mesma razao.
+    //
+    // No desktop a faixa acompanha o fluxo inteiro — a referencia a mostra em
+    // 07-new-report-details.png, embaixo do painel, e ali ela nao atrapalha
+    // ninguem porque painel e faixa ocupam areas diferentes da tela.
+    //
+    // Aqui nao ha duas areas. O painel vira a pagina, em fluxo, e a faixa e uma
+    // camada fixa por cima dela: os cartoes cobriam o campo "Explique o que esta
+    // acontecendo".
+    //
+    // A excecao e o passo de duplicidades: ali a faixa nao e acessorio nenhum —
+    // e onde as ocorrencias similares aparecem (estados 04 a 06). Quem separa um
+    // caso do outro e catanduva-map.js, que marca o <body>: a pergunta "o fluxo
+    // esta aberto, e em que passo?" nao e expressavel em CSS.
+    .map-strip--fora .map-strip {
+        display: none;
+    }
+
+    // -- Folha de "onde olhar" -----------------------------------------------
+    //
+    // O link "Filtro" do upstream abre uma folha inferior. Ate aqui ela trazia
+    // so `.report-list-filters-wrapper`: a busca por endereco e o "usar minha
+    // localizacao" ficavam no resto do #map_sidebar, que no modo mapa-cheio e
+    // `visibility: hidden`. Estavam no DOM e nao tinham como ser tocados —
+    // justamente no aparelho em que "usar minha localizacao" e a forma mais
+    // natural de dizer onde se esta.
+    //
+    // Quem vira a folha agora e `.map-panel__buscar`, que envolve os tres. O
+    // wrapper do upstream volta a ser estatico dentro dela, senao seriam duas
+    // camadas fixas sobre o mesmo canto.
+    #mapForm.mobile-filters-active .map-panel__buscar {
+        visibility: visible;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        position: fixed;
+        z-index: 1;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        max-height: 70vh;
+        overflow-y: auto;
+        padding: var(--space-4);
+        padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+        background: var(--c-surface);
+        color: var(--c-text-body);
+        border-top: 1px solid var(--c-border);
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        box-shadow: var(--shadow-lg);
+
+        // A folha ja e um flex com `gap`: o `margin-top` que separa os blocos no
+        // desktop somaria a ele e daria 24px entre o campo de busca e o botao de
+        // localizacao.
+        > * + *,
+        > .map-panel__field {
+            margin-top: 0;
+        }
+
+        // No toque o campo e o botao voltam a 40px. Os 32 do desktop vem da
+        // referencia, que e um desenho de tela grande; no dedo, 32 e alvo curto.
+        .home-search__box input[type="text"],
+        .home-search__box input[type="submit"] {
+            min-height: 40px;
+        }
+
+        // Buscar primeiro, localizar depois, filtrar por ultimo: e a ordem das
+        // perguntas, da mais frequente para a menos. No DOM os filtros vem
+        // primeiro porque e de la que o `#statuses` e companhia precisam sair.
+        .map-panel__field {
+            order: 1;
+        }
+
+        .map-panel__actions {
+            order: 2;
+        }
+
+        .report-list-filters-wrapper {
+            order: 3;
+            position: static;
+            padding: 0;
+            background: none;
+            color: inherit;
+            border: 0;
+            border-top: 1px solid var(--c-border);
+            padding-top: var(--space-3);
+            border-radius: 0;
+            box-shadow: none;
+            max-height: none;
+            overflow: visible;
+        }
+
+        label {
+            color: var(--c-text);
+        }
+    }
+
+    // -- Folha de filtros ----------------------------------------------------
+    //
+    // O upstream ja a posiciona (position: fixed, bottom: 0) e ja tem o gatilho
+    // pronto — o link "Filtro" que apply_ui() injeta. O que falta e ela ser uma
+    // superficie legivel: em preto sobre branco, os campos do sistema ficavam
+    // ilegiveis dentro dela.
+    .mobile-filters-active .report-list-filters-wrapper {
+        max-height: 70vh;
+        overflow-y: auto;
+        padding: var(--space-4);
+        background: var(--c-surface);
+        color: var(--c-text-body);
+        border-top: 1px solid var(--c-border);
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        box-shadow: var(--shadow-lg);
+
+        label {
+            color: var(--c-text);
+        }
+    }
+
+    // -- Painel --------------------------------------------------------------
+    //
+    // Fora do modo mapa-cheio — ou seja, dentro do fluxo de registro, quando o
+    // upstream esconde o mapa — o painel ocupa a largura da tela.
+    #map_sidebar {
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        padding: var(--space-4);
+    }
+}
+
+// No modo mapa-cheio o painel nao aparece: o mapa cobre a janela, e quem abre os
+// filtros e a folha inferior.
+//
+// `visibility` e nao `display`, e a diferenca importa: os filtros vivem dentro
+// do painel, e a folha do upstream funciona tirando `.report-list-filters-wrapper`
+// do fluxo com position: fixed. Com `display: none` no painel a folha abria
+// vazia — o gatilho funcionava, a barra de acoes subia, e nao havia nada dentro.
+// `visibility` e herdada, entao basta devolve-la ao que precisa reaparecer.
+html.only-map {
+    #map_sidebar {
+        visibility: hidden;
+    }
+
+    .mobile-filters-active .map-panel__buscar {
+        visibility: visible;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 5. Fluxo de registro dentro do painel
+// ---------------------------------------------------------------------------
+//
+// Estados 02 a 08 da referência. Todos vivem no mesmo #side-form e sao trocados
+// por fixmystreet.pageController — aqui so se define a aparencia de cada peca.
+
+.map-panel__flow-head {
+    display: flex;
+    align-items: center;
+    // Envolve porque o endereco do ponto vem numa segunda linha: os tres itens
+    // de cima — voltar, titulo, contador — ja ocupam a largura do painel.
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+    padding-bottom: 0;
+    // Sem regua: quem separa o cabecalho do conteudo do passo e o proprio
+    // indicador de etapas, como na referencia.
+    border-bottom: 0;
+}
+
+// O link de voltar do upstream vem com texto; aqui ele e o icone, e o rotulo
+// acessivel vai no aria-label. A classe .js-back fica: e ela que recua o passo.
+//
+// O :before e a seta em sprite que .problem-back desenha (sass/_base.scss). Ela
+// some porque ja ha uma seta aqui: com as duas, o cabecalho do fluxo mostrava
+// dois chevrons seguidos.
+.map-panel .map-panel__back::before {
+    display: none;
+}
+
+.map-panel .map-panel__back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    border-radius: var(--radius-md);
+    background: var(--c-surface-alt);
+    color: var(--c-text);
+
+    &:hover {
+        background: var(--c-border);
+        text-decoration: none;
+    }
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+// `.map-panel__flow-title` ("Nova ocorrencia") era o titulo do cabecalho antigo
+// do fluxo. Saiu junto com ele quando as duas portas de entrada passaram a
+// incluir `_map-flow-head.html`; a regra foi removida para nao ficar um estilo
+// esperando por um elemento que ninguem escreve mais.
+
+.map-panel__step {
+    margin: 0 0 0 auto;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    white-space: nowrap;
+}
+
+
+// Endereco do ponto escolhido, no cabecalho do fluxo.
+//
+// O passo "Confirme a localizacao" ja o mostra, mas e o terceiro passo: entre
+// escolher o ponto e chegar la passa-se por categoria e subcategoria sem ver
+// onde e que o pino caiu. Aqui ele fica em todos os passos.
+//
+// Quebra para a linha de baixo porque os tres itens acima — voltar, titulo,
+// contador — ja ocupam a largura do painel.
+.map-panel__flow-address {
+    flex: 1 0 100%;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-1);
+    margin: var(--space-1) 0 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+
+    &[hidden] {
+        display: none;
+    }
+
+    svg {
+        flex: 0 0 auto;
+        width: 14px;
+        height: 14px;
+        margin-top: 0.15em;
+        color: var(--c-primary);
+    }
+}
+
+// Estado do "usar minha localizacao".
+//
+// O upstream escreve a mensagem de erro dentro do proprio link, o que apaga o
+// icone e o rotulo e deixa um botao que diz "Voce recusou". A mensagem tem
+// lugar proprio aqui, e o botao continua sendo um botao.
+.map-geo-status {
+    flex: 1 0 100%;
+    margin: 0;
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+
+    &[hidden] {
+        display: none;
+    }
+
+    &--info {
+        color: var(--c-text-muted);
+    }
+
+    &--ok {
+        color: var(--c-success);
+    }
+
+    &--erro {
+        color: var(--c-error);
+    }
+}
+
+// Enquanto o navegador nao responde, o botao continua legivel mas nao convida a
+// um segundo clique — que, de resto, o JS ja descarta.
+.map-panel #geolocate_link.loading,
+.map-panel #geolocate_link[aria-busy="true"] {
+    opacity: 0.65;
+    cursor: progress;
+}
+
+// -- Titulo de cada passo ----------------------------------------------------
+
+.map-panel .form-section-heading,
+.map-panel #form_category_legend,
+.map-panel legend {
+    display: block;
+    margin: 0 0 var(--space-2);
+    padding: 0;
+    color: var(--c-text);
+    font-size: var(--fs-h3);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-heading);
+}
+
+.map-panel .form-section-description {
+    margin-bottom: var(--space-4);
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-snug);
+
+    p {
+        margin: 0;
+    }
+}
+
+// -- Estado 02: categorias em grade ------------------------------------------
+//
+// O markup e o do upstream: um fieldset .govuk-radios com um
+// .govuk-radios__item por categoria. Nada e reescrito — o radio continua sendo
+// o controle, com nome, valor e validacao intactos. O que muda e que cada item
+// vira um bloco selecionavel.
+//
+// Sem icone por categoria, e de proposito. A referencia desenha um icone para
+// cada tipo, mas as categorias vem do banco e sao editaveis na administracao:
+// um mapa categoria→icone no CSS ficaria desatualizado na primeira categoria
+// nova, e inventar um icone generico para todas nao acrescenta informacao.
+
+.map-panel #form_category_fieldset {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    border: 0;
+
+    legend {
+        grid-column: 1 / -1;
+    }
+}
+
+.map-panel .govuk-radios__item {
+    position: relative;
+    margin: 0;
+    padding: 0;
+}
+
+// O radio some da vista mas continua no documento: e ele que o teclado e o
+// leitor de tela usam, e e ele que o formulario envia.
+.map-panel .govuk-radios__input {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.map-panel .govuk-radios__label {
+    display: flex;
+    align-items: center;
+    min-height: 60px;
+    padding: var(--space-3);
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-md);
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color var(--dur) var(--ease),
+        background-color var(--dur) var(--ease);
+
+    &::before,
+    &::after {
+        content: none;
+    }
+}
+
+.map-panel .govuk-radios__input:hover + .govuk-radios__label {
+    border-color: var(--c-border-strong);
+    background: var(--c-surface-alt);
+}
+
+.map-panel .govuk-radios__input:checked + .govuk-radios__label {
+    border-color: var(--c-primary);
+    background: var(--c-primary-soft);
+    color: var(--c-primary-ink);
+}
+
+.map-panel .govuk-radios__input:focus-visible + .govuk-radios__label {
+    @include foco-visivel;
+}
+
+.map-panel .govuk-radios__hint {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+}
+
+// -- Acoes de cada passo -----------------------------------------------------
+
+.map-panel .js-reporting-page--next,
+.map-panel .btn--final {
+    width: 100%;
+    margin-top: var(--space-2);
+}
+
+
+// -- Estado 03: confirmacao de localizacao -----------------------------------
+
+.map-location {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin: var(--space-3) 0;
+    padding: var(--space-3) var(--space-4);
+    background: var(--c-surface-alt);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-md);
+}
+
+.map-location__icon {
+    flex: 0 0 auto;
+    color: var(--c-primary);
+    line-height: 0;
+    padding-top: 2px;
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+.map-location__body {
+    min-width: 0;
+}
+
+.map-location__label {
+    display: block;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+}
+
+.map-location__value {
+    display: block;
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+    overflow-wrap: break-word;
+}
+
+// Voltar e Continuar lado a lado, como na referencia. O "Voltar" e um .js-back,
+// a mesma classe do botao do cabecalho: sao dois caminhos para o mesmo recuo, e
+// classe (ao contrario de id) pode se repetir.
+.map-panel__step-actions {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+
+    .btn {
+        flex: 1 1 auto;
+        min-width: 0;
+        margin-top: 0;
+
+        // Os rotulos do upstream sao frases inteiras — "Continuar - registrar
+        // um novo problema" nao cabe em 400px numa linha so. O nowrap do
+        // btn-base serve a botoes curtos; aqui ele empurrava o botao para fora
+        // do painel e criava barra de rolagem horizontal.
+        white-space: normal;
+    }
+
+    .btn--primary {
+        flex: 2 1 auto;
+    }
+}
+
+// O aviso de ajuste de localizacao que o upstream fixa no topo do formulario
+// sai de cena: o passo "location" diz a mesma coisa, no momento em que ela
+// importa. Os dois juntos apareciam na mesma tela, um em cima do outro.
+//
+// Nao e remocao de funcionalidade: o link "buscar uma localizacao diferente" que
+// morava nele esta no passo, e a instrucao de arrastar o pino tambem.
+.map-panel .change_location {
+    display: none;
+}
+
+// -- Estados 04, 05 e 06: ocorrencias similares ------------------------------
+//
+// A lista de similares vive na faixa inferior, como as ocorrencias proximas. O
+// <ul> do upstream continua no painel, escondido: e dele que os cartoes sao
+// montados, e e nele que o duplicates.js injeta.
+
+.js-dup-source {
+    display: none;
+}
+
+// Enquanto o passo de similares esta aberto, a faixa muda de cor de fundo para
+// dizer que mudou de assunto — nao e mais "o que existe por perto", e "o que
+// pode ser o mesmo problema".
+.map-strip--similares {
+    background: var(--c-primary-softer);
+    border-top-color: var(--c-primary-line);
+}
+
+// O cartao de similar nao e um link: ele abre o detalhe no painel, ao lado do
+// mapa. Por isso role=button e tabindex no markup, e cursor de acao aqui.
+.map-card--similar {
+    cursor: pointer;
+
+    &:focus-visible {
+        @include foco-visivel;
+        outline-offset: 2px;
+    }
+}
+
+// Formulario de acompanhamento, no painel.
+.js-dup-follow {
+    .get-updates {
+        margin-top: var(--space-3);
+    }
+
+    .form-txt-submit-box {
+        display: flex;
+        gap: var(--space-2);
+        align-items: center;
+
+        input[type="email"] {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        input[type="submit"] {
+            flex: 0 0 auto;
+        }
+    }
+
+    #rznvy_hint {
+        color: var(--c-text-muted);
+        font-size: var(--fs-sm);
+        line-height: var(--lh-snug);
+    }
+}
+
+// -- Estado 07: fotos e detalhes do novo problema ----------------------------
+//
+// A referencia poe titulo, descricao e fotos numa tela so. Aqui sao dois passos,
+// `photo` e `details`, porque essa e a maquina de estados do upstream e o plano
+// nao autoriza substitui-la (secao 9.1, "Regra de transicao"). O que se faz e
+// dar aos dois a mesma moldura e a mesma densidade.
+
+// O aviso de que os dados vao para a prefeitura e sao publicos precisa continuar
+// visivel — e informacao de privacidade, nao decoracao. Mas ele abre o passo e,
+// no corpo do texto, empurrava os tres campos para fora da area visivel do
+// painel. Em corpo menor ele continua legivel e devolve duas linhas aos campos.
+#js-councils_text {
+    margin-bottom: var(--space-4);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+
+    p {
+        margin: 0;
+    }
+}
+
+// Dica de campo: o upstream a poe entre o rotulo e o controle.
+.map-panel {
+    .form-hint {
+        margin: 0 0 var(--space-2);
+        color: var(--c-text-muted);
+        font-size: var(--fs-xs);
+        line-height: var(--lh-snug);
+    }
+
+    label {
+        margin-bottom: var(--space-1);
+    }
+
+    // Cada campo do passo respira o mesmo tanto.
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    textarea,
+    select {
+        margin-bottom: var(--space-4);
+    }
+
+    textarea {
+        min-height: 7.5rem;
+    }
+}
+
+// Area de envio de fotos. O componente e o dropzone do upstream; aqui ele recebe
+// a superficie do sistema, com o tracejado que a referencia usa.
+.map-panel {
+    .dropzone,
+    .dz-clickable {
+        min-height: 7rem;
+        padding: var(--space-4);
+        background: var(--c-primary-softer);
+        border: 2px dashed var(--c-primary-line);
+        border-radius: var(--radius-lg);
+        color: var(--c-primary-ink);
+        text-align: center;
+
+        &:hover {
+            border-color: var(--c-primary);
+        }
+    }
+
+    .dz-message {
+        margin: 0;
+        font-size: var(--fs-sm);
+        font-weight: var(--fw-semibold);
+    }
+
+    // Miniaturas das fotos enviadas.
+    .dz-preview {
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+}
+
+// -- Estado 08: revisar ocorrencia -------------------------------------------
+
+.map-review {
+    margin: 0 0 var(--space-4);
+
+    dt {
+        margin: 0;
+        color: var(--c-text-muted);
+        font-size: var(--fs-xs);
+        font-weight: var(--fw-semibold);
+        line-height: var(--lh-snug);
+    }
+
+    dd {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3);
+        margin: 0 0 var(--space-3);
+        padding: 0 0 var(--space-3);
+        border-bottom: 1px solid var(--c-border);
+        color: var(--c-text);
+        font-size: var(--fs-sm);
+        line-height: var(--lh-snug);
+
+        &:last-child {
+            border-bottom: 0;
+            margin-bottom: 0;
+        }
+    }
+
+    dd > span {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow-wrap: break-word;
+    }
+}
+
+// "Editar" volta ao passo que produziu o dado. E acao, nao decoracao: alvo de
+// 32px e a cor da marca.
+.map-review__edit {
+    flex: 0 0 auto;
+    min-height: 32px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--c-primary);
+    font-family: var(--font-sans);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    cursor: pointer;
+
+    &:hover {
+        background: var(--c-surface-alt);
+        color: var(--c-primary-hover);
+    }
+
+    &:focus-visible {
+        @include foco-visivel;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 6. Estado 09 — ocorrencia enviada
+// ---------------------------------------------------------------------------
+//
+// A confirmacao e uma pagina propria (tokens/confirm_problem.html), nao um passo
+// do #side-form, mas usa a mesma moldura: painel a esquerda, mapa atras, faixa
+// embaixo. Por isso ela herda .map-panel e so acrescenta o que e dela.
+
+// A altura da faixa desta pagina esta em layout.scss, junto do resto da
+// geometria: la ela precisa vencer `body.mappage--catanduva`, e uma classe
+// sozinha nao venceria.
+
+// Aqui o voltar tem rotulo, ao contrario do passo do fluxo, onde ele e so o
+// icone: nesta tela ele e a unica saida para o mapa e precisa dizer para onde vai.
+// O cabecalho desta tela e so o voltar — nao ha titulo de fluxo nem contador
+// ao lado dele, entao ele nao precisa do mesmo respiro dos passos.
+.map-panel--sent .map-panel__flow-head {
+    margin-bottom: var(--space-3);
+    padding-bottom: var(--space-2);
+}
+
+.map-panel--sent .map-panel__back {
+    width: auto;
+    gap: var(--space-2);
+    padding: 0 var(--space-3);
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+
+    &:hover {
+        color: var(--c-text);
+    }
+}
+
+// O mapa desta pagina e ilustrativo: mostra onde a ocorrencia caiu. Nao e
+// clicavel (o cobrand chama display_map sem `clickable`), entao as instrucoes de
+// teclado do upstream — "solte o pino para iniciar um relato", a mira, o botao
+// de relatar do celular — descrevem coisas que aqui nao acontecem.
+.mappage--sent {
+    .map-instructions,
+    .map-crosshairs,
+    .keyboard-pin,
+    .keyboard-pulsating-dot,
+    .map-mobile-report-button {
+        display: none;
+    }
+}
+
+.map-sent {
+    text-align: center;
+}
+
+// O disco atras da marca de confirmacao. Nao ha token de verde claro de fundo,
+// entao sai da propria cor da marca com alfa — assim ele acompanha qualquer
+// mudanca do verde, inclusive no alto contraste.
+.map-sent__mark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    margin: 0 auto var(--space-3);
+    border-radius: 50%;
+    background: var(--c-primary-soft);
+    color: var(--c-primary);
+
+    svg {
+        width: 2rem;
+        height: 2rem;
+    }
+}
+
+.map-sent__title {
+    margin: 0 0 var(--space-2);
+    color: var(--c-primary);
+    font-size: var(--fs-h2);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-snug);
+}
+
+.map-sent__lead {
+    margin: 0 0 var(--space-5);
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-relaxed);
+}
+
+// -- Protocolo ---------------------------------------------------------------
+//
+// O unico dado da tela que a pessoa pode precisar transcrever. Fundo proprio e
+// numero grande porque e isso que ela volta aqui para ler.
+.map-sent__protocol {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    padding: var(--space-3);
+    border-radius: var(--radius-lg);
+    background: var(--c-primary-softer);
+    text-align: start;
+}
+
+.map-sent__protocol-icon {
+    flex: 0 0 auto;
+    color: var(--c-primary);
+
+    svg {
+        width: 26px;
+        height: 26px;
+    }
+}
+
+.map-sent__protocol-body {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: block;
+}
+
+.map-sent__protocol-label {
+    display: block;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+}
+
+.map-sent__protocol-value {
+    display: block;
+    margin: var(--space-1) 0;
+    color: var(--c-primary);
+    font-size: var(--fs-h3);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-snug);
+    overflow-wrap: break-word;
+}
+
+.map-sent__protocol-date {
+    display: block;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+}
+
+.map-sent__copy {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--c-text-muted);
+    cursor: pointer;
+
+    &:hover {
+        background: var(--c-surface);
+        color: var(--c-primary);
+    }
+
+    &:focus-visible {
+        @include foco-visivel;
+    }
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+.map-sent__copied {
+    flex: 0 0 100%;
+    color: var(--c-primary);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    text-align: end;
+
+    &:empty {
+        display: none;
+    }
+}
+
+// -- Acompanhamento ----------------------------------------------------------
+
+.map-sent__follow {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    text-align: start;
+}
+
+.map-sent__follow-icon {
+    flex: 0 0 auto;
+    color: var(--c-primary);
+
+    svg {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+.map-sent__follow-body {
+    flex: 1 1 auto;
+    min-width: 0;
+
+    p {
+        margin: 0 0 var(--space-1);
+        color: var(--c-text-muted);
+        font-size: var(--fs-sm);
+        line-height: var(--lh-relaxed);
+        overflow-wrap: break-word;
+    }
+
+    strong {
+        color: var(--c-text);
+        font-weight: var(--fw-semibold);
+    }
+}
+
+.map-sent__follow-title {
+    margin: 0 0 var(--space-1);
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-bold);
+}
+
+.map-sent__follow-action a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--c-primary);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+
+    svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+// -- Acoes -------------------------------------------------------------------
+
+.map-sent__actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+
+    // Os botoes do upstream centram o texto sozinhos; com icone ao lado, quem
+    // centra o par e o flex daqui.
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-2);
+        white-space: normal;
+    }
+
+    svg {
+        flex: 0 0 auto;
+        width: 20px;
+        height: 20px;
+    }
+}
+
+// -- Nota de fecho -----------------------------------------------------------
+
+.map-sent__note {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin: 0;
+    padding: var(--space-3);
+    border-radius: var(--radius-lg);
+    background: var(--c-surface-alt);
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-relaxed);
+    text-align: start;
+
+    strong {
+        display: block;
+        color: var(--c-text);
+        font-weight: var(--fw-bold);
+    }
+}
+
+.map-sent__note-icon {
+    flex: 0 0 auto;
+    color: var(--c-primary);
+
+    svg {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+// -- Faixa de ocorrencias proximas -------------------------------------------
+//
+// Cartao de leitura, nao de selecao: aqui nao ha fluxo para continuar, so um
+// link para a ocorrencia. Por isso nao ha estado selecionado.
+.map-card--nearby .map-card__link {
+    cursor: pointer;
+}
+
+// -- Telas estreitas ---------------------------------------------------------
+//
+// No /around, html.mobile poe o mapa cobrindo a janela e o conteudo por baixo,
+// fora de alcance; por isso a faixa de cartoes de la e fixa, flutuando sobre o
+// mapa (secao 4).
+//
+// A confirmacao nao e assim. Aqui o mapa e uma tira no alto, com "Expandir
+// mapa", e a pagina rola normalmente — e uma pagina de conteudo, nao um mapa em
+// tela cheia. Uma faixa fixa sobre ela nao sobrevoaria mapa nenhum: cobriria o
+// proprio texto da confirmacao, que foi o que aconteceu.
+html.mobile .mappage--sent {
+    // O upstream da ao painel uma altura calculada, pensada para o /around: la
+    // ele e uma folha que sobe do rodape e precisa de altura propria. Aqui ele e
+    // um cartao em fluxo, e essa altura sobrava como uma faixa branca vazia de
+    // uns 60px abaixo do ultimo bloco.
+    #map_sidebar {
+        height: auto;
+    }
+
+    .map-strip {
+        position: relative;
+        padding: var(--space-4) 0 var(--space-5);
+        pointer-events: auto;
+        border-top: 1px solid var(--c-border);
+    }
+
+    // Na faixa flutuante o titulo cede a altura para o mapa aparecer. Aqui nao
+    // ha nada por baixo para deixar a vista, e sem ele os cartoes surgem sem
+    // dizer o que sao.
+    .map-strip__title {
+        position: static;
+        width: auto;
+        height: auto;
+        margin: 0;
+        clip: auto;
+        clip-path: none;
+        overflow: visible;
+        white-space: normal;
+    }
+
+    .map-strip__head {
+        padding: 0 var(--space-4) var(--space-3);
+    }
+
+    // Sobre o mapa, "Ver todas" e uma pastilha com sombra para se destacar do
+    // que passa por baixo. Em fluxo, sobre fundo liso, a mesma pastilha vira um
+    // botao solto no meio do texto.
+    .map-strip__all {
+        padding: 0;
+        background: none;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .map-strip__list {
+        padding-bottom: 0;
+    }
+}
+
+// Em telas estreitas a moldura de mapa nao se aplica — a confirmacao vira uma
+// pagina de conteudo comum, com o painel em fluxo normal. Ver secao 3.
+//
+// A marca cresce, ao contrario do que costuma acontecer: no desktop ela divide
+// um painel que precisa caber inteiro na altura da janela, e ali cada pixel dela
+// sai de outro bloco. No celular a pagina rola, ninguem disputa espaco vertical,
+// e a confirmacao pode ter a presenca que a referencia lhe da.
+@media (max-width: 47.99em) {
+    .map-sent__mark {
+        width: 4.5rem;
+        height: 4.5rem;
+
+        svg {
+            width: 2.5rem;
+            height: 2.5rem;
+        }
+    }
+
+    .map-sent__title {
+        font-size: var(--fs-h3);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 7. Busca que nao virou um ponto no mapa
+// ---------------------------------------------------------------------------
+//
+// A pagina de /around quando a busca casa com varios lugares, ou com nenhum.
+// Nao tem mapa: e uma coluna de leitura, com o campo de busca no alto e as
+// opcoes embaixo.
+
+.busca {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding-block: var(--space-6) var(--space-8);
+}
+
+.busca__titulo {
+    margin: 0 0 var(--space-5);
+    color: var(--c-text);
+    font-size: var(--fs-h2);
+    font-weight: var(--fw-black);
+    line-height: var(--lh-heading);
+    letter-spacing: var(--ls-heading);
+}
+
+.busca__intro {
+    margin: var(--space-7) 0 var(--space-3);
+    color: var(--c-text);
+    font-size: var(--fs-lead);
+    font-weight: var(--fw-semibold);
+}
+
+.busca__opcoes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    li {
+        list-style: none;
+        margin: 0;
+    }
+}
+
+// Cada resultado e um alvo de toque inteiro, e nao um link no meio de um
+// paragrafo: quem chegou aqui vai escolher um deles.
+.busca__opcao {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 56px;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
+    background: var(--c-surface);
+    color: var(--c-text);
+    text-decoration: none;
+    transition: border-color var(--dur) var(--ease),
+        box-shadow var(--dur) var(--ease);
+
+    &:hover {
+        border-color: var(--c-primary-line);
+        box-shadow: var(--shadow-md);
+        text-decoration: none;
+    }
+
+    &:focus-visible {
+        @include foco-visivel;
+    }
+
+    // A seta da direita fica encostada na borda; o miolo empurra.
+    > svg:last-child {
+        flex: 0 0 auto;
+        width: 18px;
+        height: 18px;
+        margin-inline-start: auto;
+        color: var(--c-primary);
+    }
+}
+
+.busca__opcao-icone {
+    flex: 0 0 auto;
+    display: inline-flex;
+    color: var(--c-primary);
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+.busca__opcao-corpo {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.busca__opcao-local {
+    font-size: var(--fs-body);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+}
+
+.busca__opcao-cep {
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+}
+
+.busca__nota {
+    margin: var(--space-4) 0 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+}
+
+.busca__form {
+    margin: 0 0 var(--space-2);
+
+    label {
+        display: block;
+        margin-bottom: var(--space-2);
+        color: var(--c-text);
+        font-size: var(--fs-sm);
+        font-weight: var(--fw-semibold);
+    }
+
+    .home-search__box {
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-1);
+        box-shadow: none;
+        border-color: var(--c-border-strong);
+
+        .home-search__icon {
+            flex: 0 0 auto;
+            width: auto;
+            margin-inline-start: var(--space-2);
+            color: var(--c-text-muted);
+
+            svg {
+                display: block;
+                width: 18px;
+                height: 18px;
+            }
+        }
+
+        input[type="text"] {
+            flex: 1 1 auto;
+            min-width: 0;
+            padding-inline: 0;
+        }
+
+        input[type="submit"] {
+            flex: 0 0 auto;
+            min-width: 5.5rem;
+        }
+    }
+}
+
+.busca__acoes {
+    margin-top: var(--space-3);
+
+    #geolocate_link {
+        @include btn-base;
+        display: inline-flex;
+        background: var(--c-primary-soft);
+        border-color: var(--c-primary-line);
+        color: var(--c-primary-ink);
+
+        &:hover {
+            background: var(--c-surface-alt);
+            color: var(--c-primary-hover);
+            text-decoration: none;
+        }
+
+        .geolocate-link__icon {
+            flex: 0 0 auto;
+            width: 18px;
+            height: 18px;
+        }
+    }
+}
+
+// O agrupador "onde olhar" nao existe visualmente no desktop: `display:
+// contents` faz busca, localizacao e filtros continuarem sendo filhos diretos
+// de `.map-panel__body`, com a mesma composicao de antes. Quem lhe da corpo e o
+// celular, onde ele vira a folha inferior.
+.map-panel__buscar {
+    display: contents;
+}
+
+// ---------------------------------------------------------------------------
+// Passo "tipo de ocorrencia"
+// ---------------------------------------------------------------------------
+//
+// Reproduz reference/flows/samples/tela_tipo_ocorrencia.png: atalho de volta,
+// indicador de quatro etapas, titulo, apoio, grade de categorias em tres
+// colunas, aviso e as duas acoes.
+
+// -- Voltar ao mapa ----------------------------------------------------------
+//
+// Na referencia ele esta acima do cartao branco; aqui fica na primeira linha do
+// proprio cartao, porque o #map_sidebar e o cartao e rola sozinho — um filho com
+// topo negativo seria recortado por ele. Mesma leitura, mesma acao.
+// `.map-panel` na frente por especificidade: o `_layout.scss` do upstream
+// esconde `.js-back` no desktop (`.js-back { display: none }`), e a classe e
+// justamente a que faz o atalho recuar um passo.
+.map-panel .map-step__voltar {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    align-self: flex-start;
+    margin: 0;
+    color: var(--c-primary);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+
+    &:hover {
+        color: var(--c-primary-hover);
+        text-decoration: underline;
+    }
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+// -- Indicador de etapas -----------------------------------------------------
+
+.map-stepper {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    flex: 1 0 100%;
+    margin: var(--space-4) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.map-stepper__item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    list-style: none;
+    margin: 0;
+    min-width: 0;
+
+    // A linha conectora sai do centro de um circulo e vai ate o centro do
+    // seguinte. Fica atras dele para nao cruzar o numero.
+    & + .map-stepper__item::before {
+        content: "";
+        position: absolute;
+        top: 14px;
+        right: 50%;
+        left: -50%;
+        height: 2px;
+        background: var(--c-border);
+        z-index: 0;
+    }
+
+    &--feita + .map-stepper__item::before,
+    &--atual + .map-stepper__item::before {
+        background: var(--c-primary);
+    }
+}
+
+.map-stepper__marca {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--c-surface-alt);
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-bold);
+    font-variant-numeric: tabular-nums;
+}
+
+.map-stepper__rotulo {
+    color: var(--c-text-muted);
+    font-size: var(--fs-2xs);
+    line-height: var(--lh-snug);
+    text-align: center;
+}
+
+.map-stepper__item--atual .map-stepper__marca,
+.map-stepper__item--feita .map-stepper__marca {
+    background: var(--c-primary);
+    color: var(--c-text-inverse);
+}
+
+.map-stepper__item--atual .map-stepper__rotulo {
+    color: var(--c-primary);
+    font-weight: var(--fw-semibold);
+}
+
+// -- Titulo e apoio do passo -------------------------------------------------
+
+.map-step__head {
+    margin-bottom: var(--space-4);
+}
+
+.map-step__title {
+    margin: 0 0 var(--space-1);
+    color: var(--c-text);
+    font-size: var(--fs-h3);
+    font-weight: var(--fw-black);
+    line-height: var(--lh-heading);
+    letter-spacing: var(--ls-heading);
+}
+
+.map-step__lead {
+    margin: 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+}
+
+// -- Grade de categorias -----------------------------------------------------
+//
+// O markup e o do upstream, vindo do /report/new/ajax: um fieldset com um
+// input[type=radio] e um label por categoria. O radio some da vista e o rotulo
+// vira o cartao; o foco do teclado continua no radio e e desenhado no cartao.
+.map-panel .js-reporting-page--category {
+    #form_category_row,
+    #form_category_fieldset {
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    // A legend vem do ajax e nao da para marcar com uma classe daqui. Ela
+    // continua sendo o rotulo acessivel do grupo; quem titula o passo na tela e
+    // o h2 de _category_extra_top.html.
+    #form_category_legend {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    #form_category_fieldset {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--space-2);
+
+        // Abaixo de 30em cada cartao ficaria com 127px, e nomes como
+        // "Sinalizacao danificada" ja ocupam tres linhas ali. Duas colunas
+        // devolvem largura ao rotulo sem encolher o icone.
+        @media (max-width: 30em) {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    .govuk-radios__item {
+        margin: 0;
+        padding: 0;
+        min-width: 0;
+    }
+
+    // A validacao do upstream injeta a mensagem dentro do proprio fieldset — que
+    // aqui e a grade. Sem esta regra ela vira mais um item dela: um bloco
+    // vermelho ocupando a primeira celula, com o texto recortado e os cartoes
+    // empurrados para o lado. Parecia erro de renderizacao; era a mensagem certa
+    // no lugar errado.
+    //
+    // Por elemento (`div`/`p`) porque os proprios radios tambem recebem a
+    // classe, e eles sao invisiveis.
+    //
+    // O desenho da mensagem — fundo, barra, cor, respiro — vem do componente em
+    // _components.scss, o mesmo de todas as telas. Aqui fica so o que e desta
+    // grade: ocupar a linha inteira em vez de virar mais uma celula.
+    div.form-error,
+    p.form-error {
+        grid-column: 1 / -1;
+        // `width` junto com `grid-column`: a area da grade sozinha nao estica a
+        // caixa, que ficaria do tamanho do texto.
+        width: 100%;
+    }
+
+    // O radio de verdade: invisivel, mas no lugar, para receber teclado e leitor
+    // de tela. Nao usa display:none, que o tiraria da ordem de tabulacao.
+    .govuk-radios__input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: 0;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .govuk-radios__label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-2);
+        // Sem isto o cartao invade o vizinho: o <label> herda `content-box`, e
+        // `width: 100%` de uma celula de 127px somava 16 de respiro interno e 2
+        // de moldura — 145px numa coluna de 127, cada um por cima do seguinte.
+        box-sizing: border-box;
+        width: 100%;
+        // Preenche a celula, para que o cartao tenha a altura da linha.
+        height: 100%;
+        // 84 cobre o cartao de nome mais longo, que quebra em duas linhas
+        // ("Sinalizacao danificada": 16 de respiro + 24 de icone + 8 de vao + 34
+        // de texto = 82). Como minimo em todos, as filas ficam iguais sem
+        // `grid-auto-rows: 1fr` — que igualava tambem a fila da mensagem de
+        // erro e a deixava com 84px de altura para uma linha de texto.
+        min-height: 84px;
+        margin: 0;
+        padding: var(--space-2);
+        border: 1px solid var(--c-border);
+        border-radius: var(--radius-lg);
+        background: var(--c-surface);
+        color: var(--c-text);
+        font-size: var(--fs-2xs);
+        font-weight: var(--fw-regular);
+        line-height: var(--lh-snug);
+        text-align: center;
+        cursor: pointer;
+
+        &::before,
+        &::after {
+            content: none;
+        }
+
+        &:hover {
+            border-color: var(--c-border-strong);
+            background: var(--c-surface-alt);
+        }
+    }
+
+    .map-cat__icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--c-text);
+
+        svg {
+            width: 24px;
+            height: 24px;
+        }
+    }
+
+
+    .map-cat__nome {
+        display: block;
+    }
+
+    // Selecionado: moldura e fundo da marca, icone e rotulo em verde.
+    //
+    // Pelo irmao adjacente, e nao por `:has` no item. Medido: com `:has` o
+    // cartao so ficava verde uns dois segundos depois do clique — o Chromium
+    // nao reavalia o seletor quando muda a *propriedade* `checked` de um
+    // descendente, so quando algo mais forca um recalculo. O DOM estava certo
+    // desde os 4ms; era a invalidacao de estilo que atrasava. O `+` nao tem
+    // esse problema.
+    .govuk-radios__input:checked + .govuk-radios__label {
+        border-color: var(--c-primary);
+        border-width: 2px;
+        padding: calc(var(--space-2) - 1px);
+        background: var(--c-primary-soft);
+        color: var(--c-primary-ink);
+        font-weight: var(--fw-semibold);
+
+        .map-cat__icon {
+            color: var(--c-primary);
+        }
+    }
+
+    // Foco de teclado: o anel vai no cartao, porque o radio e invisivel.
+    .govuk-radios__input:focus-visible + .govuk-radios__label {
+        box-shadow: var(--shadow-focus);
+    }
+
+    // O botao "Continuar" do upstream continua no DOM — e ele que o
+    // pageController escuta —, mas quem aparece e o "Proximo" de
+    // after_category.html, que carrega a mesma classe.
+    > button.js-reporting-page--next {
+        display: none;
+    }
+}
+
+// O endereco do ponto nao aparece no passo de tipo: a referencia vai do
+// indicador de etapas direto ao titulo, e aqui ainda se esta escolhendo o tipo.
+// Ele volta no passo seguinte, que e onde a localizacao e o assunto.
+//
+// O `:has` olha de cima para baixo porque o cabecalho vem antes das paginas no
+// DOM — nenhum combinador de irmao alcancaria dali.
+// O endereco do ponto nao aparece acima do titulo nos passos que tem referencia
+// desenhada: nas tres imagens o indicador de etapas vai direto ao titulo. No
+// passo de localizacao ele ainda teria cartao proprio logo abaixo, o que seria
+// dizer duas vezes a mesma coisa. Continua visivel nos passos que nao foram
+// desenhados, onde ele e a unica lembranca de onde o pino caiu.
+#side-form:has(.js-reporting-page--category.js-reporting-page--active) .map-panel__flow-address,
+#side-form:has(.js-reporting-page--location.js-reporting-page--active) .map-panel__flow-address,
+#side-form:has([data-page-name="photo"].js-reporting-page--active) .map-panel__flow-address,
+#side-form:has([data-page-name="duplicates"].js-reporting-page--active) .map-panel__flow-address,
+#side-form:has([data-page-name="details"].js-reporting-page--active) .map-panel__flow-address {
+    display: none;
+}
+
+// -- Aviso -------------------------------------------------------------------
+
+.map-step__aviso {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--c-info-bg);
+    color: var(--c-text-body);
+    font-size: var(--fs-2xs);
+    line-height: var(--lh-snug);
+}
+
+.map-step__aviso-icone {
+    display: flex;
+    flex: 0 0 auto;
+    color: var(--c-info-ink);
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+.map-step__aviso-texto {
+    display: block;
+    min-width: 0;
+
+    strong {
+        display: block;
+        color: var(--c-text);
+        font-size: var(--fs-xs);
+        font-weight: var(--fw-semibold);
+    }
+}
+
+// -- Acoes do passo ----------------------------------------------------------
+
+.map-step__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+}
+
+// Os dois botoes tem a largura do proprio texto, e nao a da linha: na
+// referencia "Cancelar" ocupa cerca de um terco e "Proximo" pouco mais.
+// Os dois botoes tem a largura do proprio texto, e nao a da linha.
+//
+// `box-sizing` pelo mesmo motivo do cartao, e aqui a diferenca aparecia entre os
+// dois botoes: o <button> do "Proximo" ja nasce `border-box` e media os 42px
+// pedidos; o <a> do "Cancelar" herdava `content-box` e somava respiro e moldura
+// ao minimo — 60px ao lado de 42.
+.map-panel .map-step__cancelar,
+.map-panel .map-step__proximo {
+    box-sizing: border-box;
+    width: auto;
+    flex: 0 0 auto;
+    min-width: 7rem;
+}
+
+.map-panel .map-step__cancelar {
+    @include btn-base;
+    min-height: 42px;
+    margin: 0;
+    background: var(--c-surface-alt);
+    border-color: var(--c-border);
+    color: var(--c-text);
+
+    &:hover {
+        background: var(--c-border);
+        text-decoration: none;
+    }
+}
+
+.map-panel .map-step__proximo {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 42px;
+    margin: 0;
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Passo "confirme a localizacao"
+// ---------------------------------------------------------------------------
+//
+// Reproduz reference/flows/samples/tela_confirme_localizacao.png. A imagem tem
+// 1165px e o cartao dela mede ~1105 de largura; o painel daqui tem 398 de
+// conteudo, entao a escala e 0.36. As alturas abaixo saem dessa conversao,
+// medidas por varredura de cor na coluna do meio da imagem:
+//
+//   bloco de instrucao   111px na imagem -> 40
+//   vao instrucao/cartao  30            -> 11
+//   cartao do endereco   146            -> 53
+//   botoes               130            -> 47
+
+// Os respiros saem da referencia, convertidos pela escala do painel: o cartao
+// da imagem tem 1027 de conteudo e este tem 398, entao 1px de la vale 0.3875
+// aqui. Medidos por varredura de cor, de bloco a bloco: apoio->instrucao 46,
+// instrucao->cartao 36, cartao->"ou buscar" 51, "ou"->campo 24, campo->acoes 49.
+.map-panel .js-reporting-page--location {
+    > * + * {
+        margin-top: var(--space-3);
+    }
+
+    > .map-step__dica {
+        margin-top: var(--space-4);
+    }
+
+    > .map-step__ou {
+        margin-top: var(--space-5);
+    }
+
+    > .map-step__busca {
+        margin-top: var(--space-2);
+    }
+
+    > .map-street {
+        margin-top: var(--space-3);
+    }
+
+    > .map-step__actions {
+        margin-top: var(--space-5);
+    }
+}
+
+// -- Instrucao de ajuste -----------------------------------------------------
+//
+// Mesma superficie do aviso do painel, mas numa linha so: icone a esquerda,
+// texto em seguida. A dica do painel de explorar (`.map-panel__hint`) e uma
+// coluna centrada; esta nao.
+.map-step__dica {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    // `min-height` mede a caixa de conteudo com o box-sizing herdado; sem isto
+    // os 41px da referencia virariam 41 + 16 de padding.
+    box-sizing: border-box;
+    min-height: 41px;
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--c-primary-soft);
+    color: var(--c-primary-ink);
+    font-size: var(--fs-2xs);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+
+    svg {
+        flex: 0 0 auto;
+        width: 20px;
+        height: 20px;
+    }
+}
+
+// -- Cartao do endereco selecionado ------------------------------------------
+
+.map-local {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    box-sizing: border-box;
+    min-height: 57px;
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-md);
+    background: var(--c-surface-alt);
+}
+
+.map-local__icone {
+    display: flex;
+    flex: 0 0 auto;
+    color: var(--c-primary);
+
+    svg {
+        width: 26px;
+        height: 26px;
+    }
+}
+
+.map-local__corpo {
+    display: block;
+    min-width: 0;
+}
+
+.map-local__rotulo {
+    display: block;
+    color: var(--c-text-muted);
+    font-size: var(--fs-2xs);
+    line-height: var(--lh-snug);
+}
+
+.map-local__valor {
+    display: block;
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+}
+
+// -- Buscar outra localizacao ------------------------------------------------
+
+.map-step__ou {
+    margin: 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+}
+
+.map-panel .map-step__busca {
+    .home-search__box {
+        margin: 0;
+    }
+
+    // O botao aqui e um <button>, e nao o <input type=submit> do painel: as
+    // regras do campo de busca do painel casam por tipo de elemento.
+    .btn {
+        flex: 0 0 auto;
+        box-sizing: border-box;
+        min-width: 5.25rem;
+        min-height: 32px;
+        margin: 0;
+        padding-block: 0;
+        padding-inline: var(--space-3);
+        border-radius: calc(var(--radius-md) - 2px);
+        line-height: 1;
+    }
+}
+
+.map-step__busca-status {
+    margin: var(--space-2) 0 0;
+    font-size: var(--fs-2xs);
+    line-height: var(--lh-snug);
+
+    &[hidden] {
+        display: none;
+    }
+
+    &--info {
+        color: var(--c-text-muted);
+    }
+
+    &--erro {
+        color: var(--c-error);
+    }
+}
+
+// Quando o geocoder devolve mais de um lugar, a escolha e da pessoa — nao da
+// interface. Os candidatos vem do proprio `/ajax/lookup_location`.
+.map-step__busca-opcoes {
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    list-style: none;
+    // O geocoder pode devolver oito candidatos para uma rua comprida. Sem teto,
+    // a lista empurra as acoes para fora da vista e o painel inteiro passa a
+    // rolar; com teto, quem rola e a lista. 168 e o que sobra em 1440x900 com
+    // o passo aberto: medido, 758 de conteudo para 720 de painel.
+    max-height: 10.5rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+
+    &[hidden] {
+        display: none;
+    }
+
+    li {
+        list-style: none;
+        margin: 0;
+
+        & + li {
+            margin-top: var(--space-1);
+        }
+    }
+}
+
+.map-panel .map-step__busca-opcao {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-md);
+    background: var(--c-surface);
+    color: var(--c-text);
+    font-size: var(--fs-2xs);
+    line-height: var(--lh-snug);
+    text-align: start;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--c-primary);
+        background: var(--c-primary-soft);
+    }
+
+    &:focus-visible {
+        box-shadow: var(--shadow-focus);
+    }
+}
+
+// -- Acoes de navegacao ------------------------------------------------------
+//
+// Na referencia "Voltar" mede 342 dos 1027 de conteudo e "Continuar" 651, com
+// 29 de intervalo: na escala daqui, 132 fixos para um e o resto para o outro.
+// As duas medem 127 de altura la, que sao 49.
+.map-panel .map-step__actions--navegacao {
+    .map-step__cancelar {
+        flex: 0 0 8.25rem;
+        min-width: 0;
+        min-height: 48px;
+    }
+
+    .map-step__proximo {
+        flex: 1 1 auto;
+        justify-content: center;
+        min-height: 48px;
+    }
+}
+
+.map-panel .map-step__cancelar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Vista da rua
+// ---------------------------------------------------------------------------
+//
+// A proporcao nao e 16:9. Em 398px de painel, 16:9 dariam 224 de altura e o
+// passo passaria de 720 — que e o que cabe em 1440x900 —, ganhando barra de
+// rolagem por causa de um bloco auxiliar. 21:9 da 170 e ainda sobra folga; o
+// formato continua claramente horizontal. O enunciado admite "mais baixa se
+// necessario para encaixar harmonicamente no painel", e era.
+//
+// O quadro so aparece quando ha foto. Enquanto busca, e quando nao ha cobertura
+// ou o provedor falha, o que fica e uma faixa fina de uma linha: um retangulo
+// cinza permanente diria "faltou alguma coisa" numa cidade onde simplesmente
+// nao ha foto nenhuma.
+
+.map-street {
+    margin: 0;
+    padding: 0;
+
+    // Sem provedor configurado nao ha o que mostrar nem o que explicar.
+    &[data-estado="vazio"] {
+        display: none;
+    }
+}
+
+.map-street__quadro {
+    display: none;
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    max-width: 100%;
+    aspect-ratio: 21 / 9;
+    box-sizing: border-box;
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-md);
+    background: var(--c-surface-alt);
+}
+
+.map-street[data-estado="disponivel"] .map-street__quadro {
+    display: block;
+}
+
+.map-street__foto {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+
+    &[hidden] {
+        display: none;
+    }
+}
+
+// Sobre a foto, e nao ao lado: o endereco ja esta escrito por extenso no cartao
+// acima, e aqui ele serve so para amarrar a imagem ao ponto.
+.map-street__legenda {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-3) var(--space-2);
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0));
+    color: #fff;
+
+    &[hidden] {
+        display: none;
+    }
+}
+
+.map-street__local {
+    display: block;
+    // Uma linha para cada coisa, com reticencias: sem isto o bairro quebra em
+    // duas linhas e encosta no credito, que fica no mesmo rodape.
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: var(--fs-2xs);
+    line-height: var(--lh-snug);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+
+    strong {
+        display: block;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-size: var(--fs-xs);
+        font-weight: var(--fw-semibold);
+    }
+}
+
+// Credito da CC BY-SA: sem ele nao se pode exibir a foto.
+.map-street__fonte {
+    flex: 0 0 auto;
+    font-size: 0.6875rem;
+    line-height: var(--lh-snug);
+    white-space: nowrap;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    opacity: 0.9;
+
+    a {
+        color: #fff;
+        text-decoration: underline;
+
+        &:hover,
+        &:focus-visible {
+            color: #fff;
+            text-decoration: none;
+        }
+    }
+}
+
+// -- Buscando, sem cobertura, falha ------------------------------------------
+
+.map-street__estado {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+    box-sizing: border-box;
+    min-height: 34px;
+    margin: 0;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--c-surface-alt);
+    color: var(--c-text-muted);
+    font-size: var(--fs-2xs);
+    line-height: var(--lh-snug);
+}
+
+.map-street[data-estado="disponivel"] .map-street__estado {
+    display: none;
+}
+
+.map-street__estado-icone {
+    display: flex;
+    flex: 0 0 auto;
+
+    svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+.map-street[data-estado="carregando"] .map-street__estado-icone {
+    animation: map-street-pulsa 1.2s ease-in-out infinite;
+}
+
+@keyframes map-street-pulsa {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 1; }
+}
+
+// Quem prefere menos movimento nao ve movimento nenhum.
+@media (prefers-reduced-motion: reduce) {
+    .map-street[data-estado="carregando"] .map-street__estado-icone {
+        animation: none;
+    }
+}
+
+// O caminho alternativo, quando o acervo aberto nao tem o ponto. Fica na mesma
+// faixa da mensagem, alinhado a direita: e uma saida, nao um aviso.
+.map-street__alternativa {
+    flex: 0 0 auto;
+    margin-inline-start: auto;
+    color: var(--c-primary);
+    font-weight: var(--fw-semibold);
+    white-space: nowrap;
+
+    &[hidden] {
+        display: none;
+    }
+
+    &::after {
+        content: " \2197";
+    }
+
+    &:hover,
+    &:focus-visible {
+        color: var(--c-primary-hover);
+        text-decoration: underline;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Passo das fotos
+// ---------------------------------------------------------------------------
+//
+// Reproduz reference/flows/samples/tela_detalhes_01.png. A imagem tem 1165 de
+// largura e o conteudo do cartao dela mede 1040 (x 62..1102); o painel daqui
+// tem 398, entao 1px de la vale 0.3827 aqui. As medidas abaixo saem dessa
+// conversao, apuradas por varredura de cor:
+//
+//   area de upload   251 de altura -> 96      icone da camera   60 -> 23
+//   botao de enviar  350 x 63      -> 134 x 24
+//   miniatura        221 x 159     -> 85 x 61  intervalo         13 -> 5
+//   quadro "adicionar" 200         -> 77
+//   setas            53            -> 20 (usadas 24: abaixo disso o alvo de
+//                                   toque fica menor do que a mao)
+//   pontos           15            -> 6
+//   faixa de dicas   90            -> 34
+//
+// A pagina do passo nao tem classe propria no upstream — so
+// `data-page-name="photo"` —, e e por ela que tudo aqui casa.
+
+.map-panel [data-page-name="photo"] {
+    > * + * {
+        margin-top: var(--space-3);
+    }
+
+    > .map-foto__cabecalho {
+        margin-top: var(--space-4);
+    }
+
+    > .map-foto__dicas {
+        margin-top: var(--space-4);
+    }
+
+    > .map-step__actions {
+        margin-top: var(--space-4);
+    }
+
+    // O "Continuar" do upstream continua no DOM — e ele que o pageController
+    // escuta —, mas quem aparece e o de after_photo.html, com a mesma classe.
+    > button.js-reporting-page--next {
+        display: none;
+    }
+}
+
+// -- Rotulo e contagem -------------------------------------------------------
+
+.map-foto__cabecalho {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+// `label_accessibility_update`, do fixmystreet.js, marca `#photo-upload-label`
+// com `.hidden-js` e insere logo depois um `<span class="label">` com o mesmo
+// conteudo — a copia e que fica com o rotulo acessivel da area de arrastar. O
+// upstream esconde o original por `.js .hidden-js`, mas uma regra de painel mais
+// especifica vencia aquela: o rotulo aparecia duas vezes, e a copia, no meio da
+// linha. E a mesma armadilha dos filtros, no mesmo arquivo.
+.map-panel .map-foto__rotulo.hidden-js {
+    display: none;
+}
+
+.map-panel .map-foto__rotulo,
+.map-panel .map-foto__cabecalho > .label {
+    display: block;
+    flex: 0 1 auto;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    color: var(--c-text);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+}
+
+.map-foto__contagem {
+    flex: 0 0 auto;
+    margin: 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+    white-space: nowrap;
+}
+
+.map-foto__icones {
+    display: none;
+}
+
+// -- Area de arrastar --------------------------------------------------------
+//
+// O elemento e do Dropzone; aqui ele so troca de roupa. `.dz-started` e a
+// classe que ele poe ao receber o primeiro arquivo, e a folha dele esconde a
+// mensagem nesse estado — como as miniaturas saem daqui para a galeria, isso
+// deixaria um retangulo vazio no lugar da area de upload.
+
+.map-panel [data-page-name="photo"] .dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    // Sem `gap` aqui: a area tem itens anonimos alem da mensagem, e o intervalo
+    // entre eles custava 16px de altura no estado normal — a caixa ia de 103
+    // para 119. O respiro do aviso de recusa vem da margem dele.
+    gap: 0;
+    box-sizing: border-box;
+    min-height: 96px;
+    margin: 0;
+    padding: 6px var(--space-2);
+    border: 1px dashed var(--c-primary);
+    border-radius: var(--radius-lg);
+    background: var(--c-primary-soft);
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+        border-color: var(--c-primary-hover);
+    }
+
+    &:focus-visible {
+        box-shadow: var(--shadow-focus);
+        outline: none;
+    }
+
+    .dz-message {
+        display: flex !important;
+        flex-direction: column;
+        align-items: center;
+        // 3 de intervalo, e nao 8: com os quatro elementos empilhados a caixa
+        // passava de 130, e a referencia pede 96.
+        gap: 3px;
+        margin: 0;
+        text-align: center;
+    }
+
+    // As miniaturas vivem na galeria abaixo. Se alguma ficar para tras — uma
+    // que o Dropzone recrie, por exemplo — ela nao pode reaparecer aqui dentro.
+    > .dz-preview {
+        display: none;
+    }
+
+    // A recusa nao usa a miniatura do Dropzone: o catanduva-map.js copia a frase
+    // dela para `.map-foto__recusa` e descarta o resto, que eram 109px de
+    // imagem, nome de arquivo e barra de progresso para dizer uma linha.
+}
+
+.map-panel [data-page-name="photo"] .dz-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.map-foto__camera {
+    display: flex;
+    color: var(--c-primary);
+
+    svg {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+.map-foto__arraste {
+    display: block;
+    color: var(--c-primary-ink);
+    font-size: var(--fs-2xs);
+    line-height: var(--lh-snug);
+}
+
+.map-panel .map-foto__enviar {
+    display: inline-flex;
+    border: 0;
+    cursor: pointer;
+    // O controle virou <label>, e o upstream da margem a todo <label> do
+    // formulario: sem zerar, a area de upload cresceu de 103 para 138.
+    margin: 0;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    box-sizing: border-box;
+    min-height: 26px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--c-primary);
+    color: var(--c-text-inverse);
+    font-size: var(--fs-2xs);
+    font-weight: var(--fw-semibold);
+    line-height: 1;
+}
+
+.map-foto__enviar-icone {
+    display: flex;
+
+    svg {
+        width: 14px;
+        height: 14px;
+    }
+}
+
+// Arquivo recusado: uma linha, na cor de erro, dentro da propria area de upload.
+// Sai sozinha depois de seis segundos — lida, ela so ocupa altura.
+.map-foto__recusa {
+    display: block;
+    margin: var(--space-2) 0 0;
+    color: var(--c-error);
+    font-size: var(--fs-2xs);
+    line-height: var(--lh-snug);
+    text-align: center;
+
+    &[hidden] {
+        display: none;
+    }
+}
+
+// O campo de arquivo de verdade, por cima do controle: e nele que o clique cai,
+// e e o navegador que abre o seletor. Invisivel, mas presente, do tamanho do
+// controle e com o cursor certo.
+.map-panel .map-foto__campo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    cursor: pointer;
+    font-size: 0;
+}
+
+.map-panel [data-page-name="photo"] .dz-message,
+.map-panel .map-foto__adicionar {
+    position: relative;
+}
+
+// A pilula e so o desenho; o clique cai no campo que cobre a mensagem.
+.map-panel .map-foto__enviar {
+    pointer-events: none;
+}
+
+.map-foto__limite {
+    display: block;
+    margin: 0;
+    color: var(--c-text-muted);
+    font-size: 0.6875rem;
+    line-height: var(--lh-snug);
+    text-align: center;
+}
+
+// -- Galeria -----------------------------------------------------------------
+
+.map-foto__galeria[hidden] {
+    display: none;
+}
+
+.map-foto__galeria-titulo {
+    margin: 0 0 var(--space-2);
+    color: var(--c-text);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+}
+
+.map-foto__faixa-linha {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+// Uma linha so. `flex-wrap: nowrap` e o que impede a segunda fileira quando
+// chegam mais fotos do que cabem; o resto continua alcancavel rolando.
+// Uma linha so, e as miniaturas dividem a largura entre si.
+//
+// Com largura fixa sobrava um vao a direita em quase todos os casos — com uma
+// foto, com duas, e com tres tambem, porque a referencia desenha quatro casas e
+// aqui cabem tres. Dividindo (`flex: 1 1 0`), tres itens preenchem a linha; com
+// menos itens o teto de 10rem impede que um deles vire uma faixa larga, e o
+// `justify-content: center` deixa o conjunto centrado em vez de encostado a
+// esquerda com o vazio do lado.
+//
+// A proporcao da referencia — 85 por 61 — fica no `aspect-ratio`, entao a altura
+// acompanha a largura em qualquer tamanho de tela.
+.map-foto__faixa {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: center;
+    gap: var(--space-2);
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+// A miniatura e o `.dz-preview` do Dropzone, movido para ca. Tudo o que ele
+// traz junto — nome do arquivo, tamanho, barra de progresso, marcas de sucesso
+// e de erro — sai de vista: a informacao util e a imagem.
+.map-panel .map-foto__faixa .dz-preview {
+    position: relative;
+    flex: 1 1 0;
+    width: auto;
+    max-width: 10rem;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 85 / 61;
+    margin: 0;
+    padding: 0;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--c-surface-alt);
+
+    .dz-details,
+    .dz-progress,
+    .dz-success-mark,
+    .dz-error-mark,
+    .dz-error-message {
+        display: none;
+    }
+
+    .dz-image {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 0;
+        overflow: hidden;
+    }
+
+    img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+}
+
+.map-panel .map-foto__remover {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(17, 24, 28, 0.72);
+    color: #fff;
+    font-size: 14px;
+    line-height: 1;
+    text-decoration: none;
+    opacity: 1;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+        background: rgba(17, 24, 28, 0.9);
+        color: #fff;
+        text-decoration: none;
+    }
+}
+
+.map-panel .map-foto__adicionar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    flex: 1 1 0;
+    box-sizing: border-box;
+    width: auto;
+    max-width: 10rem;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 85 / 61;
+    margin: 0;
+    padding: 0;
+    border: 1px dashed var(--c-border-strong);
+    border-radius: var(--radius-md);
+    background: var(--c-surface-alt);
+    color: var(--c-text-muted);
+    cursor: pointer;
+
+    &[hidden] {
+        display: none;
+    }
+
+    &:hover {
+        border-color: var(--c-primary);
+        color: var(--c-primary-ink);
+    }
+}
+
+.map-foto__adicionar-mais {
+    font-size: 1.125rem;
+    font-weight: var(--fw-regular);
+    line-height: 1;
+}
+
+.map-foto__adicionar-texto {
+    font-size: 0.625rem;
+    line-height: 1.2;
+    text-align: center;
+}
+
+// -- Orientacoes -------------------------------------------------------------
+//
+// Tres colunas, texto pequeno, divisores de 1px. Nao sao cartoes: nem fundo,
+// nem moldura, nem titulo — informacao de apoio, na mesma altura de uma linha
+// de texto dupla.
+.map-panel .map-foto__dicas {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    padding: 6px 0;
+    border-top: 1px solid var(--c-border);
+    border-bottom: 1px solid var(--c-border);
+    background: none;
+}
+
+.map-foto__dica {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0 6px;
+    color: var(--c-text-muted);
+    // 10px: com 11 cada bloco quebrava em quatro linhas e a faixa passava de
+    // 90 de altura, tres vezes a da referencia.
+    font-size: 0.625rem;
+    line-height: 1.3;
+
+    & + & {
+        border-left: 1px solid var(--c-border);
+    }
+}
+
+.map-foto__dica-icone {
+    display: flex;
+    flex: 0 0 auto;
+    margin-top: 1px;
+
+    svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    &--bom,
+    &--foto {
+        color: var(--c-primary);
+    }
+
+    // Ambar, e nao vermelho: e orientacao de privacidade, nao erro.
+    &--privacidade {
+        color: var(--c-progress-solid);
+    }
+}
+
+// -- Telas estreitas ---------------------------------------------------------
+
+@media (max-width: 30em) {
+    // Tres colunas de texto num painel de 344 dariam quatro palavras por linha.
+    .map-panel .map-foto__dicas {
+        grid-template-columns: 1fr;
+        gap: var(--space-2);
+    }
+
+    .map-foto__dica {
+        padding: 0;
+
+        & + & {
+            border-left: 0;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Passo "Detalhes publicos"
+// ---------------------------------------------------------------------------
+//
+// Reproduz reference/flows/samples/tela_detalhes_02.png. A imagem tem 1012 de
+// largura e o conteudo do cartao dela mede 892 (x 59..951); o painel daqui tem
+// 398, entao 1px de la vale 0.446 aqui. As medidas saem dessa conversao,
+// apuradas por varredura de cor:
+//
+//   cartao do endereco  144 de altura -> 64     campo de resumo  71 -> 32
+//   area de descricao   239           -> 107    botoes          104 -> 46
+//
+// E os respiros, de bloco a bloco: texto->cartao 30 (13), cartao->rotulo 32
+// (14), rotulo->dica 15 (7), dica->campo 25 (11), campo->rotulo 39 (17),
+// dica->area 20 (9), area->contador 11 (5), contador->botoes 53 (24).
+
+.map-panel [data-page-name="details"] {
+    > * + * {
+        margin-top: var(--space-2);
+    }
+
+    // O <h2> do upstream ja carrega a classe de titulo de passo; o que falta e
+    // o respiro de quem vem depois do indicador de etapas.
+    > .map-step__title {
+        margin-top: var(--space-4);
+    }
+
+    > .map-endereco {
+        margin-top: var(--space-3);
+    }
+
+    > label {
+        margin-top: var(--space-4);
+    }
+
+    > .form-hint {
+        margin-top: var(--space-1);
+    }
+
+    > .form-control {
+        margin-top: var(--space-3);
+    }
+
+    > .map-detalhe__contador {
+        margin-top: var(--space-1);
+    }
+
+    > .map-step__actions {
+        margin-top: var(--space-5);
+    }
+
+    // O "Continuar" do upstream continua no DOM — e ele que o pageController
+    // escuta —, mas quem aparece e o de after_detail.html, com a mesma classe.
+    > button.js-reporting-page--next {
+        display: none;
+    }
+
+    // O formulario de quem registra pertence ao passo seguinte. No modo de
+    // pagina unica ele aparece aqui; no fluxo em passos, nao.
+    > .js-reporting-page--single-hidden {
+        display: none;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 0;
+        color: var(--c-text);
+        font-size: var(--fs-xs);
+        font-weight: var(--fw-semibold);
+        line-height: var(--lh-snug);
+    }
+
+    .form-hint {
+        margin-bottom: 0;
+        color: var(--c-text-muted);
+        font-size: var(--fs-2xs);
+        line-height: var(--lh-snug);
+    }
+
+    .form-control {
+        box-sizing: border-box;
+        width: 100%;
+        // O painel limita os campos a 351px; aqui eles ocupam a coluna inteira,
+        // como na referencia.
+        max-width: 100%;
+        // Sem `margin: 0` aqui: esta regra vem depois das de `>` acima, com a
+        // mesma especificidade, e zerava o respiro que elas dao.
+        margin-inline: 0;
+        margin-bottom: 0;
+        padding: 0 var(--space-3);
+        border: 1px solid var(--c-border-strong);
+        border-radius: var(--radius-md);
+        background: var(--c-surface);
+        color: var(--c-text);
+        font-family: inherit;
+        font-size: var(--fs-xs);
+        line-height: var(--lh-snug);
+
+        &::placeholder {
+            color: var(--c-text-muted);
+        }
+
+        &:focus {
+            border-color: var(--c-primary);
+            box-shadow: var(--shadow-focus);
+            outline: none;
+        }
+
+        // Campo invalido. A regra geral do componente — `input.form-error` — tem
+        // especificidade (0,1,1) e perde para o `.form-control` deste escopo
+        // (0,3,0): sem esta linha o campo reprovado ficava com a borda cinza de
+        // sempre, e so a mensagem sinalizava o erro.
+        //
+        // Depois do `:focus` e de proposito. O validador leva o foco para o
+        // primeiro campo invalido, e ali as duas regras valem ao mesmo tempo: a
+        // borda continua vermelha, que e o estado, e o foco fica marcado pelo
+        // anel.
+        &.form-error {
+            border-color: var(--c-error);
+            border-width: 2px;
+        }
+    }
+
+    input.form-control {
+        min-height: 32px;
+    }
+
+    textarea.form-control {
+        // A altura vem daqui, e nao do `rows="7"` do upstream: sete linhas dao
+        // 146px e o passo passava dos 720 que cabem em 1440x900 por 5px.
+        height: 107px;
+        min-height: 107px;
+        padding: var(--space-2) var(--space-3);
+        resize: vertical;
+    }
+}
+
+// -- Texto sobre publicacao --------------------------------------------------
+
+.map-detalhe__texto {
+    margin: 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+
+    p {
+        margin: 0;
+    }
+
+    p + p {
+        margin-top: var(--space-2);
+    }
+
+    // O nome da prefeitura em destaque e o link da politica de privacidade em
+    // verde: e o que a referencia mostra, e o link continua sendo o do upstream.
+    strong {
+        color: var(--c-text);
+        font-weight: var(--fw-semibold);
+    }
+
+    a {
+        color: var(--c-primary);
+        text-decoration: underline;
+
+        &:hover,
+        &:focus-visible {
+            color: var(--c-primary-hover);
+        }
+    }
+}
+
+// -- Cartao do endereco ------------------------------------------------------
+//
+// Mesma superficie do cartao do passo de localizacao: e a mesma informacao, no
+// mesmo papel, e mudar a roupa dela de um passo para o outro so confundiria.
+
+.map-endereco {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    box-sizing: border-box;
+    min-height: 57px;
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-md);
+    background: var(--c-surface-alt);
+}
+
+.map-endereco__icone {
+    display: flex;
+    flex: 0 0 auto;
+    margin-top: 2px;
+    color: var(--c-primary);
+
+    svg {
+        width: 26px;
+        height: 26px;
+    }
+}
+
+.map-endereco__corpo {
+    display: block;
+    min-width: 0;
+}
+
+.map-endereco__rotulo {
+    display: block;
+    color: var(--c-text-muted);
+    font-size: var(--fs-2xs);
+    line-height: var(--lh-snug);
+}
+
+.map-endereco__nome {
+    display: block;
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+
+    &[hidden] {
+        display: none;
+    }
+}
+
+.map-endereco__linha {
+    display: block;
+    color: var(--c-text-body);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+}
+
+// -- Contador ----------------------------------------------------------------
+
+.map-detalhe__contador {
+    margin: 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-2xs);
+    line-height: var(--lh-snug);
+}
+
+// ---------------------------------------------------------------------------
+// Busca: ocorrencias encontradas pelo texto, e as saidas quando nao ha lugar
+// ---------------------------------------------------------------------------
+//
+// O campo da home aceita "CEP, rua, bairro ou o problema". As tres primeiras
+// coisas o geocodificador resolve; a quarta caia num erro. Agora, quando nao ha
+// lugar com aquele nome, a pagina mostra as ocorrencias cujo texto casa — na
+// mesma lista da home, para nao inventar um segundo jeito de listar ocorrencia —
+// e oferece as duas saidas que resolvem a falta de um ponto.
+
+.busca__achados-titulo {
+    margin: var(--space-6) 0 var(--space-3);
+    color: var(--c-text);
+    font-size: var(--fs-h4);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-heading);
+}
+
+.busca__ocorrencias {
+    margin-bottom: var(--space-6);
+}
+
+.busca__saidas {
+    margin-top: var(--space-5);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--c-border);
+}
+
+.busca__saidas-titulo {
+    margin: 0 0 var(--space-3);
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-snug);
+}
+
+.busca__saidas-acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.busca__saida {
+    display: inline-flex;
+    // O `.btn` do upstream e content-box: com `width: 100%` no celular os dois
+    // botoes mediam 401px numa janela de 391 e a pagina rolava de lado.
+    box-sizing: border-box;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 44px;
+    margin: 0;
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+// Abaixo de 30em as duas saidas ocupam a linha inteira, uma sobre a outra: lado
+// a lado elas ficariam com sete caracteres cada.
+@media (max-width: 30em) {
+    .busca__saidas-acoes {
+        flex-direction: column;
+    }
+
+    .busca__saida {
+        width: 100%;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Subetapa "Ja foi relatado?"
+// ---------------------------------------------------------------------------
+//
+// Reproduz reference/flows/samples/tela_confirme_localizacao_02.png, com uma
+// diferenca de composicao deliberada: a referencia empilha os cartoes e aqui
+// eles viram um carrossel de um por vez.
+//
+// O motivo nao e espaco. Este passo e uma decisao — "esta e a mesma ocorrencia
+// que eu ia registrar?" — e quem decide olha uma por vez. Uma pilha de quatro
+// cartoes obriga a rolar o painel, empurra o bloco informativo e os botoes para
+// fora da vista, e faz comparar de memoria. Com um cartao por vez a altura do
+// painel para de depender de quantas ocorrencias a busca achou.
+//
+// As medidas saem da referencia (1012 de largura, cartoes de 902; o painel tem
+// 398, entao 1px de la vale 0.397 aqui): foto 192x195 -> 76x77, padding do
+// cartao 20 -> 8, foto->texto 29 -> 12, botoes 103 -> 41.
+
+.map-panel [data-page-name="duplicates"] {
+    // A ficha (`.js-dup-detail`) nao entra aqui: os respiros dela sao os da
+    // propria referencia, bloco a bloco, e nao um valor unico.
+    > .js-dup-intro,
+    > .js-dup-follow {
+        > * + * {
+            margin-top: var(--space-2);
+        }
+    }
+
+    .map-step__title {
+        margin-top: var(--space-4);
+        margin-bottom: 0;
+    }
+
+    .map-step__lead {
+        margin-top: var(--space-2);
+        margin-bottom: 0;
+    }
+
+    // O "Continuar" do upstream continua no DOM — e ele que o pageController
+    // escuta —, mas quem aparece e o do nosso bloco de acoes, com a mesma
+    // classe.
+    > button.js-reporting-page--next {
+        display: none;
+    }
+}
+
+// -- Navegacao entre as ocorrencias ------------------------------------------
+//
+// So aparece com duas ou mais: com uma, duas setas desabilitadas e um "1 de 1"
+// seriam tres controles anunciando que nao ha nada a fazer.
+
+.map-dup__nav {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+
+    &[hidden] {
+        display: none;
+    }
+}
+
+.map-dup__pos {
+    margin-right: auto;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+}
+
+.map-dup__seta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-md);
+    background: var(--c-surface);
+    color: var(--c-text);
+    cursor: pointer;
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    &:hover:not(:disabled) {
+        background: var(--c-surface-alt);
+        border-color: var(--c-border-strong);
+    }
+
+    // Desabilitada e nao escondida: a seta some do alcance mas fica no lugar, e
+    // a fileira nao muda de largura ao ir do primeiro ao ultimo cartao.
+    &:disabled {
+        opacity: 0.35;
+        cursor: default;
+    }
+}
+
+.map-dup__palco {
+    margin-top: var(--space-2);
+
+    // O palco recebe foco para as setas do teclado funcionarem, mas nao e um
+    // controle: o anel so aparece para quem navega por teclado.
+    &:focus {
+        outline: none;
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+        border-radius: var(--radius-lg);
+    }
+}
+
+.map-dup__pontos {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+
+    &[hidden] {
+        display: none;
+    }
+}
+
+.map-dup__ponto {
+    box-sizing: content-box;
+    width: 7px;
+    height: 7px;
+    padding: var(--space-2);
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    cursor: pointer;
+
+    // O ponto visivel e pequeno; o alvo de toque em volta dele nao. O padding
+    // entra no `background-clip` para que so o miolo pinte.
+    background-clip: content-box;
+    background-color: var(--c-border-strong);
+
+    &:hover {
+        background-color: var(--c-text-muted);
+    }
+}
+
+.map-dup__ponto--atual {
+    background-color: var(--c-primary);
+}
+
+// -- O cartao de uma ocorrencia proxima --------------------------------------
+
+.map-dup__card {
+    display: flex;
+    // `flex-start` para a foto encostar no topo do texto e ficar do mesmo
+    // tamanho em todos os cartoes: sem isto ela se estica com a altura do
+    // conteudo e cada ocorrencia ganha uma miniatura de tamanho diferente.
+    align-items: flex-start;
+    gap: var(--space-3);
+    box-sizing: border-box;
+    padding: var(--space-3);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
+    background: var(--c-surface);
+}
+
+.map-dup__foto {
+    flex: 0 0 auto;
+    width: 76px;
+    height: 77px;
+    border-radius: var(--radius-md);
+    object-fit: cover;
+    background: var(--c-surface-alt);
+}
+
+// Sem foto, a mesma superficie reservada que o cartao da faixa usa
+// (.map-card__thumb--empty): mint, sem icone, e nunca uma imagem quebrada.
+.map-dup__foto--vazia {
+    background: var(--c-primary-soft);
+}
+
+.map-dup__corpo {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+// Titulo, endereco e a linha de tempo e distancia sao uma coisa so: o que
+// identifica a ocorrencia. Por isso ficam com respiro minimo entre si — o
+// respiro maior fica entre esse bloco e a descricao, e entre a descricao e as
+// acoes, que e onde a leitura de fato muda de assunto.
+.map-dup__titulo {
+    margin: 0;
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-snug);
+}
+
+.map-dup__endereco {
+    margin: 2px 0 0;
+    color: var(--c-text-body);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+}
+
+// Tempo, distancia e estado: tudo o que se sabe sobre a ocorrencia sem abri-la.
+// `wrap` porque o rotulo de estado varia muito de largura — "Aberta" tem 60px e
+// "Encaminhada internamente" tem 196 — e quando nao couber ele desce sozinho,
+// sem empurrar nada.
+.map-dup__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin: var(--space-2) 0 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+}
+
+.map-dup__separador {
+    color: var(--c-text-muted);
+}
+
+// Tres linhas de resumo — uma a mais que antes, porque com um cartao por vez ha
+// espaco, e e ele que responde a pergunta do passo. O corte e por altura e nao
+// por contagem de caracteres: assim acompanha a largura real da coluna.
+.map-dup__resumo {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: var(--space-3) 0 0;
+    color: var(--c-text-body);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-normal);
+}
+
+// -- Estado e acoes ----------------------------------------------------------
+//
+// Tres pesos diferentes, e a ordem de leitura diz qual e qual: o estado informa
+// (a esquerda, sem moldura de botao), "Ver mais" e a saida lateral (moldura
+// discreta) e "E o mesmo problema" e a decisao (verde solido).
+
+// So os dois botoes. O estado saiu daqui — ver .map-dup__meta.
+.map-dup__acoes {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+}
+
+// O distintivo estava do tamanho de uma legenda perdida no canto. Aqui ele tem
+// corpo suficiente para ser lido como estado — sem virar um terceiro botao, que
+// e o risco oposto: continua sem borda, sem sombra e sem cursor de clique, e mais
+// baixo que os botoes, porque nao e um deles.
+//
+// `flex: 0 1 auto` e nao `0 0 auto`: num rotulo muito longo, numa coluna muito
+// estreita, ele encolhe e quebra em vez de esticar a linha para fora do cartao.
+.map-panel .map-dup__estado {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 1 auto;
+    min-height: 26px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-pill);
+    font-size: var(--fs-2xs);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+}
+
+// Os dois botoes do cartao: mesma altura, mesmo raio, mesmo alinhamento. O que
+// muda e o peso — e so o peso.
+.map-panel .map-dup__ver,
+.map-panel .map-dup__mesmo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-height: 32px;
+    margin: 0;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-md);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.map-panel .map-dup__ver {
+    border: 1px solid var(--c-border);
+    background: var(--c-surface);
+    color: var(--c-text);
+
+    &:hover,
+    &:focus-visible {
+        background: var(--c-surface-alt);
+        border-color: var(--c-border-strong);
+    }
+}
+
+// -- "Nao encontrou o problema?" ---------------------------------------------
+//
+// Informacao, e nao erro: superficie neutra e icone de informacao. A referencia
+// e explicita nisso, e o proprio conteudo pede — este bloco e a saida normal do
+// passo, nao um aviso de que algo deu errado.
+
+.map-dup__saida {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    box-sizing: border-box;
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+    border-radius: var(--radius-lg);
+    background: var(--c-surface-alt);
+}
+
+.map-dup__saida-icone {
+    display: flex;
+    flex: 0 0 auto;
+    margin-top: 1px;
+    color: var(--c-text-muted);
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+.map-dup__saida-corpo {
+    display: block;
+    min-width: 0;
+}
+
+.map-dup__saida-titulo {
+    display: block;
+    color: var(--c-text);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-snug);
+}
+
+.map-dup__saida-texto {
+    display: block;
+    margin-top: 2px;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+}
+
+.map-panel [data-page-name="duplicates"] .map-step__actions {
+    margin-top: var(--space-4);
+}
+
+// Quando a consulta falha, a mesma frase de contagem vira aviso. E aviso, e nao
+// erro: quem esta registrando nao errou nada, e o caminho em frente continua
+// aberto — so nao da para prometer que nao ha duplicata.
+.map-panel .map-dup__falha {
+    box-sizing: border-box;
+    padding: var(--space-3);
+    border-left: 3px solid var(--c-warning);
+    border-radius: var(--radius-md);
+    background: var(--c-warning-bg);
+    color: var(--c-text-body);
+}
+
+// -- Celular -----------------------------------------------------------------
+//
+// Abaixo de 30em os dois botoes passam a dividir a linha inteira, e o verde fica
+// com a parte maior — e a decisao que este passo existe para oferecer, e no
+// celular ela nao pode ser o alvo mais estreito da tela.
+
+@media (max-width: 30em) {
+    .map-dup__card {
+        flex-wrap: wrap;
+    }
+
+    .map-dup__acoes {
+        width: 100%;
+    }
+
+    .map-panel .map-dup__ver {
+        flex: 0 1 auto;
+        min-height: 40px;
+    }
+
+    .map-panel .map-dup__mesmo {
+        flex: 1 1 auto;
+        min-height: 40px;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// A ficha da ocorrencia existente
+// ---------------------------------------------------------------------------
+//
+// Reproduz reference/flows/samples/tela_e_o_mesmo_problema.png. A imagem tem
+// 1060 de largura e o conteudo dela mede 912 (x 78..990); o painel daqui tem 398
+// com 20 de recuo, ou seja 358 de conteudo — entao 1px de la vale 0.393 aqui.
+// As medidas saem dessa conversao, apuradas por varredura de tinta:
+//
+//   foto principal  912x378 -> 358x148 (2.4:1)   titulo   43 -> 17
+//   distintivo       90 de altura ->  35         galeria 110 -> 43
+//   botoes          132          ->  52
+//
+// E os respiros: cabecalho->foto 49 (19), foto->titulo 26 (10), titulo->estado
+// 13 (5), estado->metadados 22 (9), metadados->"Descricao" 40 (16),
+// "Descricao"->texto 20 (8), texto->galeria 23 (9), galeria->botoes 24 (9).
+//
+// Esta tela nao tem indicador de etapas, e isso e de proposito: ela nao e um
+// passo do cadastro. E uma consulta — a ficha de uma ocorrencia que ja existe —
+// com uma confirmacao no fim. O indicador reaparece ao voltar.
+
+// -- Cabeçalho ---------------------------------------------------------------
+
+// So o "Voltar as ocorrencias" mora aqui desde que o "X" saiu.
+.map-ficha__topo {
+    display: flex;
+    align-items: center;
+    margin-top: var(--space-1);
+}
+
+.map-ficha__voltar {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    border: 0;
+    background: transparent;
+    color: var(--c-primary);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-bold);
+    line-height: 1.2;
+    cursor: pointer;
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    &:hover,
+    &:focus-visible {
+        color: var(--c-primary-hover);
+    }
+}
+
+// -- Foto principal ----------------------------------------------------------
+
+.map-ficha__foto {
+    display: block;
+    width: 100%;
+    aspect-ratio: 912 / 378;
+    margin-top: var(--space-4);
+    border-radius: var(--radius-lg);
+    object-fit: cover;
+    background: var(--c-surface-alt);
+}
+
+.map-ficha__foto--vazia {
+    background: var(--c-primary-soft);
+}
+
+// -- Título e estado ---------------------------------------------------------
+
+.map-ficha__titulo {
+    margin: var(--space-3) 0 0;
+    color: var(--c-text);
+    font-size: var(--fs-h3);
+    font-weight: var(--fw-black);
+    letter-spacing: var(--ls-heading);
+    line-height: var(--lh-snug);
+}
+
+// Maior que o distintivo do cartao, porque aqui ele e a segunda coisa que se le
+// e nao um detalhe de uma lista. Continua sem borda e sem sombra: e estado, nao
+// botao.
+.map-panel .map-ficha__estado {
+    display: inline-flex;
+    align-items: center;
+    min-height: 35px;
+    margin-top: var(--space-1);
+    padding: 0 var(--space-4);
+    border-radius: var(--radius-md);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    line-height: 1;
+}
+
+// -- Metadados ---------------------------------------------------------------
+//
+// Um bloco so, e nao tres. Uma grade de duas colunas — icone e valor — mantem os
+// tres valores alinhados na mesma margem esquerda, o que uma pilha de linhas com
+// icone embutido nao garante quando um dos icones e mais estreito.
+
+.map-ficha__meta {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    align-items: start;
+    gap: var(--space-2) var(--space-3);
+    margin: var(--space-3) 0 0;
+}
+
+.map-ficha__meta-icone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    color: var(--c-text);
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+.map-ficha__meta-valor {
+    margin: 0;
+    color: var(--c-text-body);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-snug);
+}
+
+// "Categoria" e o rotulo de um valor, e nao um valor: fica na linha de cima, no
+// mesmo tom do resto, e o nome da categoria abaixo.
+.map-ficha__meta-rotulo {
+    display: block;
+}
+
+// -- Descrição ---------------------------------------------------------------
+
+.map-ficha__subtitulo {
+    margin: var(--space-3) 0 0;
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-snug);
+}
+
+// Sem `line-clamp`: aqui a descricao e o que a pessoa veio ler, e cortar o texto
+// na tela que existe para compara-lo com o proprio problema seria esconder
+// justamente o que decide.
+.map-ficha__descricao {
+    margin: var(--space-2) 0 0;
+    color: var(--c-text-body);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-normal);
+}
+
+// -- Galeria -----------------------------------------------------------------
+//
+// Uma fileira so, e as miniaturas dividem a largura entre si: com duas fotos
+// elas ficam grandes, com quatro ficam menores, e em nenhum caso sobra um vao a
+// direita. Miniaturas de tamanho fixo davam tres selos de 79px perdidos numa
+// coluna de 358 — pequenas demais para o que elas existem para fazer, que e
+// deixar ver a foto antes de escolher.
+//
+// A proporcao 85:61 e a mesma do passo de fotos: nao ha um terceiro jeito de
+// desenhar miniatura neste sistema. O teto e maior — 12rem contra 10 — porque
+// aqui elas sao so duas na maioria dos casos, e com 10rem sobravam 62px de vao a
+// direita. Com 11rem duas miniaturas ocupam a largura inteira sem serem capadas
+// — e 12rem, que tambem preenchia, deixava o painel 9px mais alto do que cabe. O piso de 72px
+// protege o caso de muitas fotos: dali em diante a fileira rola na horizontal,
+// porque uma segunda linha empurraria os botoes para fora da vista.
+
+.map-ficha__galeria {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    overflow-x: auto;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+}
+
+.map-ficha__mini {
+    flex: 1 1 0;
+    min-width: 72px;
+    max-width: 11rem;
+    aspect-ratio: 85 / 61;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: var(--radius-md);
+    background: var(--c-surface-alt);
+    cursor: pointer;
+    overflow: hidden;
+
+    img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    &:hover {
+        border-color: var(--c-border-strong);
+    }
+}
+
+.map-ficha__mini--atual {
+    border-color: var(--c-primary);
+}
+
+// A barra de acoes precisa de mais ar do que os respiros de dentro da ficha.
+//
+// Com as miniaturas pequenas da referencia, 9px bastavam: ninguem confundia tres
+// selos de 79px com botoes. Agora que elas dividem a largura e chegam a 176x126,
+// ganharam o mesmo peso visual dos botoes — retangulos com raio, em fileira, a
+// mesma distancia — e a galeria passou a ler como a primeira linha da barra de
+// acoes.
+//
+// O respiro triplica, e os 16px vem de dentro da propria ficha (topo, foto e
+// subtitulo cederam 4 cada): a altura total nao muda, e o painel continua sem
+// rolagem no caso mais cheio, que e o de duas fotos.
+.map-panel [data-page-name="duplicates"] .js-dup-detail .map-step__actions {
+    margin-top: var(--space-6);
+}
+
+// -- Celular -----------------------------------------------------------------
+
+@media (max-width: 30em) {
+    // No celular a coluna e mais estreita, mas o dedo nao encolhe junto: o piso
+    // sobe para nao haver alvo de toque menor que isso.
+    .map-ficha__mini {
+        min-width: 88px;
+    }
+}
+
+// Enquanto a ficha ou a confirmacao estao abertas, o cabecalho de fluxo sai da
+// tela. A referencia nao o mostra em nenhuma das duas, e com razao: nenhuma e um
+// passo do cadastro. Na ficha, um indicador de etapas sugeriria que ler uma
+// ocorrencia existente faz parte de registrar a sua; na confirmacao, prometeria
+// uma etapa 3 que nao vai acontecer, porque a pessoa acabou de sair desse
+// caminho.
+//
+// Quem sai e a moldura, nao o estado: o passo continua sendo o `duplicates`, o
+// indicador continua marcando Localizacao, e os dois reaparecem ao voltar.
+body.map-ficha-aberta .map-panel__flow-head {
+    display: none;
+}
+
+// ---------------------------------------------------------------------------
+// "Problema identificado"
+// ---------------------------------------------------------------------------
+//
+// Reproduz reference/flows/samples/tela_e_o_mesmo_problema_02.png. A imagem tem
+// 1060 de largura e o conteudo dela mede 928 (x 66..993); o painel daqui tem 358
+// de conteudo, entao 1px de la vale 0.386 aqui:
+//
+//   disco do visto  124 -> 48     cartao   245 -> 95
+//   caixa do visto   52 -> 20     CTA      112 -> 43
+//   campo de e-mail  80 -> 31     saida    105 -> 41
+//
+// E os respiros: voltar->visto 64 (25), visto->texto 27 (10), texto->cartao 63
+// (24), cartao->rotulo 76 (29), rotulo->campo 24 (9), campo->visto 38 (15),
+// visto->CTA 31 (12), CTA->divisor 44 (17), divisor->saida 40 (15).
+//
+// Nao ha indicador de etapas aqui, e a razao e mais forte que a da ficha: neste
+// ponto a pessoa saiu do caminho de criar uma ocorrencia. Nao ha etapa 3 a
+// seguir, e mostrar um indicador de quatro passos prometeria um caminho que
+// acabou.
+
+// -- Confirmacao positiva ----------------------------------------------------
+
+.map-ident__marca {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-top: var(--space-6);
+}
+
+.map-ident__disco {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-pill);
+    background: var(--c-primary);
+    color: var(--c-text-inverse);
+
+    svg {
+        width: 26px;
+        height: 26px;
+        stroke-width: 2.5;
+    }
+}
+
+.map-ident__titulo {
+    margin: 0;
+    color: var(--c-primary);
+    font-size: var(--fs-h3);
+    font-weight: var(--fw-black);
+    letter-spacing: var(--ls-heading);
+    line-height: var(--lh-snug);
+}
+
+.map-ident__texto {
+    margin: var(--space-3) 0 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-normal);
+}
+
+// -- Resumo da ocorrencia ----------------------------------------------------
+//
+// Resumo, e nao a ficha inteira: descricao e galeria ja foram vistas na tela
+// anterior, e repeti-las aqui empurraria os botoes para fora da vista.
+
+.map-ident__card {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    box-sizing: border-box;
+    margin-top: var(--space-5);
+    padding: var(--space-3);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
+    background: var(--c-surface);
+}
+
+.map-ident__foto {
+    flex: 0 0 auto;
+    width: 92px;
+    height: 92px;
+    border-radius: var(--radius-md);
+    object-fit: cover;
+    background: var(--c-surface-alt);
+}
+
+.map-ident__foto--vazia {
+    background: var(--c-primary-soft);
+}
+
+.map-ident__corpo {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.map-ident__nome {
+    margin: 0;
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-snug);
+}
+
+.map-panel .map-ident__estado {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    margin-top: var(--space-2);
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-pill);
+    font-size: var(--fs-2xs);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+}
+
+.map-ident__meta {
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    align-items: center;
+    gap: var(--space-1) var(--space-2);
+    margin: var(--space-2) 0 0;
+}
+
+.map-ident__meta-icone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    color: var(--c-text);
+
+    svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+.map-ident__meta-valor {
+    margin: 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+}
+
+// -- O formulario de inscricao -----------------------------------------------
+
+.map-ident__forma {
+    margin-top: var(--space-6);
+}
+
+.map-panel .map-ident__rotulo {
+    display: block;
+    margin: 0 0 var(--space-2);
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-snug);
+}
+
+.map-panel input.map-ident__email {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-height: 44px;
+    margin: 0;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-md);
+    background: var(--c-surface);
+    color: var(--c-text);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+
+    &::placeholder {
+        color: var(--c-text-muted);
+    }
+
+    &:focus {
+        border-color: var(--c-primary);
+        box-shadow: var(--shadow-focus);
+        outline: none;
+    }
+}
+
+.map-ident__opcao {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+
+    input[type="checkbox"] {
+        flex: 0 0 auto;
+        width: 20px;
+        height: 20px;
+        margin: 0;
+        accent-color: var(--c-primary);
+    }
+
+    label {
+        margin: 0;
+        color: var(--c-text-body);
+        font-size: var(--fs-sm);
+        line-height: var(--lh-snug);
+        cursor: pointer;
+    }
+}
+
+.map-panel input.map-ident__enviar {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 44px;
+    margin-top: var(--space-3);
+    border-radius: var(--radius-md);
+    font-size: var(--fs-body);
+    font-weight: var(--fw-bold);
+    text-transform: none;
+
+    &:disabled {
+        opacity: 0.45;
+        cursor: default;
+    }
+}
+
+.map-ident__enviar--enviando {
+    // Enquanto o POST vai, o botao diz que ja foi clicado. Nao e um estado de
+    // carregamento com animacao: a pagina inteira esta sendo trocada logo em
+    // seguida, e uma animacao que vive meio segundo e mais ruido que sinal.
+    opacity: 0.6;
+}
+
+// -- A outra saida -----------------------------------------------------------
+
+.map-ident__ou {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+
+    &::before,
+    &::after {
+        content: "";
+        flex: 1 1 auto;
+        height: 1px;
+        background: var(--c-border);
+    }
+}
+
+.map-panel a.map-ident__seguir {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 44px;
+    margin-top: var(--space-4);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-md);
+    background: var(--c-surface-alt);
+    color: var(--c-text);
+    font-size: var(--fs-body);
+    font-weight: var(--fw-bold);
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+        background: var(--c-border);
+        text-decoration: none;
+    }
+}
+
+// Dita a quem tem sessao aberta: o campo esta preenchido e travado porque o
+// alerta vai para o e-mail da conta, e nao para o que estiver escrito ali.
+.map-ident__nota {
+    margin: var(--space-2) 0 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+}
+
+.map-panel input.map-ident__email[readonly] {
+    background: var(--c-surface-alt);
+    color: var(--c-text-muted);
+}

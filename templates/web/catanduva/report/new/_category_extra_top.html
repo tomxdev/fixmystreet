@@ -1,0 +1,18 @@
+[%# Titulo e apoio do passo "tipo de ocorrencia".
+
+    O upstream chama este arquivo dentro de um TRY, no topo da
+    `.js-reporting-page[data-page-name=category]`, antes do bloco de categorias
+    — e por isso ele e o lugar certo para o cabecalho do passo, sem copiar o
+    form_report.html inteiro.
+
+    A <legend> do fieldset continua onde estava, dizendo "Categoria": ela e o
+    rotulo acessivel do grupo de radios e o leitor de tela precisa dela. O CSS a
+    esconde da vista (`.screen-reader-only` nao da para aplicar daqui, porque a
+    <legend> vem do ajax), ja que quem titula o passo na tela e o <h2> abaixo.
+
+    Referencia: reference/flows/samples/tela_tipo_ocorrencia.png.
+%]
+<div class="map-step__head">
+    <h2 class="map-step__title">Qual é o tipo de problema?</h2>
+    <p class="map-step__lead">Selecione a categoria que melhor descreve a ocorrência.</p>
+</div>
