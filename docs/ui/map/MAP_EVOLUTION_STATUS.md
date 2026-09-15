@@ -4288,6 +4288,40 @@ não o mostra, e um indicador ali sugeriria que ler uma ocorrência existente fa
 parte do caminho de registrar a sua. O passo continua sendo o `duplicates`, o
 indicador continua marcando Localização, e os dois reaparecem ao voltar.
 
+### Os dois botões — decidido: ficam os dois
+
+`Ver mais` e `É o mesmo problema` chamam a mesma função e abrem a mesma ficha.
+Vistos no código, são duas linhas idênticas e o impulso é apagar uma. **Vistos na
+tela, são duas perguntas diferentes**, e a resposta a ambas é a mesma porque a
+ficha é onde qualquer uma delas se resolve:
+
+| Botão | A pergunta de quem clica | O que encontra na ficha |
+|---|---|---|
+| **Ver mais** | "o que é isso aí?" | a ocorrência inteira — foto, endereço por extenso, data, descrição, galeria |
+| **É o mesmo problema** | "acho que já registraram o meu" | a mesma coisa, e o `Este é o problema →` no fim para confirmar |
+
+**Por que o segundo não confirma direto.** Já foi assim, e era o defeito: a
+pessoa declarava que duas ocorrências eram a mesma sem nunca ter visto a foto, o
+endereço nem a descrição da outra. Confirmar sem ter visto é exatamente o que
+produz a duplicata que este passo existe para evitar. O botão carrega a
+intenção; a ficha é onde ela vira decisão.
+
+**Por que não sobra só um.** Tirar `Ver mais` deixaria a única porta rotulada com
+uma afirmação — quem só quer olhar teria de dizer "é o mesmo problema" para
+olhar, o que é um convite a afirmar o que ainda não se sabe. Tirar `É o mesmo
+problema` tiraria do passo a sua própria pergunta: o título diz "Já foi
+relatado?", e nenhum botão responderia.
+
+**E a linha foi desenhada para três elementos.** O alinhamento de estado + os dois
+botões foi refeito a pedido, justamente porque o estado empurrava os botões para
+uma segunda linha — e considerando rótulos mais longos que "Aberta". O estado
+mudou de lugar para a linha de metadados por causa disso. Apagar um botão agora
+desfaria uma composição que já passou por revisão.
+
+> Item 5.4 do [`PLANO_DE_FASES.md`](../../PLANO_DE_FASES.md), fechado com esta
+> decisão. Se alguém reabrir a discussão, o argumento a vencer é o de cima — e
+> não "há duas linhas iguais no JavaScript".
+
 ### O que entrou
 
 | Arquivo | O que faz |

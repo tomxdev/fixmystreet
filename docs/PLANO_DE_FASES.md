@@ -313,15 +313,14 @@ todo mundo, e a de 5.2 é a que a prefeitura vai usar todo dia.
 | **Validado** | 1440×900 (sem mudança), 768×1024 e 390×844: a folha não rola, a barra de ações sobe acima dela, sem rolagem horizontal |
 | **Custo real** | Horas |
 
-## 5.4 · Unificar os dois botões do cartão de duplicata — **AGUARDA DECISÃO**
+## 5.4 · Os dois botões do cartão de duplicata — **DECIDIDO: ficam os dois**
 
 | | |
 |---|---|
-| **Situação** | "Ver mais" e "É o mesmo problema" levam à mesma ficha desde a última rodada. Dois botões com o mesmo destino, lado a lado |
-| **Fazer** | Escolher um. "Ver mais" descreve o que acontece; o verde carrega a intenção |
-| **Por que não foi feito** | É decisão de produto, e **aquela linha do cartão já foi revista com quem decide** — o alinhamento dos três elementos foi refeito a pedido, considerando rótulos de status mais longos. Apagar um dos dois botões desfaria esse trabalho por conta própria |
-| **Recomendação** | Ficar com **"É o mesmo problema"**: é a pergunta que o passo faz, e o cartão inteiro já é clicável para quem só quer ver mais. O status volta a ter a linha para respirar |
-| **Custo** | Minutos, depois de decidido |
+| **Situação** | "Ver mais" e "É o mesmo problema" levam à mesma ficha desde a rodada em que a ficha passou a existir |
+| **Decisão** | **Manter os dois.** O item entrou no plano como "dois botões com o mesmo destino, lado a lado" — o que descreve o código e não descreve a tela |
+| **Por quê** | Ver a seção "Os dois botões" em [`MAP_EVOLUTION_STATUS.md`](../docs/ui/map/MAP_EVOLUTION_STATUS.md) — mesmo destino, intenções diferentes, e a linha foi desenhada para três elementos |
+| **O que isto fecha** | O item sai da lista de pendências. Não é dívida: é uma composição decidida |
 
 **Pronto quando:** nenhuma tela do caminho do cidadão nem a de trabalho da equipe
 destoa do Design System.

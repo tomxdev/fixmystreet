@@ -1077,6 +1077,23 @@
 
         // Os dois botoes ficam sozinhos na sua linha, sempre juntos e sempre
         // encostados a direita.
+        //
+        // OS DOIS CHAMAM A MESMA FUNCAO, E ISSO E DELIBERADO. Ja foi proposto
+        // apagar um deles — "dois botoes com o mesmo destino" — e a decisao foi
+        // manter. Vistos aqui sao duas linhas iguais; vistos na tela sao duas
+        // perguntas diferentes:
+        //
+        //   Ver mais              "o que e isso ai?"
+        //   E o mesmo problema    "acho que ja registraram o meu"
+        //
+        // A resposta as duas e a mesma ficha, porque e la que qualquer uma
+        // delas se resolve. Tirar "Ver mais" obrigaria quem so quer olhar a
+        // afirmar o que ainda nao sabe; tirar "E o mesmo problema" tiraria do
+        // passo a propria pergunta que o titulo dele faz.
+        //
+        // A linha tambem foi desenhada para tres elementos, com o estado ja
+        // movido para os metadados por causa disso. O argumento inteiro esta em
+        // docs/ui/map/MAP_EVOLUTION_STATUS.md, secao "Os dois botoes".
         var $botoes = $('<div class="map-dup__acoes map-dup__botoes"></div>').appendTo($corpo);
 
         $('<button type="button" class="btn map-dup__ver">Ver mais</button>')
