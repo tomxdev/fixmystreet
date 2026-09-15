@@ -518,7 +518,8 @@ em seguida. Mas não para depois — é a fase que impede o retrabalho.
 
 # Andamento
 
-> Atualizado em 15 de setembro de 2026, ao fim da execução das fases 0 a 3.
+> Atualizado em 15 de setembro de 2026, ao fim da execução das fases 0 a 3 e
+> da 6.4.
 
 | Fase | Situação | Onde |
 |---|---|---|
@@ -528,10 +529,30 @@ em seguida. Mas não para depois — é a fase que impede o retrabalho.
 | **3** A rede de testes | **concluída** | 3.1 a 3.5 |
 | **4** O que a pessoa pede | a fazer | `F5`, `F12`, transparência |
 | **5** Telas que ficaram para trás | a fazer | `F6`, `F10`, celular |
-| **6** Vocabulário e dívida | a fazer | textos, protocolo, decisões de core |
+| **6** Vocabulário e dívida | **6.4 concluída**; o resto a fazer | textos, protocolo |
 | **7** Evolução | a fazer | contínua |
 
+**6.4 saiu de ordem de propósito.** É a única da fase 6 que fica mais cara a cada
+dia: o upstream está 1574 commits à frente, e cada sincronização adiada aumenta o
+custo de decidir sobre arquivos de core. As outras — textos e protocolo — não
+mudam de preço.
+
 ## O que a execução encontrou, e o plano não previa
+
+**A fase 6.4 falava em três alterações de core; eram dezessete arquivos.** O item
+tinha sido escrito a partir do commit que isolou os três patches, e não do diff
+contra o ponto em que o fork saiu do upstream. Ver
+[`PATCHES_DE_CORE.md`](PATCHES_DE_CORE.md).
+
+**Tirar o gancho da confirmação quase saiu errado em silêncio.** Chamar o método
+do cobrand a partir do template não basta: o `Catalyst::View::TT` copia a stash
+*antes* de renderizar, então o mapa gravado na stash durante a renderização não
+chegava à página. Ela renderizava inteira, sem erro, e sem mapa. Quem pegou foi o
+teste do caminho autenticado — escrito na mesma hora, e que até então não existia.
+
+**O passo "Scripts do piloto compilam", da fase 3, nunca tinha rodado.** Ele roda
+`perl -c` em tudo o que está em `bin/catanduva/`, e dois dos sete scripts são
+bash. Teria falhado no primeiro CI. Agora despacha pelo shebang.
 
 **226 arquivos com falso positivo no git.** Quase todo o repositório aparecia
 modificado, mas eram mudanças só do bit de execução, efeito de acessar o
