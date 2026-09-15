@@ -29,14 +29,14 @@
 | F2 | O e-mail de confirmação chega **inteiro em inglês** | ~~Crítica~~ **RESOLVIDO** | `templates/email/catanduva/` |
 | F3 | Toda ocorrência é enviada a **dois órgãos duplicados** | ~~Alta~~ **RESOLVIDO** | dado; coberto por `checar-configuracao` |
 | F4 | Quem registra sem conta é **inscrito em alertas sem pedir** | ~~Alta~~ **RESOLVIDO** | `Catanduva.pm`, `suppress_reporter_alerts` |
-| F5 | O autor **não pode editar nem cancelar** a própria ocorrência | Alta | ausência de rota |
+| F5 | O autor **não pode editar nem cancelar** a própria ocorrência | ~~Alta~~ **RESOLVIDO** | `Catanduva.pm`, `moderate_permission` |
 | F6 | O passo "Nos conte sobre você" não passou pela evolução visual e tem **dois campos "Seu e-mail"** | Média | `report/new/fill_in_details.html` |
 | F7 | `"poítica de privacidade"` — erro de digitação | Baixa | catálogo pt_BR |
 | F8 | `"Você tem uma FixMyStreet Catanduva senha?"` — frase quebrada | Média | catálogo pt_BR |
 | F9 | `"This field is required."` em inglês na validação | Média | `translation_strings` |
 | F10 | A tela de inspeção/moderação não passou pela evolução visual | Média | `report/inspect.html` |
 | F11 | "Protocolo FixMyStreet: 75" — marca errada e id interno como protocolo | Média | `report/_main.html` |
-| F12 | `cancelled` existe como estado mas **nada o usa** | Média | tabela `state` |
+| F12 | `cancelled` existe como estado mas **nada o usa** | ~~Média~~ **RESOLVIDO** | `VOCABULARIO_DE_ESTADOS.md` |
 | F13 | O rótulo da lista de atualizações diz "ATUALIZADOS" | Baixa | catálogo pt_BR |
 
 ---
@@ -377,6 +377,19 @@ traduzido para "Cancelada". Mas:
 Ou seja: há um estado disponível para a equipe cujo significado cada pessoa vai
 inventar. Isso produz uma base inconsistente em poucos meses.
 
+**Resolvido, nas duas metades.**
+
+A primeira é escrita: [`VOCABULARIO_DE_ESTADOS.md`](VOCABULARIO_DE_ESTADOS.md)
+define cada estado, quem pode usá-lo e o que o cidadão vê — inclusive a pergunta
+que separa "Sem solução possível" de "Fora da competência", e por que
+"Encaminhada internamente" não deve ser usada enquanto não houver parceria.
+
+A segunda é código: `cancelled` passou a querer dizer **retirada por quem
+registrou**, e é o autor quem a aciona, dentro da janela do F5. Não é a equipe
+fechando — é a pessoa dizendo "não precisa mais". A ocorrência continua no mapa
+dizendo o que aconteceu com ela, porque uma ocorrência apagada deixa sem
+explicação quem já a tinha visto.
+
 ### F5 — o autor não pode editar nem cancelar
 
 Levantado na página da ocorrência, com o autor logado: as ações disponíveis são
@@ -391,11 +404,47 @@ ocorrência, que é o que as pessoas acabam fazendo.
 A rota `/report/<id>/delete` existe, mas é só para quem tem `from_body`
 (`Report.pm:392`) — equipe, não autor.
 
-**Proposta.** Uma janela de edição para o autor logo depois de registrar —
-quinze minutos, ou até a ocorrência ser enviada ao órgão (`whensent`), o que
-vier primeiro. Depois disso, a ocorrência já foi para fora e editar em silêncio
-seria alterar o que outra pessoa já leu. Dessa janela para a frente, um pedido
-de correção por comentário, que é o que já existe.
+**Resolvido.** A janela existe: quinze minutos depois de registrar, ou até a
+ocorrência ser enviada ao órgão (`whensent`), o que vier primeiro. Depois disso,
+a ocorrência já foi para fora e editar em silêncio seria alterar o que outra
+pessoa já leu; daí para a frente vale o pedido de correção por comentário, que
+já existia.
+
+**Não há rota nova.** É o `/moderate/report/<id>` do upstream, que já troca
+título, descrição, categoria e foto, guarda o anterior em
+`moderation_original_data` e registra no `admin_log`. O que faltava era
+permissão — e o upstream deixou o gancho pronto para ela (`can_moderate`, em
+`DB::Result::User`: *"See if the cobrand wants to allow it in some
+circumstance"*).
+
+**O preço de reusar aquele controlador** é que ele faz mais do que a janela
+deveria permitir: esconder a ocorrência, mover o pino, gravar qualquer estado. E
+não há gancho dentro de cada ação dele. Por isso a checagem inteira mora num
+ponto só, o `moderate_permission`, e olha para os parâmetros e não apenas para
+quem pede:
+
+| Recusa | Por quê |
+|---|---|
+| requisição que não seja `POST` | `can_moderate` também é consultado pelos templates. Recusando em GET, o autor não vê o formulário de moderação da equipe — vê o painel próprio |
+| `problem_hide` | esconder não é retirar |
+| `latitude` ou `longitude` | mudar o local muda de quem é a ocorrência |
+| `state` que não seja `cancelled` | `moderate_state` do upstream não valida contra lista nenhuma: grava a string que receber |
+
+**Duas coisas mudaram de sentido junto**, e as duas estão cobertas por teste:
+
+- `report_moderate_after` aprovava a foto em toda passagem pela moderação
+  (`MOD-002`). Se a passagem do autor aprovasse, bastaria corrigir uma vírgula
+  para publicar a própria foto sem que ninguém a tivesse visto.
+- a página anunciava *"Moderada por um administrador"* depois de o autor
+  corrigir o próprio texto — `moderating_user_name` devolve o nome do órgão, ou
+  essa frase para quem não tem órgão. O site afirmando que a Prefeitura mexeu no
+  que um cidadão escreveu. Agora diz "Corrigida por quem registrou".
+
+**Fragilidade do upstream encontrada no caminho.** `moderate_text` lê
+`problem_title` e `problem_detail` de *todo* POST e grava o que encontrar. Um
+POST parcial — o de retirada, que só quer mudar o estado — grava `undef` em
+`title`, que é `NOT NULL`: erro 500, e a ocorrência não é retirada. O formulário
+de retirada manda os dois campos com os valores atuais.
 
 E, para o cancelamento: permitir ao autor **retirar** a ocorrência enquanto ela
 não tiver sido enviada, com o estado `cancelled` ganhando um significado escrito
@@ -509,13 +558,14 @@ que o piloto escreva para fora e **não está configurado**.
 inscrito, e a tela de confirmação deixa de prometer o e-mail. Detalhe na seção
 do F4, acima.
 
-### F5 · O autor não pode editar nem cancelar
+### F5 · O autor não pode editar nem cancelar — **RESOLVIDO**
 
-**Medido.** Nenhuma das duas ações existe para quem registrou.
+**Medido.** Nenhuma das duas ações existia para quem registrou.
 
-**Correção proposta:** janela de edição até o envio ao órgão ou quinze minutos, o
-que vier primeiro; e retirada da ocorrência no mesmo prazo, dando a `cancelled`
-o significado escrito de "retirada por quem registrou".
+**Corrigido.** Janela de quinze minutos, ou até o envio ao órgão — o que vier
+primeiro — para corrigir título, descrição, categoria e foto, ou retirar a
+ocorrência. Sem rota nova: é o `/moderate/report/<id>` do upstream, liberado ao
+autor por `moderate_permission`. Detalhe na seção do F5, acima.
 
 ## Médios — atritam sem quebrar
 
@@ -553,9 +603,11 @@ Dois problemas: a marca é a do upstream, não a do piloto; e o número é o id
 interno, sequencial e global — dá para deduzir quantas ocorrências existem e em
 que ordem foram criadas. Um protocolo mostrado ao cidadão costuma ser opaco.
 
-### F12 · `cancelled` sem significado escrito
+### F12 · `cancelled` sem significado escrito — **RESOLVIDO**
 
-Ver E10. Um estado disponível cujo sentido cada pessoa vai inventar.
+Ver E10. O sentido está escrito em
+[`VOCABULARIO_DE_ESTADOS.md`](VOCABULARIO_DE_ESTADOS.md), e o estado tem dono: é
+o autor que retira a própria ocorrência, dentro da janela do F5.
 
 ## Baixos
 

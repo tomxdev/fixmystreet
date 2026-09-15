@@ -229,27 +229,28 @@ e `checar-configuracao` responde verde.
 **Duração:** uma semana.
 **Por que agora:** com a base confiável, a evolução passa a ser sobre quem usa.
 
-## 4.1 · `F5` — corrigir o que se registrou
+## 4.1 · `F5` — corrigir o que se registrou — **CONCLUÍDA**
 
 | | |
 |---|---|
-| **Situação** | O autor **não pode editar nem cancelar**. As ações disponíveis são comentar, assinar alertas, denunciar abuso e esconder o nome. A rota `/report/<id>/delete` existe mas é só para quem tem `from_body` |
-| **O que as pessoas fazem hoje** | Escrevem um comentário pedindo correção, ou usam "Denunciar abuso" contra a própria ocorrência |
-| **Proposta** | Janela de edição para o autor: **até o envio ao órgão (`whensent`) ou quinze minutos, o que vier primeiro**. Depois disso a ocorrência já saiu, e editar em silêncio seria alterar o que outra pessoa já leu |
-| **O que pode editar** | Título, descrição, categoria, foto. **Não** a localização — ela muda a quem a ocorrência pertence |
-| **Registro** | Gravar em `moderation_original_data`, como a moderação faz. O texto anterior não se perde |
-| **Custo** | Três dias |
-| **Depende de** | Nada. Mas exige decidir a janela — é decisão de produto, não de código |
+| **Situação** | O autor **não podia editar nem cancelar**. As ações disponíveis eram comentar, assinar alertas, denunciar abuso e esconder o nome. A rota `/report/<id>/delete` existe e é só para quem tem `from_body` |
+| **Janela** | até o envio ao órgão (`whensent`) **ou** quinze minutos, o que vier primeiro. O número é um método do cobrand, `janela_de_correcao`, e não uma constante no meio do código |
+| **Feito** | Um painel na página da ocorrência, visível só para quem a escreveu, com título, descrição, categoria e a opção de remover foto — e, separado, o botão de retirar. **Sem rota nova:** é o `/moderate/report/<id>` do upstream, liberado por `moderate_permission` |
+| **Registro** | `moderation_original_data` e `admin_log`, que o controlador do upstream já preenche |
+| **Não editável** | A localização. O cobrand recusa a requisição inteira se ela trouxer `latitude` ou `longitude` |
+| **O preço de reusar o controlador** | Ele faz mais do que a janela permite — esconder, mover, gravar qualquer estado — e não tem gancho por ação. A checagem toda mora num ponto só, e olha para os parâmetros: sem `problem_hide`, sem coordenadas, e `state` só se for `cancelled`. Metade dos testes existe para guardar esse ponto |
+| **Duas armadilhas encontradas** | `report_moderate_after` aprovava a foto em qualquer passagem pela moderação — a do autor incluída, o que esvaziaria o `MOD-002`; e a página dizia *"Moderada por um administrador"* depois de o autor corrigir a própria vírgula, porque `moderating_user_name` devolve isso para quem não tem órgão. As duas corrigidas, as duas com teste |
+| **Custo real** | Um dia |
 
-## 4.2 · `F12` — dar sentido a "Cancelada"
+## 4.2 · `F12` — dar sentido a "Cancelada" — **CONCLUÍDA**
 
 | | |
 |---|---|
-| **Situação** | O estado existe, foi traduzido, aparece na lista da inspeção, e **nada o usa**. A diferença entre `cancelled`, `closed`, `duplicate` e `not responsible` não está escrita em lugar nenhum |
-| **Fazer** | (a) Definir por escrito o que cada um significa **neste piloto**, quem pode usá-lo e o que o cidadão vê; (b) permitir ao autor **retirar** a ocorrência enquanto não enviada, com `cancelled` significando "retirada por quem registrou" |
-| **Onde documentar** | Um `docs/VOCABULARIO_DE_ESTADOS.md`, referenciado pela inspeção |
-| **Custo** | Um dia de escrita, mais um de código para a retirada |
-| **Junta com** | 4.1 — é a mesma tela e a mesma janela |
+| **Situação** | O estado existia, traduzido, na lista da inspeção, e **nada o usava**. A diferença entre `cancelled`, `closed`, `duplicate` e `not responsible` não estava escrita em lugar nenhum |
+| **(a) Escrito** | [`VOCABULARIO_DE_ESTADOS.md`](VOCABULARIO_DE_ESTADOS.md): os treze estados, o que cada um quer dizer **neste piloto**, quem o escolhe, e a pergunta que separa um do outro. Inclui os que ninguém escolhe — `partial`, `unconfirmed`, `hidden`, `closed` — para que não sejam confundidos com decisão |
+| **(b) Com dono** | `cancelled` quer dizer **retirada por quem registrou**, e é o autor quem a aciona, na janela do 4.1. Não some do mapa: uma ocorrência apagada deixa sem explicação quem já a tinha visto |
+| **Ainda por decidir** | `internal referral` fica na lista porque a lista é do upstream, mas não deve ser usada enquanto não houver parceria — usá-la hoje afirmaria um encaminhamento que não aconteceu |
+| **Custo real** | Meio dia de escrita; o código veio junto com o 4.1 |
 
 ## 4.3 · Dizer o que acontece depois do envio — **CONCLUÍDA**
 

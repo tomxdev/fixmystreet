@@ -1115,6 +1115,224 @@ subtest 'the thank-you page says what actually happens next' => sub {
     };
 };
 
+subtest 'whoever wrote the report can correct it, for a while' => sub {
+    # F5, e a metade do F12 que faltava. O upstream nao deixa o autor editar nem
+    # retirar a propria ocorrencia: o que ele tem e comentar, assinar alertas,
+    # denunciar abuso e esconder o nome. Quem erra o titulo escreve um
+    # comentario pedindo correcao - ou denuncia a propria ocorrencia por abuso.
+    #
+    # Nao ha rota nova: e o /moderate/report/<id> do upstream, liberado ao autor
+    # pelo gancho `moderate_permission`. O preco de reusar aquele controlador e
+    # que ele faz MAIS do que a janela deveria permitir - esconder, mover o
+    # pino, gravar qualquer estado - e como nao ha gancho dentro de cada acao
+    # dele, a checagem inteira mora num ponto so. Metade dos testes abaixo
+    # existe para guardar esse ponto.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(
+            body_id => $body->id, category => 'Buraco na via', email => 'buraco@example.org');
+        $mech->create_contact_ok(
+            body_id => $body->id, category => 'Lampada apagada', email => 'luz@example.org');
+
+        my $autor    = $mech->create_user_ok('autor@example.org', name => 'Quem Registrou');
+        my $estranho = $mech->create_user_ok('estranho@example.org', name => 'Quem Passava');
+
+        # `create_problems_for_body` monta o proprio titulo a partir do que
+        # recebe - "<titulo> Test 1 for <id>" - e nao carrega `created` na
+        # linha recem-inserida. O `discard_changes` resolve as duas coisas: os
+        # testes comparam com o que ficou gravado, e `created` passa a existir.
+        my $nova = sub {
+            my (%campos) = @_;
+            my ($o) = $mech->create_problems_for_body(1, $body->id,
+                $campos{titulo} || 'Ocorrencia do autor', {
+                    user => $autor, cobrand => 'catanduva',
+                    category => 'Buraco na via',
+                    latitude => -21.1383, longitude => -48.9736,
+                    %{ $campos{extra} || {} },
+                });
+            $o->discard_changes;
+            return $o;
+        };
+
+        # O POST que o painel do autor monta. Vai com host explicito: `post_ok`
+        # nao aplica o `$mech->host` como o `get_ok` faz.
+        my $moderar = sub {
+            my ($o, %params) = @_;
+            $mech->get_ok('/report/' . $o->id);
+            my ($token) = $mech->content =~ /name="token" value="([^"]+)"/;
+            $mech->post('http://catanduva.fixmystreet.com/moderate/report/' . $o->id, {
+                token => $token,
+                form_started => time(),
+                %params,
+            });
+            $o->discard_changes;
+            return $mech->res->code;
+        };
+
+        subtest 'o painel aparece para quem escreveu, e so para ele' => sub {
+            my $o = $nova->();
+
+            $mech->log_in_ok($autor->email);
+            $mech->get_ok('/report/' . $o->id);
+            $mech->content_contains('Você registrou esta ocorrência', 'o autor ve o painel');
+            $mech->content_contains('name="problem_title"', 'com o campo de titulo');
+            $mech->content_lacks('name="problem_hide"',
+                'e sem o formulario de moderacao da equipe');
+
+            $mech->log_in_ok($estranho->email);
+            $mech->get_ok('/report/' . $o->id);
+            $mech->content_lacks('Você registrou esta ocorrência',
+                'quem nao escreveu nao ve nada disso');
+
+            $mech->log_out_ok;
+            $mech->get_ok('/report/' . $o->id);
+            $mech->content_lacks('Você registrou esta ocorrência',
+                'nem quem nao tem sessao');
+        };
+
+        subtest 'a janela fecha com o tempo, e com o envio' => sub {
+            my $cobrand = FixMyStreet::Cobrand::Catanduva->new;
+
+            my $recente = $nova->();
+            ok $cobrand->autor_pode_corrigir($autor, $recente), 'recem-criada: aberta';
+
+            # Vinte minutos atras, para uma janela de quinze.
+            my $velha = $nova->();
+            $velha->update({ created => DateTime->now->subtract(minutes => 20) });
+            $velha->discard_changes;
+            ok !$cobrand->autor_pode_corrigir($autor, $velha),
+                'passados os quinze minutos: fechada';
+
+            # Enviada ao orgao: ja nao esta so aqui.
+            my $enviada = $nova->();
+            $enviada->update({ whensent => \'current_timestamp' });
+            $enviada->discard_changes;
+            ok !$cobrand->autor_pode_corrigir($autor, $enviada),
+                'depois de encaminhada: fechada';
+
+            ok !$cobrand->autor_pode_corrigir($estranho, $recente),
+                'e nunca para quem nao escreveu';
+        };
+
+        subtest 'corrigir muda o texto, e guarda o anterior' => sub {
+            my $o = $nova->(titulo => 'Titulo com erro');
+            my $antes = $o->title;
+            $mech->log_in_ok($autor->email);
+
+            $moderar->($o,
+                problem_title  => 'Titulo corrigido',
+                problem_detail => 'Descricao corrigida.',
+            );
+
+            is $o->title, 'Titulo corrigido', 'o titulo mudou';
+            is $o->detail, 'Descricao corrigida.', 'a descricao tambem';
+
+            my $anterior = $o->moderation_original_data;
+            ok $anterior, 'o texto anterior foi guardado';
+            is $anterior->title, $antes, 'e e o que estava la antes';
+        };
+
+        subtest 'a pagina nao diz que foi um administrador' => sub {
+            # `moderating_user_name` devolve o nome do orgao, ou "um
+            # administrador" para quem nao tem orgao - e o autor nao tem. Sem a
+            # diferenca no template, a pagina anunciava a todos os visitantes
+            # que a Prefeitura havia mexido no que um cidadao escreveu.
+            my $o = $nova->(titulo => 'Outro titulo com erro');
+            $mech->log_in_ok($autor->email);
+            $moderar->($o, problem_title => 'Outro titulo certo',
+                           problem_detail => $o->detail);
+            is $o->title, 'Outro titulo certo', 'a correcao valeu';
+
+            $mech->get_ok('/report/' . $o->id);
+            $mech->content_contains('Corrigida por quem registrou',
+                'a pagina diz quem corrigiu');
+            $mech->content_lacks('administrador',
+                'e nao atribui a alteracao a Prefeitura');
+        };
+
+        subtest 'retirar deixa a ocorrencia em Cancelada, com uma linha publica' => sub {
+            my $o = $nova->(titulo => 'Ocorrencia a retirar');
+            $mech->log_in_ok($autor->email);
+
+            $moderar->($o,
+                state             => 'cancelled',
+                moderation_reason => 'Retirada por quem registrou.',
+                problem_title     => $o->title,
+                problem_detail    => $o->detail,
+            );
+
+            is $o->state, 'cancelled', 'o estado e o que o vocabulario definiu';
+
+            my @comentarios = $o->comments->all;
+            is scalar @comentarios, 1, 'ha exatamente uma atualizacao publica';
+            is $comentarios[0]->text, 'Retirada por quem registrou.',
+                'dizendo o que aconteceu';
+            is $comentarios[0]->problem_state, 'cancelled',
+                'e registrando a mudanca de estado';
+
+            # Sem os dois campos de texto o `moderate_text` do upstream grava
+            # undef em `title`, que e NOT NULL, e o pedido morre com 500 - a
+            # ocorrencia fica sem ser retirada. Aconteceu de verdade.
+            ok $o->title, 'e o titulo continua la';
+        };
+
+        subtest 'o autor nao esconde, nao move e nao se declara resolvido' => sub {
+            $mech->log_in_ok($autor->email);
+
+            my $esconder = $nova->(titulo => 'Nao pode ser escondida');
+            $moderar->($esconder, problem_hide => 1,
+                problem_title => $esconder->title, problem_detail => $esconder->detail);
+            isnt $esconder->state, 'hidden', 'esconder nao e retirar';
+
+            my $mover = $nova->(titulo => 'Nao pode ser movida');
+            my $lat = $mover->latitude;
+            $moderar->($mover, latitude => -21.1290, longitude => -48.9650,
+                problem_title => $mover->title, problem_detail => $mover->detail);
+            is $mover->latitude, $lat, 'o pino nao se moveu';
+
+            my $resolver = $nova->(titulo => 'Nao pode se resolver sozinha');
+            $moderar->($resolver, state => 'fixed - council',
+                problem_title => $resolver->title, problem_detail => $resolver->detail);
+            is $resolver->state, 'confirmed',
+                'so `cancelled` passa: `moderate_state` do upstream nao valida nada';
+        };
+
+        subtest 'quem nao escreveu nao corrige, mesmo mandando o POST na mao' => sub {
+            my $o = $nova->(titulo => 'Ocorrencia de outra pessoa');
+            my $antes = $o->title;
+            $mech->log_in_ok($estranho->email);
+            $moderar->($o, problem_title => 'Titulo alheio',
+                           problem_detail => 'Texto alheio.');
+            is $o->title, $antes, 'nada mudou';
+        };
+
+        subtest 'corrigir nao aprova a propria foto' => sub {
+            # MOD-002: foto so e publicada depois de aprovada por moderacao, e
+            # `report_moderate_after` e o que aprova. Desde a janela de correcao
+            # o autor tambem passa por ali - se a passagem dele aprovasse,
+            # bastaria corrigir uma virgula para publicar a propria foto sem que
+            # ninguem a tivesse visto, e a regra inteira viraria enfeite.
+            my $o = $nova->(titulo => 'Ocorrencia com foto');
+            $o->update({ photo => '0123456789012345678901234567890123456789.jpeg' });
+            $o->discard_changes;
+
+            $mech->log_in_ok($autor->email);
+            $moderar->($o, problem_title => 'Ocorrencia com foto, titulo novo',
+                           problem_detail => $o->detail);
+
+            is $o->title, 'Ocorrencia com foto, titulo novo', 'a correcao valeu';
+            ok !$o->get_extra_metadata('publish_photo'),
+                'e a foto continua esperando aprovacao';
+        };
+
+        $mech->log_out_ok;
+    };
+};
+
 subtest 'every page reached from an email link renders' => sub {
     # Fase 3.2 do PLANO_DE_FASES.md.
     #

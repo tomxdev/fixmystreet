@@ -1864,3 +1864,125 @@ body:not(.frontpage) {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// A janela de correcao de quem registrou (F5)
+//
+// Aparece na pagina da ocorrencia, logo abaixo do bloco dela, e so para quem a
+// escreveu e so enquanto a janela esta aberta. Por isso PODE ter moldura: ao
+// contrario dos blocos do painel de mapa, este e excepcional - a maior parte
+// das visitas a esta pagina nao o ve, e quando ele aparece precisa se
+// distinguir do conteudo publico logo acima.
+//
+// A borda tracejada diz "isto e seu e ainda da para mexer", sem o alarme de uma
+// caixa de erro nem a comemoracao de uma de sucesso.
+// ---------------------------------------------------------------------------
+
+.autor-janela {
+    box-sizing: border-box;
+    margin: var(--space-5) 0;
+    padding: var(--space-4);
+    border: 2px dashed var(--c-border);
+    border-radius: var(--radius-lg);
+    background: var(--c-surface-alt);
+}
+
+.autor-janela__titulo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-2);
+    color: var(--c-text);
+    font-size: var(--fs-body);
+    font-weight: var(--fw-bold);
+}
+
+.autor-janela__icone {
+    display: flex;
+    color: var(--c-primary);
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+.autor-janela__prazo {
+    margin: 0 0 var(--space-4);
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-snug);
+}
+
+.autor-janela__form {
+    label,
+    legend {
+        display: block;
+        margin: 0 0 var(--space-2);
+        color: var(--c-text);
+        font-size: var(--fs-sm);
+        font-weight: var(--fw-bold);
+    }
+
+    // O respiro entre um campo e o rotulo do proximo. Sem ele os tres campos
+    // viram um bloco so e a pessoa perde de vista onde um termina.
+    input.form-control,
+    textarea.form-control,
+    select.form-control {
+        margin: 0 0 var(--space-4);
+    }
+}
+
+.autor-janela__fotos {
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    border: 0;
+
+    legend {
+        padding: 0;
+    }
+}
+
+.autor-janela__foto {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-2);
+    // Sobrescreve o `font-weight: bold` dos rotulos do formulario: aqui o
+    // rotulo e a frase de uma caixa de selecao, e nao o nome de um campo.
+    font-weight: var(--fw-regular);
+
+    input[type="checkbox"] {
+        flex: 0 0 auto;
+        width: 20px;
+        height: 20px;
+        margin: 0;
+        accent-color: var(--c-primary);
+    }
+}
+
+.autor-janela__salvar {
+    width: 100%;
+}
+
+// Retirar fica separado, e nao parece um irmao de "Salvar correcao": e a acao
+// que nao volta atras. Sem cor de perigo, porem - retirar a propria ocorrencia
+// e um direito, nao um acidente prestes a acontecer.
+.autor-janela__retirar {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--c-border);
+}
+
+.autor-janela__retirar-botao {
+    width: 100%;
+    background: transparent;
+    color: var(--c-error);
+    box-shadow: inset 0 0 0 1px var(--c-error);
+
+    &:hover,
+    &:focus-visible {
+        background: var(--c-error-bg);
+        color: var(--c-error);
+    }
+}

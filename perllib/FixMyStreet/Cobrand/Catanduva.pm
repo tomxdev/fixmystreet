@@ -597,6 +597,46 @@ behind for a photo that might be replaced later.
 sub report_moderate_after {
     my ($self, $problem) = @_;
 
+    # Quem moderou foi o proprio autor? Entao nada disto vale.
+    #
+    # Desde a janela de correcao (F5) o autor tambem passa por este controlador.
+    # Duas coisas mudariam de sentido se este metodo nao perguntasse:
+    #
+    #   a foto     aprovar foto e ato de moderacao (MOD-002). Se a passagem do
+    #              autor aprovasse, bastaria corrigir uma virgula para publicar
+    #              a propria foto sem que ninguem a tivesse visto - e a regra
+    #              inteira viraria enfeite.
+    #
+    #   o e-mail   `report_moderate_audit` manda "sua ocorrencia foi moderada"
+    #              para o autor. Escrever isso a quem acabou de corrigir a
+    #              propria ocorrencia e ruido, e assusta sem motivo.
+    #
+    # A excecao e o autor, e so ele. Tudo o mais - equipe, script, chamada sem
+    # requisicao nenhuma - continua aprovando como antes.
+    #
+    # A primeira versao perguntava "e equipe?" e saia quando a resposta era nao.
+    # Parecia a mesma coisa e nao era: sem `$c` - num script, num teste que
+    # chama o metodo direto - a resposta e nao, e a aprovacao de foto sumia de
+    # todo caminho que nao fosse uma requisicao autenticada. O teste que ja
+    # existia pegou.
+    #
+    # Um funcionario que modere a propria ocorrencia esta moderando, e a foto
+    # dele passa pela mesma aprovacao que a dos outros - dai as duas condicoes
+    # sobre `from_body` e `is_superuser`.
+    my $c = $self->{c};
+    if ( $c && $c->user_exists ) {
+        my $quem = $c->user->obj;
+        my $e_o_autor = $problem->user_id
+            && $quem->id == $problem->user_id
+            && !$quem->from_body
+            && !$quem->is_superuser;
+
+        if ($e_o_autor) {
+            $c->stash->{moderation_no_email} = 1;
+            return;
+        }
+    }
+
     if ( $problem->photo ) {
         return if $problem->get_extra_metadata('publish_photo');
         $problem->set_extra_metadata( publish_photo => 1 );
@@ -607,6 +647,186 @@ sub report_moderate_after {
     }
 
     $problem->update;
+}
+
+=head2 A janela de correcao de quem registrou (F5)
+
+O upstream nao deixa o autor editar nem retirar a propria ocorrencia. O que ele
+tem e comentar, assinar alertas, denunciar abuso e esconder o nome; a rota
+C</report/<id>/delete> existe e e so para quem tem C<from_body>. Na pratica,
+quem erra o titulo escreve um comentario pedindo correcao - ou usa "Denunciar
+abuso" contra a propria ocorrencia. Era o F5 de
+F<docs/CICLO_DE_VIDA_DA_OCORRENCIA.md>.
+
+A janela vai ate o envio ao orgao (C<whensent>) ou quinze minutos, o que vier
+primeiro. Depois disso a ocorrencia ja saiu daqui, e mudar em silencio o que
+outra pessoa ja leu seria reescrever a historia dela.
+
+Nao ha rota nova nem controlador novo: o C</moderate/report/<id>> do upstream ja
+faz exatamente isto - troca titulo, descricao, categoria e foto, guarda o
+anterior em C<moderation_original_data> e registra no C<admin_log>. O que
+faltava era permissao, e o upstream deixou o gancho pronto para ela
+(C<can_moderate>, em C<DB::Result::User>: "See if the cobrand wants to allow it
+in some circumstance").
+
+=head2 janela_de_correcao
+
+Quantos segundos o autor tem. Quinze minutos.
+
+E metodo, e nao numero solto, porque e a unica grandeza desta regra: um dia
+alguem vai querer discuti-la com a Prefeitura, e nao procurar por C<900> no meio
+do codigo.
+
+=cut
+
+sub janela_de_correcao { 15 * 60 }
+
+=head2 autor_pode_corrigir
+
+Verdadeiro quando C<$user> escreveu C<$problem> e a janela ainda esta aberta.
+
+Quatro condicoes, e cada uma fecha a janela por um motivo diferente:
+
+=over 4
+
+=item * a ocorrencia e dele - ninguem corrige a dos outros;
+
+=item * o estado e C<confirmed> - uma ja retirada, escondida ou ainda esperando
+o clique do e-mail nao esta em condicao de ser corrigida;
+
+=item * C<whensent> vazio - depois de enviada, ela ja nao esta so aqui;
+
+=item * C<created> ha menos de C<janela_de_correcao> - o prazo.
+
+=back
+
+E chamado tambem pelo template, para decidir se mostra o painel, e por isso
+aceita um C<$user> vazio sem reclamar.
+
+=cut
+
+sub autor_pode_corrigir {
+    my ($self, $user, $problem) = @_;
+
+    return 0 unless $user && $problem;
+    return 0 unless ref $user && $user->can('id');
+    return 0 unless $problem->user_id && $problem->user_id == $user->id;
+    return 0 unless ($problem->state || '') eq 'confirmed';
+    return 0 if $problem->whensent;
+
+    # `created` pode nao estar carregado: uma linha recem-inserida sem
+    # `discard_changes` traz so o que foi escrito, e `created` vem do padrao da
+    # coluna. Sem isto, a janela apareceria fechada para a ocorrencia mais nova
+    # que existe. O upstream faz o mesmo em `confirmation_token`, e pelo mesmo
+    # motivo ("Might be an old handle on the DB row, so reload it").
+    my $criada = $problem->created;
+    unless ($criada) {
+        $problem->discard_changes;
+        $criada = $problem->created;
+    }
+    return 0 unless $criada && ref $criada && $criada->can('epoch');
+
+    return (time() - $criada->epoch) <= $self->janela_de_correcao ? 1 : 0;
+}
+
+=head2 moderate_permission
+
+Deixa o autor usar C</moderate/report/<id>> - so ele, e so num formato exato de
+requisicao.
+
+O gancho e do upstream e e consultado por C<can_moderate>. Dizer "sim" aqui da
+ao autor o controlador de moderacao INTEIRO, que faz mais do que a janela de
+correcao deveria permitir: esconder a ocorrencia, mover o pino, gravar qualquer
+estado. Como nao ha gancho dentro de cada acao daquele controlador, a checagem
+toda acontece neste unico ponto - e por isso ela olha para os parametros, e nao
+so para quem esta pedindo.
+
+=over 4
+
+=item * So em POST.
+
+C<can_moderate> tambem e chamado pelos templates, para decidir se mostram o
+formulario de moderacao da equipe. Recusando em GET, o autor nao ve aquele
+formulario - que tem outro vocabulario ("Esconder ocorrencia inteira",
+"Descreva por que voce esta moderando") e nao e o que ele esta fazendo. Ele ve
+o painel proprio, que o template monta a partir de C<autor_pode_corrigir>.
+
+=item * Sem C<problem_hide>.
+
+Esconder nao e retirar. Retirar e C<cancelled>, que continua no mapa dizendo o
+que aconteceu; ver F<docs/VOCABULARIO_DE_ESTADOS.md>.
+
+=item * Sem C<latitude> nem C<longitude>.
+
+Mudar o local muda de quem e a ocorrencia. Quem registrou no lugar errado
+retira e registra de novo.
+
+=item * Se houver C<state>, ele e C<cancelled>.
+
+C<moderate_state> do upstream nao valida contra lista nenhuma: grava a string
+que receber. Este e o unico lugar que impede o autor de se declarar
+"Resolvida".
+
+=back
+
+=cut
+
+sub moderate_permission {
+    my ($self, $user, $type, $object) = @_;
+
+    return 0 unless ($type || '') eq 'problem';
+
+    my $c = $self->{c} or return 0;
+    return 0 unless $c->req->method eq 'POST';
+
+    return 0 unless $self->autor_pode_corrigir($user, $object);
+
+    my $p = $c->req->params;
+    return 0 if $p->{problem_hide};
+    return 0 if defined $p->{latitude} || defined $p->{longitude};
+
+    my $estado = $p->{state};
+    return 0 if defined $estado && $estado ne '' && $estado ne 'cancelled';
+
+    return 1;
+}
+
+=head2 categorias_da_ocorrencia
+
+As categorias que a ocorrencia poderia ter, para o seletor do painel de
+correcao.
+
+A pagina da ocorrencia nao monta C<category_options> - quem monta e o
+C</report/new>, e monta a partir do ponto no mapa, com consulta de areas. Aqui o
+conjunto ja esta decidido: sao as categorias dos orgaos aos quais a ocorrencia
+foi enderecada, que e o que C<bodies_str_ids> guarda.
+
+Quem valida a escolha nao e este metodo: e o C<moderate_category> do upstream,
+que refaz a consulta pelo ponto antes de gravar. Uma categoria inventada no POST
+nao passa por ele. Este metodo so decide o que mostrar.
+
+Devolve nomes ordenados, sem repeticao - a mesma categoria pode existir em mais
+de um orgao.
+
+=cut
+
+sub categorias_da_ocorrencia {
+    my ($self, $problem) = @_;
+
+    return [] unless $problem && $problem->bodies_str;
+
+    my $c = $self->{c} or return [];
+
+    my %nomes;
+    my $contatos = $c->model('DB::Contact')->search({
+        body_id => $problem->bodies_str_ids,
+        state   => { '!=' => 'deleted' },
+    });
+    while (my $contato = $contatos->next) {
+        $nomes{ $contato->category } = 1;
+    }
+
+    return [ sort keys %nomes ];
 }
 
 =head2 must_have_2fa

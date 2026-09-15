@@ -53,6 +53,7 @@
 | Caixa de CEP (demais) | idem | mesma forma, markup do upstream | RESTYLE | `_components.scss` §18 |
 | Dropzone | pontilhado cinza | mint com tracejado verde | RESTYLE | herda tokens |
 | Consentimento de acompanhamento | não existia: o upstream inscrevia sem perguntar | caixa marcada acima do botão de envio, 22px, sem fundo | NEW | `report/form/submit.html`, `_map.scss` |
+| Janela de correção do autor | não existia: só a equipe editava | painel tracejado na página da ocorrência, visível só para quem a escreveu e só dentro da janela | NEW | `report/_main_after.html`, `_components.scss` |
 
 ## Conteúdo
 
@@ -128,6 +129,18 @@ componentes acima; nenhum redefine cor, tipo, espaço, raio ou sombra.
 | Distintivo de estado | rotulo em ingles vindo da tabela `state` | os doze estados traduzidos na tabela `translation`, pelo mecanismo do proprio sistema; o componente `.c-badge` nao mudou | — (dado) | `bin/catanduva/traduzir-estados` |
 
 ---
+
+## Templates do upstream copiados inteiros
+
+Uma cópia é dívida: ela não recebe o que o upstream corrigir depois. Só existem
+as que não tinham alternativa, e cada uma diz no cabeçalho o que mudou e o que
+conferir ao sincronizar.
+
+| Arquivo | Linhas | A única diferença | Por que não deu para evitar |
+|---|---:|---|---|
+| `report/_main.html` | 137 | a linha "Moderada por … em …" distingue quem corrigiu | Desde a janela de correção (`F5`) o autor também passa pelo `/moderate`. O upstream registra `admin_user` a partir de `moderating_user_name`, que devolve "um administrador" para quem não tem órgão — a página anunciava que a Prefeitura mexera no que um cidadão escreveu. A linha é inline naquele arquivo, e nem `admin_log` nem `moderating_user_name` são substituíveis por cobrand |
+| `report/form/submit.html` | 2 | a caixa de consentimento antes dos botões | É o único ponto por onde passam os três caminhos do passo `user`. Duas linhas copiadas |
+| `report/_main_after.html` | 1 | o painel da janela de correção | Ponto de extensão do upstream; a linha original é um `INCLUDE` |
 
 ## O que **não** foi tocado, e por quê
 

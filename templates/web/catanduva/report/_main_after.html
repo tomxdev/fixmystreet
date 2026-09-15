@@ -1,0 +1,158 @@
+[%# A janela de correcao de quem registrou (F5).
+
+    Substitui templates/web/base/report/_main_after.html, que tem uma linha - a
+    primeira aqui embaixo, copiada sem mudanca.
+
+    POR QUE AQUI. O `_main.html` do upstream faz PROCESS deste arquivo no fim do
+    bloco da ocorrencia, dentro do `.problem-header`. E o unico ponto de
+    extensao da pagina que fica junto do titulo e da descricao - que e onde as
+    acoes sobre eles pertencem - e custa uma linha copiada em vez das 137 do
+    `_main.html` inteiro.
+
+    O QUE ESTE PAINEL NAO E. Nao e o formulario de moderacao da equipe. Aquele
+    aparece na mesma pagina para quem tem permissao de moderar, tem outro
+    vocabulario ("Esconder ocorrencia inteira", "Descreva por que voce esta
+    moderando") e faz mais coisas. O autor nao o ve: `moderate_permission`, no
+    cobrand, so responde "sim" em POST, e `can_moderate` no template e uma
+    pergunta feita em GET.
+
+    OS DOIS FORMULARIOS VAO PARA A MESMA ROTA do upstream,
+    /moderate/report/<id>. Nao ha controlador novo: aquele ja troca titulo,
+    descricao, categoria e foto, guarda o anterior em
+    `moderation_original_data` e registra no `admin_log`. O que faltava era
+    permissao.
+
+    O QUE NAO ESTA AQUI, e por que:
+
+      localizacao     muda de quem e a ocorrencia. Quem registrou no lugar
+                      errado retira e registra de novo. O cobrand recusa a
+                      requisicao inteira se ela trouxer `latitude` ou
+                      `longitude`.
+
+      anexar outra    o campo de envio de foto do upstream depende do fluxo de
+      foto            upload do formulario de registro, que nao existe nesta
+                      pagina. Remover a que esta la funciona, e e o caso comum:
+                      quem anexa a foto errada percebe logo.
+%]
+[% INCLUDE 'report/_cobrand_ref.html' %]
+
+[% IF c.cobrand.autor_pode_corrigir(c.user, problem) %]
+[% USE date %]
+<section class="autor-janela" aria-labelledby="autor-janela-titulo">
+
+    <h2 class="autor-janela__titulo" id="autor-janela-titulo">
+        <span class="autor-janela__icone" aria-hidden="true">
+            [% INCLUDE '_ui-icon.html' icon = 'pencil' %]
+        </span>
+        Você registrou esta ocorrência
+    </h2>
+
+    [%# O prazo em minutos, e nao em hora do relogio: "ate as 15h42" e uma conta
+        que a pessoa nao precisa fazer, e o relogio dela pode nao ser o do
+        servidor. O numero vem do cobrand, entao muda junto com a regra. %]
+    <p class="autor-janela__prazo">
+        Dá para corrigir ou retirar durante
+        <strong>[% c.cobrand.janela_de_correcao / 60 %] minutos</strong>
+        depois do registro, e enquanto ela não for encaminhada.
+        Depois disso, o caminho é comentar na própria ocorrência.
+    </p>
+
+    [%# ---- Corrigir ----
+        Os nomes dos campos sao os que o Moderate.pm espera: `problem_title`,
+        `problem_detail`, `category`, `problem_photo_<n>`. `form_started` e do
+        upstream e serve para detectar que alguem editou a ocorrencia enquanto
+        este formulario estava aberto. %]
+    <form method="post" action="/moderate/report/[% problem.id %]" class="autor-janela__form">
+        <input type="hidden" name="token" value="[% csrf_token %]">
+        <input type="hidden" name="form_started" value="[% date.now %]">
+
+        <label for="autor-titulo">Resumo do problema</label>
+        <input class="form-control" type="text" id="autor-titulo" name="problem_title"
+               value="[% (c.req.params.problem_title || problem.title) | html %]" required>
+
+        <label for="autor-detalhe">Descrição</label>
+        <textarea class="form-control" id="autor-detalhe" name="problem_detail" rows="4"
+                  required>[% (c.req.params.problem_detail || problem.detail) | html %]</textarea>
+
+        [%# A lista de categorias vem do cobrand, e nao da stash: esta pagina
+            nao monta `category_options` - quem o faz e o /report/new. Perguntar
+            daqui custa uma consulta, e so para quem esta com a janela aberta.
+
+            Quem valida a escolha e o `moderate_category` do upstream, que
+            refaz a consulta de categorias pelo ponto antes de gravar. Uma
+            categoria inventada no POST nao passa por ele. %]
+        [% SET categorias = c.cobrand.categorias_da_ocorrencia(problem) %]
+        [% IF categorias.size > 1 %]
+        <label for="autor-categoria">Categoria</label>
+        <select class="form-control" id="autor-categoria" name="category">
+            [% FOREACH nome IN categorias %]
+                <option value="[% nome | html %]"[% ' selected' IF nome == problem.category %]>[% nome | html %]</option>
+            [% END %]
+        </select>
+        [% END %]
+
+        [%# Remover foto: a caixa `problem_photo_<n>` do upstream, com o mesmo
+            sentido - marcada e "manter", e `moderate_photo` descarta as que nao
+            receber.
+
+            SEM MINIATURA, de proposito. A foto so e publicada depois de
+            aprovada (MOD-002), e ate la o controlador /photo recusa servir os
+            bytes - inclusive para quem a enviou. Uma miniatura aqui seria um
+            quadrado quebrado. O nome do arquivo tambem nao ajuda ninguem; o que
+            identifica a foto para quem acabou de envia-la e a ordem. %]
+        [% IF problem.photos.size %]
+        <fieldset class="autor-janela__fotos">
+            <legend>[% problem.photos.size > 1 ? 'Fotografias anexadas' : 'Fotografia anexada' %]</legend>
+            [% FOREACH foto IN problem.photos %]
+            <label class="autor-janela__foto">
+                <input type="checkbox" name="problem_photo_[% loop.index %]" value="1" checked>
+                <span>Manter [% problem.photos.size > 1 ? 'a ' _ loop.count _ 'ª fotografia' : 'a fotografia' %]</span>
+            </label>
+            [% END %]
+        </fieldset>
+        [% END %]
+
+        <button type="submit" class="btn btn--primary autor-janela__salvar">Salvar correção</button>
+    </form>
+
+    [%# ---- Retirar ----
+        Formulario separado, e nao um segundo botao no de cima: sao duas acoes
+        com consequencias diferentes, e um `submit` ao lado do outro faz a
+        pessoa errar.
+
+        `state=cancelled` e o que `moderate_state` do upstream le, e
+        `moderation_reason` vira o texto do comentario publico que ele cria -
+        por isso tem um valor de partida, em vez de ir vazio e publicar uma
+        atualizacao sem texto. O significado de "Cancelada" neste piloto esta
+        escrito em docs/VOCABULARIO_DE_ESTADOS.md.
+
+        `data-confirm` e a confirmacao do proprio fixmystreet.js, ja carregado
+        nesta pagina. %]
+    <form method="post" action="/moderate/report/[% problem.id %]" class="autor-janela__retirar">
+        <input type="hidden" name="token" value="[% csrf_token %]">
+        <input type="hidden" name="form_started" value="[% date.now %]">
+        <input type="hidden" name="state" value="cancelled">
+        <input type="hidden" name="moderation_reason" value="Retirada por quem registrou.">
+
+        [%# O titulo e a descricao de novo, iguais aos de agora.
+
+            Nao e redundancia: `moderate_text`, no Moderate.pm do upstream, le
+            `problem_title` e `problem_detail` de todo POST e grava o que
+            encontrar. Sem estes dois campos ele encontra `undef`, e a coluna
+            `title` e NOT NULL - o pedido morre com 500 e a ocorrencia nao e
+            retirada. Medido.
+
+            Mandando os valores atuais, ele compara, ve que nao mudaram e nao
+            registra alteracao nenhuma: `@types` fica so com `state`, que e o
+            unico que mudou mesmo - e por isso a retirada nao gera entrada de
+            moderacao no historico. %]
+        <input type="hidden" name="problem_title" value="[% problem.title | html %]">
+        <input type="hidden" name="problem_detail" value="[% problem.detail | html %]">
+        <button type="submit" class="btn autor-janela__retirar-botao"
+                data-confirm="A ocorrência fica no mapa como retirada, e isso não volta atrás. Tem certeza?">
+            Retirar esta ocorrência
+        </button>
+    </form>
+
+</section>
+[% END %]
