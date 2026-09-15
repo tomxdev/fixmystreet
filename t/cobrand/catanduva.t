@@ -5,6 +5,7 @@ use FixMyStreet::DB;
 use FixMyStreet::Script::Inactive;
 use Test::MockModule;
 use DateTime;
+use JSON::MaybeXS;
 
 # report_new_munge_before_insert reads a form parameter and the stash, and the
 # photo rules ask who is looking. Only these things are ever asked of it.
@@ -193,6 +194,61 @@ subtest 'the search box is only trusted when it really holds a CEP' => sub {
         'a street name in the search box is not promoted to CEP';
     is $build->(undef), '',
         'nothing anywhere leaves an empty string - honest, and satisfies NOT NULL';
+};
+
+subtest 'the reverse geocoding is kept, not thrown away' => sub {
+    # The same lookup that fills the CEP also answers "which street is this?".
+    # Upstream only fills problem.geocode when something needs it - sending the
+    # report on, an alert, a feed - which in a pilot that sends to nobody is
+    # almost never. Keeping it here costs no extra request and saves the one
+    # find_closest would make later.
+    my $resposta = {
+        display_name => 'Igreja Presbiteriana, 400, Rua Minas Gerais, Jardim Brasil, Catanduva, Brasil',
+        address => { house_number => '400', road => 'Rua Minas Gerais', postcode => '15800-210' },
+    };
+
+    my $osm = Test::MockModule->new('FixMyStreet::Geocode::OSM');
+    $osm->mock(reverse_geocode => sub { return $resposta });
+
+    my $munge = sub {
+        my $report = shift;
+        FixMyStreet::Cobrand::Catanduva->new({ c => FakeContext->new(params => {}) })
+            ->report_new_munge_before_insert($report);
+        return $report;
+    };
+    my $novo = sub {
+        return FixMyStreet::DB->resultset('Problem')->new({
+            latitude => '-21.1383', longitude => '-48.9736', postcode => '', @_,
+        });
+    };
+
+    my $report = $munge->($novo->());
+    is_deeply $report->geocode, $resposta, 'the whole answer lands in problem.geocode';
+    is $report->postcode, '15800-210', 'and the CEP still comes out of it';
+
+    # Something that already knew the address knew more than a pin does.
+    my $anterior = { address => { road => 'Rua Cuiabá' } };
+    is_deeply $munge->($novo->(geocode => $anterior))->geocode, $anterior,
+        'an existing geocode is not overwritten';
+
+    # A geocoder that is down must leave the column alone, not write undef over
+    # something, and must not take the report down with it.
+    $osm->mock(reverse_geocode => sub { die "connection timed out\n" });
+    is $munge->($novo->())->geocode, undef, 'no answer, nothing stored';
+
+    subtest 'short_address is what fits on a card' => sub {
+        my $cobrand = FixMyStreet::Cobrand::Catanduva->new;
+        my $com = sub { $novo->(geocode => { address => shift }) };
+
+        is $cobrand->short_address($com->({ road => 'Rua Minas Gerais', house_number => '400' })),
+            'Rua Minas Gerais, 400', 'street and number, not the whole display_name';
+        is $cobrand->short_address($com->({ road => 'Rua Cuiabá' })),
+            'Rua Cuiabá', 'number is optional';
+        is $cobrand->short_address($com->({ suburb => 'Centro' })), '',
+            'no street, nothing to show - a neighbourhood alone is not an address';
+        is $cobrand->short_address($novo->()), '', 'no geocode, no address';
+        is $cobrand->short_address(undef), '', 'no report, no address';
+    };
 };
 
 # --------------------------------------------------------------------- MOD-002
@@ -567,6 +623,175 @@ subtest '2FA is demanded of staff accounts, and not of the public' => sub {
     my $super = $mech->create_user_ok('super-2fa@example.org');
     $super->update({ is_superuser => 1 });
     is $cobrand->must_have_2fa($super), 1, 'and so is a superuser';
+};
+
+subtest 'the search field answers for a problem, and not only for a place' => sub {
+    FixMyStreet::override_config { ALLOWED_COBRANDS => ['catanduva'] }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        my $user = $mech->create_user_ok('busca@example.org', name => 'Quem Busca');
+
+        my ($por_titulo) = $mech->create_problems_for_body(1, $body->id,
+            'Buraco enorme na pista', { user => $user, cobrand => 'catanduva' });
+
+        my ($por_descricao) = $mech->create_problems_for_body(1, $body->id,
+            'Calçada quebrada', {
+                user => $user, cobrand => 'catanduva',
+                detail => 'Ao lado de um buraco que ninguém tapou',
+            });
+
+        my ($escondida) = $mech->create_problems_for_body(1, $body->id,
+            'Buraco que ninguém deve ver', { user => $user, cobrand => 'catanduva' });
+        $escondida->update({ state => 'hidden' });
+
+        my %encontrados = map { $_->id => 1 } @{ $cobrand->buscar_ocorrencias('buraco') };
+
+        ok $encontrados{ $por_titulo->id },   'acha pelo titulo';
+        ok $encontrados{ $por_descricao->id }, 'acha pela descricao, e nao so pelo titulo';
+        ok !$encontrados{ $escondida->id },   'e nao mostra o que foi escondido pela moderacao';
+
+        is_deeply $cobrand->buscar_ocorrencias('bu'), [],
+            'termo curto demais nao vale uma busca - casaria com meia cidade';
+        is_deeply $cobrand->buscar_ocorrencias(''), [], 'nem termo vazio';
+        is_deeply $cobrand->buscar_ocorrencias(undef), [], 'nem termo nenhum';
+
+        is_deeply $cobrand->buscar_ocorrencias('%'), [],
+            'e o curinga do LIKE e so um caractere, nao um jeito de listar tudo';
+
+        is scalar @{ $cobrand->buscar_ocorrencias('buraco', 1) }, 1,
+            'o limite de resultados e respeitado';
+    };
+};
+
+subtest 'the "already reported?" step measures distance the way the database does' => sub {
+    # A busca por ocorrencias proximas continua sendo do upstream: raio,
+    # ordenacao e filtro de estado saem de nearby_distances e de
+    # problem_find_nearby. O que se testa aqui e so o que o cobrand acrescentou
+    # para escrever o rotulo "180 m" embaixo de cada ocorrencia.
+
+    # Dois pontos separados por um grau de latitude: 1 grau de meridiano tem
+    # 111,2km com o raio de Terra que a funcao do banco usa (R_e = 6372,8km).
+    my $um_grau = $cobrand->distancia_em_metros(0, 0, 1, 0);
+    ok abs($um_grau - 111_226) < 50,
+        'um grau de latitude da os mesmos 111,2km da funcao do banco'
+        or diag "deu $um_grau";
+
+    is $cobrand->distancia_em_metros(-21.1344, -48.97335, -21.1344, -48.97335), 0,
+        'o mesmo ponto dista zero - e nao morre no acos por arredondamento';
+
+    # As duas ocorrencias de sinalizacao do banco de exemplo, medidas contra o
+    # ponto entre elas: o banco devolve 137m para as duas.
+    my $ate_uma = $cobrand->distancia_em_metros(-21.14175, -48.97115, -21.1405, -48.9705);
+    ok $ate_uma > 100 && $ate_uma < 200,
+        'distancia a uma ocorrencia real fica na casa dos 150m'
+        or diag "deu $ate_uma";
+
+    is $cobrand->distancia_em_metros(undef, -48.97, -21.13, -48.97), undef,
+        'sem coordenada nao ha distancia - e nem um zero que pareceria exata';
+
+    # O rotulo arredonda para a dezena mais proxima abaixo de 1km: um pino posto
+    # a mao nao tem precisao de metro, e "183 m" prometeria o que o numero nao
+    # tem.
+    is $cobrand->distancia_escrita(183),  '180 m', 'arredonda para a dezena';
+    is $cobrand->distancia_escrita(137),  '140 m', 'e arredonda para cima quando e o caso';
+    is $cobrand->distancia_escrita(0),    '10 m',  'nunca escreve "0 m", que leria como erro';
+    is $cobrand->distancia_escrita(999),  '1000 m', 'ate 1km continua em metros';
+    is $cobrand->distancia_escrita(1000), '1.0 km', 'de 1km em diante, em quilometros';
+    is $cobrand->distancia_escrita(2540), '2.5 km', 'com uma casa decimal';
+    is $cobrand->distancia_escrita(undef), '', 'sem distancia, nenhum rotulo';
+};
+
+subtest 'the radius for suggesting duplicates is configurable, and defaults to upstream' => sub {
+    FixMyStreet::override_config { ALLOWED_COBRANDS => ['catanduva'] }, sub {
+        is_deeply $cobrand->nearby_distances, { inspector => 1000, suggestions => 250 },
+            'sem configuracao, os mesmos numeros do upstream';
+    };
+
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        COBRAND_FEATURES => { nearby_distances => { catanduva => { suggestions => 150 } } },
+    }, sub {
+        my $c = FixMyStreet::Cobrand::Catanduva->new;
+        is $c->nearby_distances->{suggestions}, 150, 'a configuracao manda no raio das sugestoes';
+        is $c->nearby_distances->{inspector}, 1000,
+            'e o que ela nao diz continua valendo o padrao';
+    };
+
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        COBRAND_FEATURES => { nearby_distances => { catanduva => { suggestions => 0 } } },
+    }, sub {
+        my $c = FixMyStreet::Cobrand::Catanduva->new;
+        is $c->nearby_distances->{suggestions}, 0,
+            'zero desliga a sugestao de duplicadas, como no upstream';
+    };
+};
+
+subtest 'the card data survives a title that looks like markup' => sub {
+    # O bloco de dados vai dentro de um <script type="application/json"> na
+    # resposta de /around/nearby. Um titulo com "</script>" fecharia o elemento
+    # e o resto viraria HTML na pagina.
+    my $json = $cobrand->para_json([ { titulo => 'Buraco </script><img src=x>' } ]);
+
+    unlike $json, qr{</script>}i, 'nenhum fecha-script sobrevive a serializacao';
+    unlike $json, qr{<img}i,      'nem uma etiqueta aberta';
+
+    my $de_volta = JSON::MaybeXS->new->decode($json);
+    is $de_volta->[0]{titulo}, 'Buraco </script><img src=x>',
+        'e o titulo continua inteiro para quem le o JSON';
+};
+
+subtest 'the existing-report card writes the address the way a person says it' => sub {
+    my $nominatim = {
+        display_name => 'Rua São Paulo, Centro, Catanduva, São Paulo, Região Sudeste, 15800-000, Brasil',
+        address => {
+            road => 'Rua São Paulo', suburb => 'Centro',
+            city => 'Catanduva', state => 'São Paulo',
+            postcode => '15800-000', country => 'Brasil',
+        },
+    };
+    my $falso = Test::MockModule->new('FixMyStreet::DB::Result::Problem');
+
+    my $problema = bless {}, 'FixMyStreet::DB::Result::Problem';
+    $falso->mock(geocode => sub { $nominatim });
+
+    is $cobrand->endereco_completo($problema), 'Rua São Paulo, Centro, Catanduva - SP',
+        'rua, bairro e cidade com a sigla do estado - sem CEP, sem regiao, sem pais';
+
+    # O Nominatim nomeia o bairro de tres jeitos diferentes conforme a area foi
+    # mapeada; o primeiro que existir e o que vale.
+    $falso->mock(geocode => sub { { address => {
+        road => 'Rua Pará', neighbourhood => 'Higienópolis', town => 'Catanduva', state => 'São Paulo' } } });
+    is $cobrand->endereco_completo($problema), 'Rua Pará, Higienópolis, Catanduva - SP',
+        'neighbourhood serve de bairro, e town serve de cidade';
+
+    $falso->mock(geocode => sub { { address => { city => 'Catanduva', state => 'Roraima' } } });
+    is $cobrand->endereco_completo($problema), 'Catanduva - RR',
+        'sem rua e sem bairro, sobra a cidade - e nao uma virgula solta';
+
+    $falso->mock(geocode => sub { { address => { road => 'Rua Sem Estado', city => 'Lugar Nenhum' } } });
+    is $cobrand->endereco_completo($problema), 'Rua Sem Estado, Lugar Nenhum',
+        'estado que nao esta na tabela de siglas nao vira um traco vazio';
+
+    $falso->mock(geocode => sub { undef });
+    is $cobrand->endereco_completo($problema), '',
+        'sem geocodificacao, nenhum endereco - e nao um endereco inventado';
+
+    is $cobrand->endereco_completo(undef), '', 'nem sem ocorrencia';
+};
+
+subtest 'the report date is written in Portuguese, whatever the container locale is' => sub {
+    my $data = DateTime->new(year => 2026, month => 8, day => 23);
+    is $cobrand->data_por_extenso($data), '23 de agosto de 2026',
+        'dia, mes por extenso e ano';
+
+    is $cobrand->data_por_extenso(DateTime->new(year => 2026, month => 1, day => 1)),
+        '1 de janeiro de 2026', 'o primeiro mes e o primeiro dia nao ganham zero a esquerda';
+
+    is $cobrand->data_por_extenso(DateTime->new(year => 2026, month => 12, day => 31)),
+        '31 de dezembro de 2026', 'e o ultimo mes existe';
+
+    is $cobrand->data_por_extenso(undef), '', 'sem data, nenhum texto';
 };
 
 done_testing();
