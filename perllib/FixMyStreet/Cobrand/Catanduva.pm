@@ -935,6 +935,28 @@ sub confirmation_page_extra {
 
     # /P/... deixa a ocorrencia em `report`; /report/confirmation, em ambos.
     my $problem = $c->stash->{problem} ||= $c->stash->{report} or return;
+
+    # Recarrega a linha antes de qualquer coisa ler uma data dela.
+    #
+    # `process_confirmation` grava `confirmed => \'current_timestamp'` - literal
+    # SQL. O banco guarda a hora certa, mas o objeto em memoria fica com a
+    # referencia escalar ao literal, e nao com um DateTime. O template da pagina
+    # de confirmacao formata essa data, e `prettify_dt` morre ao chamar
+    # `strftime` numa referencia crua:
+    #
+    #   Can't call method "strftime" on unblessed reference at Utils.pm line 173
+    #
+    # O efeito era um 500 para quem registrou sem conta e clicou no link do
+    # e-mail - justamente o caminho de quem nao tem senha. A ocorrencia era
+    # confirmada (o dado ficava certo) e a pessoa via uma tela de erro.
+    #
+    # E aqui, e nao no template, porque o template nao pode consertar um objeto
+    # que chegou incompleto: defender-se la trataria o sintoma e deixaria a
+    # proxima pagina de token com o mesmo problema.
+    #
+    # Registrado como F1 em docs/CICLO_DE_VIDA_DA_OCORRENCIA.md.
+    $problem->discard_changes;
+
     return unless $problem->latitude && $problem->longitude;
 
     # E quase /report/generate_map_tags, com uma diferenca deliberada: o pino

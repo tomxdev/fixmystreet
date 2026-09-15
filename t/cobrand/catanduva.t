@@ -794,4 +794,52 @@ subtest 'the report date is written in Portuguese, whatever the container locale
     is $cobrand->data_por_extenso(undef), '', 'sem data, nenhum texto';
 };
 
+subtest 'confirming a report from the email link does not blow up' => sub {
+    # O caminho de quem registra SEM conta, que e o da maioria e o unico que
+    # passa pelo token do e-mail. Ele nao era coberto por teste nenhum, e por
+    # isso um erro 500 nele passou despercebido ate uma auditoria manual (F1 em
+    # docs/CICLO_DE_VIDA_DA_OCORRENCIA.md).
+    #
+    # A causa: `process_confirmation` grava `confirmed` como literal SQL, e o
+    # objeto em memoria fica com a referencia crua em vez de um DateTime. A
+    # pagina de confirmacao formata essa data e morria em `strftime`.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(
+            body_id => $body->id, category => 'Buraco na via', email => 'buraco@example.org');
+
+        my $usuario = $mech->create_user_ok('sem.conta@example.org', name => 'Sem Conta');
+
+        my ($ocorrencia) = $mech->create_problems_for_body(1, $body->id,
+            'Buraco que espera confirmacao', {
+                user => $usuario, cobrand => 'catanduva',
+                category => 'Buraco na via',
+                latitude => -21.1383, longitude => -48.9728,
+            });
+
+        # O estado em que a ocorrencia fica enquanto o e-mail nao foi clicado.
+        $ocorrencia->update({ state => 'unconfirmed', confirmed => undef });
+
+        my $token = FixMyStreet::DB->resultset('Token')->create({
+            scope => 'problem',
+            data  => { id => $ocorrencia->id, name => $usuario->name, email => $usuario->email },
+        });
+
+        $mech->get_ok('/P/' . $token->token);
+
+        $ocorrencia->discard_changes;
+        is $ocorrencia->state, 'confirmed', 'a ocorrencia foi confirmada';
+        ok $ocorrencia->confirmed, 'e ganhou data de confirmacao';
+
+        # O que o 500 impedia de acontecer: a pagina existir.
+        $mech->content_contains('Ocorrência enviada', 'a pagina de agradecimento renderiza');
+        $mech->content_contains('#' . $ocorrencia->id, 'com o protocolo');
+        $mech->content_lacks('unblessed reference', 'e sem o erro de data crua');
+    };
+};
+
 done_testing();

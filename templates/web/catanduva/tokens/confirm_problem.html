@@ -86,11 +86,16 @@
             <span class="map-sent__protocol-body">
                 <span class="map-sent__protocol-label">Protocolo da ocorrência</span>
                 <span class="map-sent__protocol-value" id="js-protocol">#[% report.id %]</span>
-                [%# Sem `a OR b` aqui de proposito: o TT chama o metodo do objeto
-                    em contexto de lista e, quando o passa por um operador, o que
-                    chega em prettify_dt e uma referencia crua, nao o DateTime —
-                    e o filtro morre com "Can't call method strftime on
-                    unblessed reference". Um IF resolve e diz a mesma coisa. %]
+[%# O IF nao e por causa do operador `OR`, como este comentario ja
+                    afirmou por engano. A referencia crua que fazia prettify_dt
+                    morrer vinha do literal SQL que `process_confirmation` grava
+                    em `confirmed`; quem a resolve e o `discard_changes` do
+                    `confirmation_page_extra`, no cobrand.
+
+                    O IF fica porque continua sendo verdade que a ocorrencia
+                    pode nao ter data de confirmacao - e ai a de criacao e a
+                    unica que existe. Ver F1 em
+                    docs/CICLO_DE_VIDA_DA_OCORRENCIA.md. %]
                 <span class="map-sent__protocol-date">
                     [% IF report.confirmed %]
                         Registrada em [% prettify_dt( report.confirmed ) %]
