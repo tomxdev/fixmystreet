@@ -2,7 +2,7 @@
 
 > **Piloto municipal — Catanduva/SP**
 > Registro de defeitos e limitações **encontrados e ainda não resolvidos**.
-> Última revisão: 10/09/2026.
+> Última revisão: 15/09/2026.
 
 ---
 
@@ -52,6 +52,17 @@ redescoberto do zero custa uma tarde.
 
 ---
 
+### 1.4 Treze achados da auditoria do ciclo de vida
+
+| | |
+|---|---|
+| **Onde** | [`CICLO_DE_VIDA_DA_OCORRENCIA.md`](CICLO_DE_VIDA_DA_OCORRENCIA.md), levantado em 15/09/2026. A ordem de execução está em [`PLANO_DE_FASES.md`](PLANO_DE_FASES.md) |
+| **Os dois críticos** | confirmar a ocorrência pelo link do e-mail devolve **500** (`F1`), e o e-mail de confirmação chega **em inglês** (`F2`). Os dois estão no caminho de quem registra **sem conta**, que é o do cidadão comum |
+| **O alto** | duas prefeituras duplicadas no banco fazem cada ocorrência ser enviada **duas vezes** (`F3`) |
+| **Impacto** | o dado fica correto em todos os casos — o que quebra é a experiência e o destino do envio |
+| **Resolver** | `F1` é uma linha no `confirmation_page_extra` do cobrand; `F2` são templates de e-mail próprios; `F3` é dado de configuração. Os dez restantes estão classificados no documento |
+
+---
 ## 2. Do upstream, que nos afeta
 
 ### 2.1 `/reports` responde com cache e sem `Vary: Cookie`

@@ -1,5 +1,20 @@
 # UI Evolution Execution State
 
+> **Este arquivo é o checkpoint das Fases 0 a 5 do plano antigo
+> (`docs/UI_EVOLUTION_PLAN.md`). Ele não é mais o estado corrente.**
+>
+> A unidade seguinte executou `docs/ui/ui_evolution_v2.md`, que substitui a
+> identidade visual inteira pela da imagem de referência. O estado corrente está
+> em:
+>
+> - `docs/ui/UI_EVOLUTION_STATUS.md` — o que foi feito e o próximo passo exato
+> - `docs/ui/DESIGN_SYSTEM.md` — a especificação implementada
+> - `docs/ui/COMPONENT_INVENTORY.md` — componentes e o que foi feito com cada um
+> - `docs/ui/UI_MIGRATION_MATRIX.md` — página por página
+>
+> O que segue fica como registro do caminho até aqui. A paleta descrita abaixo é
+> a azul-teal anterior, e não vale mais.
+
 ## Status
 
 `IN_PROGRESS`

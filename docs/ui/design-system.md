@@ -1,3 +1,11 @@
+> **Superado.** Este arquivo descreve a identidade azul-teal (`#126782`) das
+> Fases 0 a 5. A identidade atual é verde, e a especificação corrente está em
+> **`docs/ui/DESIGN_SYSTEM.md`**, derivada de `docs/ui/reference/home-layout.png`.
+>
+> Fica como registro: a validação de contraste aqui é a mesma metodologia usada
+> na paleta nova, e as decisões `D-003` e `D-004` que ela produziu continuam
+> valendo como precedente (ver `D-020`).
+
 # Design System — MyFixStreet / cobrand `catanduva`
 
 > Fonte da identidade: **§13.1 do `UI_EVOLUTION_PLAN.md`**. Este documento não
