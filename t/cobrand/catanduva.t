@@ -842,4 +842,100 @@ subtest 'confirming a report from the email link does not blow up' => sub {
     };
 };
 
+subtest 'every page reached from an email link renders' => sub {
+    # Fase 3.2 do PLANO_DE_FASES.md.
+    #
+    # Estas paginas so sao exercitadas por quem clica num link de e-mail, e por
+    # isso ficaram sem teste ate o 500 do F1 aparecer numa auditoria manual. Um
+    # teste que apenas as renderize custa pouco e impede a classe inteira de
+    # erro - a de objeto que chega ao template com um campo que nao e o que o
+    # template espera.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        my $usuario = $mech->create_user_ok('token@example.org', name => 'Quem Clica');
+
+        my ($ocorrencia) = $mech->create_problems_for_body(1, $body->id,
+            'Ocorrencia de token', {
+                user => $usuario, cobrand => 'catanduva',
+                latitude => -21.1383, longitude => -48.9728,
+            });
+
+        subtest 'confirmacao de ocorrencia' => sub {
+            $ocorrencia->update({ state => 'unconfirmed', confirmed => undef });
+            my $token = FixMyStreet::DB->resultset('Token')->create({
+                scope => 'problem',
+                data  => { id => $ocorrencia->id, name => $usuario->name, email => $usuario->email },
+            });
+            $mech->get_ok('/P/' . $token->token);
+            $mech->content_lacks('unblessed reference');
+        };
+
+        subtest 'confirmacao de comentario' => sub {
+            $ocorrencia->update({ state => 'confirmed', confirmed => \'current_timestamp' });
+            my $comentario = $mech->create_comment_for_problem(
+                $ocorrencia, $usuario, 'Quem Clica', 'Comentario a confirmar', 0, 'unconfirmed', undef);
+            my $token = FixMyStreet::DB->resultset('Token')->create({
+                scope => 'comment', data => { id => $comentario->id },
+            });
+            $mech->get_ok('/C/' . $token->token);
+            $mech->content_lacks('unblessed reference');
+        };
+
+        subtest 'confirmacao de alerta' => sub {
+            my $alerta = FixMyStreet::DB->resultset('Alert')->create({
+                user => $usuario, alert_type => 'new_updates',
+                parameter => $ocorrencia->id, cobrand => 'catanduva',
+                whensubscribed => \'current_timestamp', confirmed => 0,
+            });
+            my $token = FixMyStreet::DB->resultset('Token')->create({
+                scope => 'alert', data => { id => $alerta->id, type => 'subscribe' },
+            });
+            $mech->get_ok('/A/' . $token->token);
+            $mech->content_lacks('unblessed reference');
+        };
+    };
+};
+
+subtest 'the citizen path does not speak English' => sub {
+    # Fase 3.3 do PLANO_DE_FASES.md.
+    #
+    # F2, F9 e o antigo UI-021 sao a mesma familia: cadeia sem traducao que
+    # vaza para a interface. A lista abaixo e curta e explicita de proposito -
+    # um teste que falha sozinho vira teste desligado.
+    my @proibidas = (
+        'This field is required',
+        'Please enter',
+        'Confirm your report',
+        'Report a problem',
+        'Get updates',
+        'Your report has been',
+    );
+
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        my $usuario = $mech->create_user_ok('idioma@example.org', name => 'Quem Le');
+        my ($ocorrencia) = $mech->create_problems_for_body(1, $body->id,
+            'Ocorrencia para conferir idioma', {
+                user => $usuario, cobrand => 'catanduva',
+                latitude => -21.1383, longitude => -48.9728,
+            });
+
+        for my $pagina ('/', '/alert', '/reports', '/report/' . $ocorrencia->id) {
+            $mech->get_ok($pagina);
+            my $corpo = $mech->content;
+            for my $frase (@proibidas) {
+                unlike $corpo, qr/\Q$frase\E/i, "$pagina nao diz \"$frase\"";
+            }
+        }
+    };
+};
+
 done_testing();

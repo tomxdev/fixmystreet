@@ -105,6 +105,21 @@ jobs:
     - name: Suite de testes
       run: ~/perl5/perlbrew/bin/perlbrew exec script/test --jobs 3 t
 
+    # Compila os scripts do piloto - nao os executa, porque eles precisam de um
+    # banco povoado. Um erro de sintaxe num script que so roda por cron ou a mao
+    # apareceria no dia em que alguem precisasse dele, e ai com pressa.
+    #
+    # `checar-configuracao` e o que teria pego o F3 - duas prefeituras
+    # duplicadas enviando cada ocorrencia duas vezes - no dia em que o segundo
+    # orgao foi criado. Ver docs/CICLO_DE_VIDA_DA_OCORRENCIA.md.
+    - name: Scripts do piloto compilam
+      run: |
+        for script in bin/catanduva/*; do
+          [ -f "$script" ] || continue
+          ~/perl5/perlbrew/bin/perlbrew exec perl -c "$script" \
+            || { echo "$script nao compila"; exit 1; }
+        done
+
   cypress:
     # Roda so o spec do cobrand brasileiro. O workflow Cypress do upstream esta
     # desabilitado neste fork e exercita os 20 cobrands britanicos - custo alto
