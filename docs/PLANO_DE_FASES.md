@@ -251,14 +251,14 @@ e `checar-configuracao` responde verde.
 | **Custo** | Um dia de escrita, mais um de código para a retirada |
 | **Junta com** | 4.1 — é a mesma tela e a mesma janela |
 
-## 4.3 · Dizer o que acontece depois do envio
+## 4.3 · Dizer o que acontece depois do envio — **CONCLUÍDA**
 
 | | |
 |---|---|
-| **Situação** | A ocorrência é criada, enviada por cron em até cinco minutos, e nada disso é contado. A pessoa não sabe se alguém vai ver, quando, nem o que esperar |
-| **Fazer** | Na tela de confirmação: "Sua ocorrência foi enviada para **X**. Você recebe um e-mail quando houver resposta." — com o nome do órgão real e o que de fato acontece |
-| **Custo** | Horas |
-| **Depende de** | 2.1 (um órgão só para nomear) |
+| **Situação** | A tela prometia "será encaminhada para análise". Era a única frase do site que contradizia a página "Sobre", que avisa em destaque que o piloto não tem parceria com a Prefeitura |
+| **Feito** | Uma linha que depende de um fato do sistema: com `demonstration_recipient` ligado, diz que a ocorrência **não** é encaminhada e liga para o "Sobre"; sem ele, nomeia o órgão real e diz "nos próximos minutos" — porque o envio é por cron. O fato de a ocorrência já ser pública foi para o parágrafo de abertura |
+| **Custo pago** | A nota "Juntos por uma Catanduva melhor!" saiu. A tela não rola, a linha nova custa 74px, e aquela nota era o segundo agradecimento da mesma página. Divergência registrada em `MAP_EVOLUTION_STATUS.md` |
+| **Validado** | Dois subtestes em `t/cobrand/catanduva.t`, um por estado da configuração. Sem rolagem em 1440×900, 768×1024 e 390×844 |
 
 ## 4.4 · Explicar cada mudança de estado a quem registrou
 

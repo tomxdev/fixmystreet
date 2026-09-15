@@ -5365,3 +5365,47 @@ body.map-ficha-aberta .map-panel__flow-head {
         cursor: pointer;
     }
 }
+
+// ---------------------------------------------------------------------------
+// Para onde a ocorrencia vai, na tela de ocorrencia enviada (4.3)
+//
+// Uma linha de fato, nao um aviso emoldurado. Sem fundo e sem borda de
+// proposito: o destaque desta tela pertence ao protocolo, que e o que a pessoa
+// vai copiar, e dois blocos disputando atencao nao deixam nenhum vencer.
+//
+// O icone e o texto ocupam colunas proprias para que a segunda linha alinhe com
+// a primeira, e nao com o icone.
+// ---------------------------------------------------------------------------
+
+.map-sent__next {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: var(--space-3);
+    align-items: start;
+    margin: 0 0 var(--space-4);
+    color: var(--c-text-body);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-snug);
+
+    a {
+        color: var(--c-primary);
+    }
+}
+
+.map-sent__next-icon {
+    display: flex;
+    // 1px alinha o centro optico do icone com a primeira linha do texto.
+    margin-top: 1px;
+    color: var(--c-success);
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+// Dizer que a ocorrencia nao chega a orgao nenhum nao e dar boa noticia, e nao
+// deve usar a cor de quem da boa noticia.
+.map-sent__next--aviso .map-sent__next-icon {
+    color: var(--c-warning);
+}

@@ -1044,6 +1044,77 @@ subtest 'confirming a report while signed in does not blow up either' => sub {
     };
 };
 
+subtest 'the thank-you page says what actually happens next' => sub {
+    # Fase 4.3. A pagina prometia "sera encaminhada para analise" enquanto a
+    # pagina "Sobre" avisava, em destaque, que o piloto nao tem parceria com a
+    # Prefeitura e que as ocorrencias nao chegam a setor nenhum. Uma das duas
+    # estava mentindo, e era esta.
+    #
+    # O texto agora depende de um fato do sistema, e nao de um desejo: se a
+    # caixa de demonstracao esta ligada, `munge_sendreport_params` desvia toda
+    # mensagem para ela, e nao ha orgao a citar.
+    my $ver_confirmacao = sub {
+        my $ocorrencia = shift;
+        my $token = FixMyStreet::DB->resultset('Token')->create({
+            scope => 'problem',
+            data  => { id => $ocorrencia->id,
+                       name => $ocorrencia->name,
+                       email => $ocorrencia->user->email },
+        });
+        $ocorrencia->update({ state => 'unconfirmed', confirmed => undef });
+        $mech->get_ok('/P/' . $token->token);
+    };
+
+    subtest 'com a caixa de demonstracao ligada, nao promete orgao nenhum' => sub {
+        FixMyStreet::override_config {
+            ALLOWED_COBRANDS => ['catanduva'],
+            MAPIT_URL => 'http://mapit.uk/',
+            COBRAND_FEATURES => {
+                demonstration_recipient => { catanduva => 'ocorrencias@example.org' },
+            },
+        }, sub {
+            my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+                { cobrand => 'catanduva' });
+            my $usuario = $mech->create_user_ok('demo@example.org', name => 'Quem Registra');
+            my ($o) = $mech->create_problems_for_body(1, $body->id, 'Ocorrencia em demonstracao', {
+                user => $usuario, cobrand => 'catanduva',
+                latitude => -21.1383, longitude => -48.9728,
+            });
+
+            $ver_confirmacao->($o);
+            $mech->content_contains('não tem parceria com a Prefeitura',
+                'diz que a ocorrencia nao chega a setor responsavel');
+            $mech->content_lacks('será encaminhada nos próximos minutos',
+                'e nao promete encaminhamento');
+            $mech->content_lacks('será encaminhada para análise',
+                'a promessa antiga saiu de vez');
+        };
+    };
+
+    subtest 'sem a caixa, nomeia o orgao de verdade' => sub {
+        FixMyStreet::override_config {
+            ALLOWED_COBRANDS => ['catanduva'],
+            MAPIT_URL => 'http://mapit.uk/',
+        }, sub {
+            my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+                { cobrand => 'catanduva' });
+            my $usuario = $mech->create_user_ok('parceria@example.org', name => 'Quem Registra');
+            my ($o) = $mech->create_problems_for_body(1, $body->id, 'Ocorrencia com parceria', {
+                user => $usuario, cobrand => 'catanduva',
+                latitude => -21.1383, longitude => -48.9728,
+            });
+
+            $ver_confirmacao->($o);
+            $mech->content_contains('Prefeitura de Catanduva',
+                'o nome do orgao aparece');
+            $mech->content_contains('nos próximos minutos',
+                'e o quando, que e por cron e nao no ato');
+            $mech->content_lacks('não tem parceria',
+                'o aviso da demonstracao nao aparece onde nao cabe');
+        };
+    };
+};
+
 subtest 'every page reached from an email link renders' => sub {
     # Fase 3.2 do PLANO_DE_FASES.md.
     #

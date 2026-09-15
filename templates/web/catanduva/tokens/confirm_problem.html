@@ -82,13 +82,18 @@
 
         <h1 class="map-sent__title">Ocorrência enviada!</h1>
 
+        [%# "sera encaminhada para analise" saiu daqui.
+
+            Era a unica frase do site que contradizia o proprio site: a pagina
+            "Sobre" diz, em destaque, que o piloto nao tem parceria com a
+            Prefeitura e que as ocorrencias nao chegam a um setor responsavel.
+            Quem lia as duas ficava sem saber qual valia.
+
+            O que a pessoa precisa saber esta no bloco "O que acontece agora",
+            abaixo do protocolo, e vem do que o sistema de fato faz. %]
         <p class="map-sent__lead">
             Obrigado por contribuir para uma cidade melhor.
-            [% IF report.bodies_str %]
-                Sua ocorrência foi registrada e será encaminhada para análise.
-            [% ELSE %]
-                Sua ocorrência foi registrada.
-            [% END %]
+            Sua ocorrência já está pública, no mapa e na lista de ocorrências.
         </p>
 
         [%# ---- Protocolo ----
@@ -131,6 +136,52 @@
                 [% INCLUDE '_ui-icon.html' icon = 'copy' %]
             </button>
         </div>
+
+        [%# ---- O que acontece agora ----
+
+            Tres fatos, nesta ordem, e cada um verificavel no codigo:
+
+            1. A ocorrencia ja e publica. `process_confirmation` a poe em
+               `confirmed`, e dai ela aparece no mapa e na listagem. Nao ha
+               espera, e dizer isso evita a pergunta "e agora?".
+
+            2. Para onde ela vai. Sao dois mundos, e a diferenca importa:
+
+               COM demonstration_recipient  `munge_sendreport_params` desvia
+                   TODA mensagem para a caixa de demonstracao. A ocorrencia nao
+                   chega a orgao nenhum, e prometer que chega seria mentira.
+                   E o estado do piloto hoje.
+
+               SEM  o envio segue para o e-mail da categoria, pelo cron
+                    `send-reports`. Ai o nome do orgao e verdadeiro e aparece.
+
+            3. Quanto tempo. O envio e por cron, nao no ato do registro - por
+               isso "nos proximos minutos" e nao "agora".
+
+            Nao repete a promessa de e-mail: quem cuida disso e o bloco de
+            acompanhamento logo abaixo, que so aparece quando ha inscricao. %]
+        [% IF c.cobrand.demonstration_recipient %]
+        <p class="map-sent__next map-sent__next--aviso">
+            <span class="map-sent__next-icon" aria-hidden="true">
+                [% INCLUDE '_ui-icon.html' icon = 'info' %]
+            </span>
+            <span>
+                Este piloto <strong>não tem parceria com a Prefeitura</strong>, então
+                a ocorrência não é encaminhada a um setor responsável.
+                <a href="[% c.uri_for('/about') %]">Entenda o piloto</a>.
+            </span>
+        </p>
+        [% ELSIF report.bodies_str %]
+        <p class="map-sent__next">
+            <span class="map-sent__next-icon" aria-hidden="true">
+                [% INCLUDE '_ui-icon.html' icon = 'mail' %]
+            </span>
+            <span>
+                Ela será encaminhada nos próximos minutos para
+                <strong>[% report.body_names.join(' e ') | html %]</strong>.
+            </span>
+        </p>
+        [% END %]
 
         [%# ---- Acompanhamento ----
             So aparece quando ha de fato uma assinatura de atualizacoes por
@@ -187,15 +238,23 @@
             </a>
         </div>
 
-        <p class="map-sent__note">
-            <span class="map-sent__note-icon" aria-hidden="true">
-                [% INCLUDE '_ui-icon.html' icon = 'leaf' %]
-            </span>
-            <span>
-                <strong>Juntos por uma Catanduva melhor!</strong>
-                Sua participação faz a diferença.
-            </span>
-        </p>
+        [%# A nota "Juntos por uma Catanduva melhor!" saiu daqui, e a decisao foi
+            medida e nao estetica.
+
+            Esta tela tem altura fixa: o painel nao rola de proposito. O bloco
+            que diz para onde a ocorrencia vai custa 74px, e sem pagar por eles
+            o painel passava a rolar 88px - numa pagina que cabia inteira.
+
+            O que havia de mais barato para pagar era esta nota: era o SEGUNDO
+            agradecimento da mesma tela. O primeiro esta no `map-sent__lead`,
+            logo abaixo do titulo, e agora carrega tambem o fato de a ocorrencia
+            ja ser publica.
+
+            Entre dizer obrigado duas vezes e dizer uma vez a verdade sobre o
+            que acontece com a ocorrencia, a segunda ganha.
+
+            Divergencia deliberada em relacao ao estado 09 da referencia,
+            registrada em docs/ui/map/MAP_EVOLUTION_STATUS.md. %]
 
         [% TRY %][% INCLUDE 'tokens/_extras_confirm.html' %][% CATCH file %][% END %]
 

@@ -838,28 +838,60 @@ POST de verdade: a pessoa sai do `/around` e o servidor decide para onde ela vai
 Os dois terminam no mesmo template, `tokens/confirm_problem.html`. É ele que foi
 substituído.
 
-### A única alteração de core desta execução
+### O mapa, sem tocar no core
 
 Nenhuma das duas rotas monta `map` na stash — a confirmação do upstream é uma
 página de texto, sem mapa. Para a moldura da referência (painel + mapa + faixa)
-existir ali, foi acrescentado **um gancho de cobrand** nos dois pontos:
+existir ali, o **próprio template** chama o cobrand, na primeira linha:
 
-```perl
-map = c.cobrand.mapa_da_confirmacao;   # no proprio template, sem gancho no core
+```tt
+map = c.cobrand.mapa_da_confirmacao;
 ```
 
-em `Report.pm` (`sub confirmation`) e em `Report/New.pm`
-(`sub process_confirmation`). Fora do cobrand de Catanduva o gancho não existe e
-`call_hook` devolve sem fazer nada — nenhuma outra cobrand muda de comportamento.
+Durante um tempo isso era um `call_hook('confirmation_page_extra')` acrescentado
+ao `Report.pm` e ao `Report/New.pm` do upstream. Não é mais: ver
+[`PATCHES_DE_CORE.md`](../../PATCHES_DE_CORE.md) §1.1.
 
-O gancho, em `Catanduva.pm`, chama `FixMyStreet::Map::display_map` com as
+**A atribuição é obrigatória, e foi o que quase escapou.** O
+`Catalyst::View::TT` copia a stash para as variáveis do template *antes* de
+renderizar; uma chave que o método escrevesse na stash agora já não alcançaria a
+página. O sintoma seria a confirmação renderizar inteira, sem erro, e sem mapa.
+Por isso o método devolve o mapa, e por isso há teste conferindo `id="map_box"`
+nos dois caminhos.
+
+O método, em `Catanduva.pm`, chama `FixMyStreet::Map::display_map` com as
 coordenadas da ocorrência. É quase o `/report/generate_map_tags` do upstream, com
 uma diferença deliberada: **o pino não é arrastável**. Lá ele é, porque a página
 da ocorrência deixa moderador corrigir a posição; aqui a ocorrência já foi
 enviada e arrastar o pino não teria onde gravar.
 
-Se o gancho não rodar, `map.type` fica vazio e a página cai num cartão centrado,
-sem mapa, em vez de quebrar.
+Se ele não rodar, `map.type` fica vazio e a página cai num cartão centrado, sem
+mapa, em vez de quebrar.
+
+### O que a tela diz sobre o que acontece depois (fase 4.3)
+
+A tela prometia "sua ocorrência foi registrada e **será encaminhada para
+análise**". Era a única frase do site que contradizia o próprio site: a página
+"Sobre" avisa, em destaque, que o piloto não tem parceria com a Prefeitura e que
+as ocorrências não chegam a um setor responsável.
+
+No lugar dela entrou uma linha que depende de um fato do sistema:
+
+| Estado | O que a tela diz |
+|---|---|
+| `demonstration_recipient` configurado | que o piloto não tem parceria e que a ocorrência não é encaminhada, com link para a página "Sobre" |
+| sem ele | "será encaminhada nos próximos minutos para **`report.body_names`**" — o nome real, e o "minutos" porque o envio é por cron |
+
+**Divergência deliberada em relação à referência:** a nota do rodapé ("Juntos
+por uma Catanduva melhor!") **saiu**. Esta tela não rola, e a linha nova custa
+74px; sem pagar por eles o painel passava a rolar 88px numa página que cabia
+inteira. O que havia de mais barato era aquela nota — o *segundo* agradecimento
+da mesma tela. O primeiro continua no `map-sent__lead`, logo abaixo do título, e
+agora carrega também o fato de a ocorrência já ser pública.
+
+Entre dizer obrigado duas vezes e dizer uma vez a verdade sobre o que acontece
+com a ocorrência, a segunda ganha. Medido em 1440×900, 768×1024 e 390×844: o
+painel não rola em nenhum.
 
 ### Nada inventado
 
