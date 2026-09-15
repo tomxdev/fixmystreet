@@ -1680,6 +1680,11 @@ sub process_confirmation : Private {
     $c->set_session_cookie_expire(0);
 
     $c->stash->{created_report} = 'fromemail';
+
+    # Lets a cobrand add to the confirmation page. The same page is also reached
+    # without the email, so the hook is called from /report/confirmation too.
+    $c->cobrand->call_hook('confirmation_page_extra');
+
     return 1;
 }
 

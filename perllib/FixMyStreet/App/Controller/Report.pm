@@ -710,6 +710,11 @@ sub confirmation : Path('confirmation') : Args(1) {
         $c->stash->{template} = 'email_sent.html';
         $c->stash->{email_type} = 'problem';
     }
+
+    # Lets a cobrand add to the confirmation page. The same page is also reached
+    # from the link in the confirmation email, so the hook is called from
+    # /report/new/process_confirmation too.
+    $c->cobrand->call_hook('confirmation_page_extra');
 }
 
 
