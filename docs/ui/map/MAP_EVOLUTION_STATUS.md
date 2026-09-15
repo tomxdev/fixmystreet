@@ -1764,10 +1764,36 @@ screenshots/             painel-final-{1440,768,390}.png         (depois das cor
 12. O painel fica com **5px** de folga em 1440×900 depois da rodada dos
    indicadores. É pouquíssimo: qualquer bloco novo nesta tela — um quarto
    filtro, um aviso — traz a barra de rolagem de volta.
-13. No tablet e no celular os indicadores, o título do painel e a dica de como
-   começar **não aparecem**: a folha que o "Filtro" abre mostra apenas
-   `.map-panel__buscar`. É anterior a estas rodadas e vale para os três blocos.
-   O CSS dos indicadores já é adaptável e está medido em 767 e 407.
+13. ~~No tablet e no celular os indicadores, o título do painel e a dica de como
+   começar não aparecem.~~ **RESOLVIDO** — fase 5.3.
+
+   Os indicadores e a dica passaram a ser filhos do `.map-panel__buscar`, que é
+   o que vira a folha inferior; no desktop nada mudou, porque ali ele é
+   `display: contents`. Entram depois dos filtros, na ordem 4 e 5: são contexto,
+   e a folha é aberta para agir.
+
+   **Duas diferenças em relação ao que o item pedia**, as duas deliberadas:
+
+   - A frase "Clique no mapa para registrar um problema" **não** entra na folha.
+     A folha cobre o mapa: é um conselho que não se pode seguir enquanto se lê.
+     O atalho ao lado dela fica — "Não consegue usar o mapa?" leva ao
+     `skipped=1`, e quem mais precisa dele é justamente quem está num aparelho
+     pequeno. Quem diz como começar no celular é o botão flutuante do upstream.
+   - O **título** não entra na folha, e sim na árvore de acessibilidade. Uma
+     folha aberta para filtrar não é lugar de título de página. Mas `visibility:
+     hidden` também esconde do leitor de tela, e a página do mapa estava **sem
+     H1** no celular — quem navega por cabeçalhos chegava e não tinha por onde
+     começar. Agora o `.map-panel__header` é recortado (o mesmo padrão do
+     `.map-strip__title`), visível para quem lê por voz e invisível sobre o mapa.
+
+   Junto: o link que abre a folha deixou de se chamar "Filtro". Ele traz busca
+   por endereço, localização, filtros e os números da cidade — "Buscar e
+   filtrar", com `title` dizendo o resto. Renomeado no `catanduva-map.js`, e não
+   no catálogo: a chave é do upstream e vale para toda instalação; o que mudou
+   foi o conteúdo desta folha, que é nosso.
+
+   Medido em 1440×900 (nada mudou), 768×1024 e 390×844: a folha não rola, a
+   barra de ações sobe acima dela, e não há rolagem horizontal.
 
 ## Como exercitar o passo de similares
 

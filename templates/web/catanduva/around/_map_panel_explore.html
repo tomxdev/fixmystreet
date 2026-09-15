@@ -78,10 +78,17 @@
         <p class="map-geo-status js-geo-status" role="status" aria-live="polite" hidden></p>
     </div>
 
-    </div>
-
     [%# Indicadores. Os mesmos numeros da home, da mesma fonte
-        (Catanduva.pm, front_stats_data) — contagens, nao estimativas. %]
+        (Catanduva.pm, front_stats_data) — contagens, nao estimativas.
+
+        DENTRO do `.map-panel__buscar`, e nao ao lado dele. No desktop isso nao
+        muda nada: `display: contents` faz os filhos continuarem filhos do
+        painel, e a ordem visual e a mesma de sempre. No celular muda tudo — e
+        este agrupador que vira a folha inferior, e o que ficar de fora dele
+        mora no #map_sidebar, que no modo mapa-cheio e `visibility: hidden`.
+
+        Era o KNOWN_ISSUES 13: os indicadores e a dica existiam no DOM e nao
+        havia gesto que os alcancasse. %]
     [% stats = c.cobrand.front_stats_data() %]
     [%# Icone a esquerda, numero e rotulo empilhados a direita. Na vertical o
         bloco gastava 69px por indicador para dizer tres palavras; na horizontal
@@ -135,6 +142,8 @@
         <a class="map-panel__hint-skip" href="[% url_skip %]" rel="nofollow">Não consegue usar o mapa?</a>
     </p>
   [% END %]
+
+    </div>
 
 </div>
 

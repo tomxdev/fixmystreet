@@ -302,21 +302,25 @@ todo mundo, e a de 5.2 é a que a prefeitura vai usar todo dia.
 | **Custo** | Três dias |
 | **Depende de** | 4.4, se a atualização obrigatória mudar o formulário |
 
-## 5.3 · `KNOWN_ISSUES` 13 — o celular esconde metade do painel
+## 5.3 · `KNOWN_ISSUES` 13 — o celular esconde metade do painel — **CONCLUÍDA**
 
 | | |
 |---|---|
-| **Situação** | No tablet e no celular, os indicadores, o título do painel e a dica **não aparecem**: a folha que o "Filtro" abre mostra apenas a busca. É anterior às rodadas de evolução |
-| **Fazer** | Levar os três blocos para a folha inferior. O CSS deles já é adaptável e está medido em 767 e 407 |
-| **Junto** | Renomear o link "Filtro", que ficou estreito para o que a folha passou a conter (`NEXT_ACTION` 5) |
-| **Custo** | Um dia |
+| **Situação** | No tablet e no celular, os indicadores, o título do painel e a dica **não apareciam**: a folha que o "Filtro" abria mostrava apenas a busca |
+| **Feito** | Indicadores e dica passaram a ser filhos do `.map-panel__buscar` — o agrupador que vira a folha. No desktop nada muda: ali ele é `display: contents` |
+| **Dois desvios do que o item pedia** | A frase "Clique no mapa…" não entra na folha, porque a folha cobre o mapa; o atalho "Não consegue usar o mapa?" fica. E o **título** não entra na folha, e sim na árvore de acessibilidade: `visibility: hidden` escondia o H1 também do leitor de tela, e a página do mapa estava **sem H1** no celular |
+| **Junto** | O link deixou de se chamar "Filtro" — traz busca, localização, filtros e os números da cidade. Agora é "Buscar e filtrar", renomeado no `catanduva-map.js` e não no catálogo do upstream |
+| **Validado** | 1440×900 (sem mudança), 768×1024 e 390×844: a folha não rola, a barra de ações sobe acima dela, sem rolagem horizontal |
+| **Custo real** | Horas |
 
-## 5.4 · Unificar os dois botões do cartão de duplicata
+## 5.4 · Unificar os dois botões do cartão de duplicata — **AGUARDA DECISÃO**
 
 | | |
 |---|---|
 | **Situação** | "Ver mais" e "É o mesmo problema" levam à mesma ficha desde a última rodada. Dois botões com o mesmo destino, lado a lado |
-| **Fazer** | Escolher um. "Ver mais" descreve o que acontece; o verde carrega a intenção. É decisão de produto |
+| **Fazer** | Escolher um. "Ver mais" descreve o que acontece; o verde carrega a intenção |
+| **Por que não foi feito** | É decisão de produto, e **aquela linha do cartão já foi revista com quem decide** — o alinhamento dos três elementos foi refeito a pedido, considerando rótulos de status mais longos. Apagar um dos dois botões desfaria esse trabalho por conta própria |
+| **Recomendação** | Ficar com **"É o mesmo problema"**: é a pergunta que o passo faz, e o cartão inteiro já é clicável para quem só quer ver mais. O status volta a ter a linha para respirar |
 | **Custo** | Minutos, depois de decidido |
 
 **Pronto quando:** nenhuma tela do caminho do cidadão nem a de trabalho da equipe
@@ -519,16 +523,16 @@ em seguida. Mas não para depois — é a fase que impede o retrabalho.
 
 # Andamento
 
-> Atualizado em 15 de setembro de 2026, ao fim da execução das fases 0 a 3 e
+> Atualizado em 15 de setembro de 2026, ao fim da execução das fases 0 a 4 e
 > da 6.4.
 
 | Fase | Situação | Onde |
 |---|---|---|
 | **0** Parar de acumular risco | **concluída** | 7 commits, árvore limpa |
-| **1** O caminho do cidadão | **concluída** | `F1`, `F1b`, `F2` |
+| **1** O caminho do cidadão | **concluída** | `F1`, `F1b`, `F2`, `F4` |
 | **2** O destino do envio | **concluída** | `F3`, `demonstration_recipient` |
 | **3** A rede de testes | **concluída** | 3.1 a 3.5 |
-| **4** O que a pessoa pede | a fazer | `F5`, `F12`, transparência |
+| **4** O que a pessoa pede | **concluída** | `F5`, `F12`, 4.3, 4.4 |
 | **5** Telas que ficaram para trás | a fazer | `F6`, `F10`, celular |
 | **6** Vocabulário e dívida | **6.4 concluída**; o resto a fazer | textos, protocolo |
 | **7** Evolução | a fazer | contínua |
@@ -537,6 +541,10 @@ em seguida. Mas não para depois — é a fase que impede o retrabalho.
 dia: o upstream está 1574 commits à frente, e cada sincronização adiada aumenta o
 custo de decidir sobre arquivos de core. As outras — textos e protocolo — não
 mudam de preço.
+
+**A 1.4 tinha ficado para trás.** A fase 1 foi declarada concluída sem ela; a
+caixa de consentimento só entrou junto da fase 4, que é onde este registro a
+encontra.
 
 ## O que a execução encontrou, e o plano não previa
 
@@ -554,6 +562,32 @@ teste do caminho autenticado — escrito na mesma hora, e que até então não e
 **O passo "Scripts do piloto compilam", da fase 3, nunca tinha rodado.** Ele roda
 `perl -c` em tudo o que está em `bin/catanduva/`, e dois dos sete scripts são
 bash. Teria falhado no primeiro CI. Agora despacha pelo shebang.
+
+**A mesma armadilha do upstream, em dois controladores.** `moderate_text` lê
+`problem_title` e `problem_detail` de todo POST e grava o que encontrar;
+`edit_category` faz o mesmo com `category`. Um POST parcial — que só queira mudar
+o estado — grava `NULL` numa coluna `NOT NULL`, e o pedido morre com 500. Os dois
+formulários mandam os campos com os valores atuais. Custou dois erros 500 para
+descobrir, um em cada controlador.
+
+**Reusar a moderação para a correção do autor trouxe duas coisas junto.** A
+aprovação de foto (`MOD-002`) passou a acontecer na passagem do autor, o que
+esvaziaria a regra; e a página anunciava *"Moderada por um administrador"*
+depois de o autor corrigir a própria vírgula. As duas corrigidas. A segunda
+custou a única cópia de template inteiro do piloto — `report/_main.html`, 137
+linhas — porque aquela frase é inline e nada nela é substituível por cobrand.
+
+**A primeira correção da aprovação de foto estava invertida.** Perguntava "é
+equipe?" e saía quando a resposta era não — o que desligava a aprovação em todo
+caminho sem requisição autenticada, script incluído. O teste que já existia pegou
+na primeira execução. A exceção é o autor, e só ele.
+
+**A 4.4 não tinha como ser feita sem core.** A ação de inspeção valida cinco
+coisas e nenhuma é extensível: `report_inspect_update_extra`, o único gancho que
+existe ali, roda antes da decisão e não a alcança, porque `$valid` é léxica. O
+gancho novo tem seis linhas e está registrado em
+[`PATCHES_DE_CORE.md`](PATCHES_DE_CORE.md) §2.3 — a primeira alteração de core
+acrescentada **depois** de o inventário existir, e o `conferir-core` a exigiu.
 
 **226 arquivos com falso positivo no git.** Quase todo o repositório aparecia
 modificado, mas eram mudanças só do bit de execução, efeito de acessar o

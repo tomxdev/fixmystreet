@@ -1908,6 +1908,20 @@
             return;
         }
 
+        // O rótulo, de passagem.
+        //
+        // O upstream injeta este link com o texto "Filtro", e enquanto a folha
+        // trazia só os filtros o nome estava certo. Ela traz busca por
+        // endereço, "usar minha localização", os filtros e os números da
+        // cidade — e "Filtro" passou a prometer menos do que há atrás dele.
+        //
+        // Renomear aqui, e não no catálogo de tradução: a chave é do upstream e
+        // vale para toda instalação; o que mudou foi o conteúdo desta folha, que
+        // é nosso. O `title` acompanha porque o rótulo é curto por necessidade
+        // de espaço na barra.
+        gatilho.textContent = "Buscar e filtrar";
+        gatilho.setAttribute("title", "Buscar endereço, usar sua localização e filtrar o mapa");
+
         $(gatilho).on("click", function () {
             window.setTimeout(function () {
                 var $folha = $(".map-panel__buscar");

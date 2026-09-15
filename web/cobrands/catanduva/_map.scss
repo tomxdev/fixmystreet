@@ -1564,9 +1564,41 @@ html.mobile {
             overflow: visible;
         }
 
+        // Os indicadores e a dica, que ate aqui nao existiam no celular.
+        //
+        // Eles moram no painel, e o painel e `visibility: hidden` no modo
+        // mapa-cheio. Agora sao filhos do `.map-panel__buscar` — a mesma folha
+        // — e entram depois dos filtros: sao contexto, e a folha e aberta para
+        // agir. KNOWN_ISSUES 13.
+        .map-panel__stats {
+            order: 4;
+            margin-top: 0;
+            padding-top: var(--space-3);
+            border-top: 1px solid var(--c-border);
+        }
+
+        .map-panel__hint {
+            order: 5;
+            margin-top: 0;
+        }
+
         label {
             color: var(--c-text);
         }
+    }
+
+    // "Clique no mapa para registrar um problema" nao cabe dentro da folha: a
+    // folha cobre o mapa. O conselho e bom e a hora e errada.
+    //
+    // O atalho ao lado dele fica: "Nao consegue usar o mapa?" leva ao
+    // `skipped=1`, que e o caminho de quem nao consegue operar um mapa -
+    // exatamente quem esta lendo isto de um aparelho pequeno. Ele continua
+    // alcancavel pelo dedo, pelo teclado e por leitor de tela.
+    //
+    // Quem diz como comecar no celular e o botao flutuante do upstream,
+    // `.map-mobile-report-button`, que ja esta sobre o mapa.
+    #mapForm.mobile-filters-active .map-panel__hint-text {
+        display: none;
     }
 
     // -- Folha de filtros ----------------------------------------------------
@@ -1617,6 +1649,32 @@ html.only-map {
 
     .mobile-filters-active .map-panel__buscar {
         visibility: visible;
+    }
+
+    // O titulo da pagina volta para a arvore de acessibilidade.
+    //
+    // `visibility: hidden` nao esconde so dos olhos: esconde tambem do leitor
+    // de tela. Com o painel inteiro escondido, a pagina do mapa ficava **sem
+    // H1** no celular - quem navega por cabecalhos chegava e nao tinha por onde
+    // comecar.
+    //
+    // Devolver `visibility` e recortar o bloco e o mesmo padrao que o
+    // `.map-strip__title` usa algumas linhas acima, e pelo mesmo motivo: sobre
+    // o mapa, cada linha custa contexto, mas sumir do leitor de tela custa mais.
+    //
+    // Nao entra na folha inferior de proposito: uma folha aberta para filtrar
+    // nao e lugar de titulo de pagina, e quem a abriu ja sabe onde esta.
+    .map-panel__header {
+        visibility: visible;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
     }
 }
 
