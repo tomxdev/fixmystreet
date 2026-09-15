@@ -839,6 +839,58 @@ subtest 'confirming a report from the email link does not blow up' => sub {
         $mech->content_contains('Ocorrência enviada', 'a pagina de agradecimento renderiza');
         $mech->content_contains('#' . $ocorrencia->id, 'com o protocolo');
         $mech->content_lacks('unblessed reference', 'e sem o erro de data crua');
+
+        # O mapa desta tela nao vem de nenhuma das duas rotas que chegam a ela:
+        # quem o monta e `mapa_da_confirmacao`, chamado do proprio template. Se
+        # alguem mover essa chamada, ou esquecer o `map =` na atribuicao, a
+        # pagina continua renderizando - so que sem mapa, e em silencio.
+        $mech->content_contains('id="map_box"', 'e com o mapa montado');
+    };
+};
+
+subtest 'confirming a report while signed in does not blow up either' => sub {
+    # O outro caminho que chega a mesma tela de agradecimento: quem ja tem
+    # sessao aberta nao passa pelo e-mail - o POST redireciona direto para
+    # /report/confirmation/<id>, e `confirmation` de Report.pm escolhe
+    # tokens/confirm_problem.html.
+    #
+    # Existe pelo mesmo motivo do teste acima, e por mais um: o mapa desta tela
+    # nao vem de nenhuma das duas rotas. Quem o monta e o
+    # `confirmation_page_extra` do cobrand, chamado do proprio template. Se
+    # alguem mover essa chamada de lugar, ou a colocar depois da primeira
+    # leitura de `map`, a pagina perde o mapa em silencio. Aqui isso falha.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        my $usuario = $mech->create_user_ok('com.conta@example.org', name => 'Com Conta');
+
+        my ($ocorrencia) = $mech->create_problems_for_body(1, $body->id,
+            'Buraco registrado com sessao aberta', {
+                user => $usuario, cobrand => 'catanduva',
+                latitude => -21.1383, longitude => -48.9728,
+            });
+
+        # `confirmation` so entrega a tela de agradecimento se a ocorrencia ja
+        # estiver confirmada; caso contrario manda para "verifique seu e-mail".
+        $ocorrencia->update({ state => 'confirmed', confirmed => \'current_timestamp' });
+        $ocorrencia->discard_changes;
+
+        $mech->log_in_ok($usuario->email);
+        $mech->get_ok('/report/confirmation/' . $ocorrencia->id
+            . '?token=' . $ocorrencia->confirmation_token);
+
+        $mech->content_contains('Ocorrência enviada', 'a pagina de agradecimento renderiza');
+        $mech->content_contains('#' . $ocorrencia->id, 'com o protocolo');
+        $mech->content_lacks('unblessed reference', 'e sem o erro de data crua');
+
+        # O mapa. `map_box` so existe quando `map` chegou a stash, e so
+        # `confirmation_page_extra` o coloca la.
+        $mech->content_contains('id="map_box"', 'e com o mapa montado');
+
+        $mech->log_out_ok;
     };
 };
 

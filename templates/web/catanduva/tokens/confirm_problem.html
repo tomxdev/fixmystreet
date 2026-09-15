@@ -14,9 +14,9 @@
                       fromemail
 
     O mapa nao vem de graca nessas rotas — nenhuma das duas monta `map`. Quem
-    monta e o gancho confirmation_page_extra do cobrand, chamado dos dois lados.
-    Se um dia ele nao rodar, `map.type` fica vazio e esta pagina cai num cartao
-    centrado, sem mapa, em vez de quebrar.
+    monta e o `mapa_da_confirmacao` do cobrand, chamado logo abaixo, deste
+    proprio arquivo. Se um dia ele nao rodar, `map.type` fica vazio e esta
+    pagina cai num cartao centrado, sem mapa, em vez de quebrar.
 
     O que a referencia mostra e nao esta aqui, com o motivo:
 
@@ -30,6 +30,23 @@
                       contato, e o id da ocorrencia. E ele que aparece.
 %]
 [%
+    # O mapa e montado aqui, e nao por um gancho no controlador.
+    #
+    # Nenhuma das duas rotas que chegam a esta pagina monta `map`, e a versao
+    # anterior resolvia isso com um `call_hook('confirmation_page_extra')`
+    # acrescentado ao Report.pm e ao Report/New.pm do upstream - duas alteracoes
+    # no core para uma necessidade que e so nossa.
+    #
+    # `map =` e obrigatorio, nao estilo. Catalyst::View::TT copia a stash para
+    # as variaveis do template antes de renderizar; uma chave que o metodo
+    # escreva na stash agora ja nao alcanca esta pagina. Por isso o metodo
+    # devolve o mapa e ele e atribuido aqui.
+    #
+    # A ordem tambem importa: o metodo recarrega a ocorrencia do banco (ver F1),
+    # e isso precisa acontecer antes de o template formatar qualquer data dela.
+    # Por isso a chamada esta antes de qualquer leitura de `map` ou de `report`.
+    map = c.cobrand.mapa_da_confirmacao;
+
     PROCESS "maps/${map.type}.html" IF map.type;
 
     SET bodyclass = 'mappage mappage--catanduva mappage--sent' IF map.type;
@@ -90,7 +107,7 @@
                     afirmou por engano. A referencia crua que fazia prettify_dt
                     morrer vinha do literal SQL que `process_confirmation` grava
                     em `confirmed`; quem a resolve e o `discard_changes` do
-                    `confirmation_page_extra`, no cobrand.
+                    `mapa_da_confirmacao`, no cobrand.
 
                     O IF fica porque continua sendo verdade que a ocorrencia
                     pode nao ter data de confirmacao - e ai a de criacao e a

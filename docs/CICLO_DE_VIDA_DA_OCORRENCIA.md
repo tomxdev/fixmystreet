@@ -25,7 +25,7 @@
 
 | # | Achado | Gravidade | Onde |
 |---|---|---|---|
-| F1 | Confirmar a ocorrência pelo link do e-mail devolve **erro 500** | ~~Crítica~~ **RESOLVIDO** | `Catanduva.pm`, `confirmation_page_extra` |
+| F1 | Confirmar a ocorrência pelo link do e-mail devolve **erro 500** | ~~Crítica~~ **RESOLVIDO** | `Catanduva.pm`, `mapa_da_confirmacao` |
 | F2 | O e-mail de confirmação chega **inteiro em inglês** | ~~Crítica~~ **RESOLVIDO** | `templates/email/catanduva/` |
 | F3 | Toda ocorrência é enviada a **dois órgãos duplicados** | ~~Alta~~ **RESOLVIDO** | dado; coberto por `checar-configuracao` |
 | F4 | Quem registra sem conta é **inscrito em alertas sem pedir** | Alta | `add_alert` marcado por padrão |
@@ -147,11 +147,11 @@ possível: clicou no link do e-mail e viu um erro. Não há como saber se a
 ocorrência existe.
 
 **Correção (uma linha, no cobrand, sem tocar no core):** recarregar o objeto
-antes de renderizar, num `confirmation_page_extra` — o gancho já existe e já é
+antes de renderizar, num `mapa_da_confirmacao` — o método já existe e já é
 chamado nesse caminho:
 
 ```perl
-sub confirmation_page_extra {
+sub mapa_da_confirmacao {
     my $self = shift;
     my $c = $self->{c};
     # `confirmed` acabou de ser gravado como literal SQL; sem isto o objeto em
@@ -451,7 +451,7 @@ objeto em memória fica com a referência escalar e `prettify_dt` morre ao chama
 `strftime` nela (`Utils.pm:173`).
 
 **Correção:** `$problem->discard_changes` antes de renderizar, no gancho
-`confirmation_page_extra` que o cobrand já tem. Uma linha, sem tocar no core.
+`mapa_da_confirmacao` que o cobrand já tem. Uma linha, sem tocar no core.
 
 **Nota:** o template já traz um comentário sobre esse erro, com um diagnóstico
 que culpava o operador `OR`. Estava errado, e é por isso que a correção anterior

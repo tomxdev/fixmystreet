@@ -911,9 +911,9 @@ sub street_imagery_provider {
     return 'kartaview';
 }
 
-=head2 confirmation_page_extra
+=head2 mapa_da_confirmacao
 
-Monta o mapa da pagina de confirmacao de ocorrencia.
+Monta, e devolve, o mapa da pagina de confirmacao de ocorrencia.
 
 O estado 09 do plano de mapa e a confirmacao do envio, e ela e a unica tela do
 fluxo que nao nasce dentro da pagina de mapa: o envio e um POST de verdade e a
@@ -927,9 +927,15 @@ de outro lugar.
 Vale para os dois caminhos que chegam a confirmacao: quem ja estava autenticado
 (C</report/confirmation>) e quem clicou no link do e-mail (C</P/...>).
 
+Quem chama e o proprio template, C<tokens/confirm_problem.html>, e nao um gancho
+no controlador. Nenhuma das duas rotas monta o mapa, e a versao anterior
+resolvia isso com um C<call_hook> acrescentado ao C<Report.pm> e ao
+C<Report/New.pm> do upstream - duas alteracoes no core para uma necessidade que
+e so nossa.
+
 =cut
 
-sub confirmation_page_extra {
+sub mapa_da_confirmacao {
     my $self = shift;
     my $c = $self->{c} or return;
 
@@ -971,6 +977,22 @@ sub confirmation_page_extra {
         no_compass => 1,
         pins       => [ $problem->pin_data( 'report', type => 'big' ) ],
     );
+
+    # Devolvido, e nao apenas gravado na stash.
+    #
+    # Catalyst::View::TT copia a stash para as variaveis do template ANTES de
+    # renderizar - `%{ $c->stash() }`, em Catalyst/View/TT.pm. Uma chave nova
+    # escrita na stash durante a renderizacao, que e quando este metodo roda,
+    # nao chega ao template.
+    #
+    # O objeto da ocorrencia chega: a copia e rasa, e o `discard_changes` acima
+    # age na mesma referencia que o template ja tem. `map` nao, porque e chave
+    # que ainda nao existia quando a copia foi feita.
+    #
+    # Por isso o template faz `map = c.cobrand.mapa_da_confirmacao` em vez de
+    # so chamar o metodo. Medido: sem o `return`, a pagina renderiza inteira e
+    # sem erro - so sem mapa. O teste que pega isso confere `id="map_box"`.
+    return $c->stash->{map};
 }
 
 sub munge_sendreport_params {

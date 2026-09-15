@@ -1,6 +1,6 @@
 var fixmystreet = fixmystreet || {};
 
-fixmystreet.geolocate = function(element, success_callback, error_callback) {
+fixmystreet.geolocate = function(element, success_callback) {
     element.addEventListener('click', function(e) {
         var link = this;
         e.preventDefault();
@@ -10,13 +10,6 @@ fixmystreet.geolocate = function(element, success_callback, error_callback) {
             success_callback(pos);
         }, function(err) {
             link.className = link.className.replace(/loading/, ' ');
-            // A caller that wants to render the failure itself passes an
-            // error_callback; without one the link keeps saying what went
-            // wrong, which is the original behaviour.
-            if (error_callback) {
-                error_callback(err);
-                return;
-            }
             if (err.code === 1) { // User said no
                 link.innerHTML = translation_strings.geolocation_declined;
             } else if (err.code === 2) { // No position

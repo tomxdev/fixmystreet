@@ -175,9 +175,13 @@ A confirmação do envio, nos dois caminhos que chegam nela (quem já está
 autenticado, e quem clica no link do e-mail). Migrada na evolução de mapa, com a
 mesma moldura de painel + mapa + faixa — estado 09 da referência.
 
-É a **única** página do piloto cuja migração exigiu tocar no core: duas chamadas
-de `call_hook('confirmation_page_extra')`, porque nenhuma das duas rotas monta o
-mapa na stash. Detalhe e justificativa em `docs/ui/map/MAP_EVOLUTION_STATUS.md`.
+Foi a única página do piloto cuja migração chegou a exigir core — duas chamadas de
+`call_hook('confirmation_page_extra')`, porque nenhuma das duas rotas monta o mapa.
+**Não exige mais:** o template chama `c.cobrand.mapa_da_confirmacao` e atribui o
+retorno a `map`. Atribuir é obrigatório, não estilo — o `Catalyst::View::TT` copia
+a stash antes de renderizar, e uma chave gravada nela durante a renderização não
+chega à página. Ver [`PATCHES_DE_CORE.md`](../PATCHES_DE_CORE.md) §1.1 e
+`docs/ui/map/MAP_EVOLUTION_STATUS.md`.
 
 Evidência: `docs/ui/map/screenshots/final/map-s09-final-{1440,768,390}.png`.
 

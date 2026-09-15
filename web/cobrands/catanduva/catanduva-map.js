@@ -1773,13 +1773,10 @@
             return;
         }
 
-        // Só o helper do upstream é exigido aqui. `fixmystreet.map` não existe
-        // ainda neste ponto — quem o cria é outro `$(function(){})`, e a ordem
-        // entre eles não é nossa para escolher. Ele é conferido na hora do
-        // clique, que é quando faz falta.
-        if (!fixmystreet.geolocate) {
-            return;
-        }
+        // Nada do upstream é exigido aqui. `fixmystreet.map` não existe ainda
+        // neste ponto — quem o cria é outro `$(function(){})`, e a ordem entre
+        // eles não é nossa para escolher. Ele é conferido na hora do clique,
+        // que é quando faz falta.
 
         // O `geolocation.js` já pode ter ligado o ouvinte dele neste elemento —
         // o que navega. Clonar o elemento descarta o ouvinte sem tocar no
@@ -1810,18 +1807,43 @@
             estadoGeo("solicitando");
         });
 
-        fixmystreet.geolocate(botao, function (pos) {
-            liberar();
-            estadoGeo("encontrada");
-            usarPonto(pos.coords.latitude, pos.coords.longitude);
-        }, function (err) {
-            liberar();
-            // Nada é apagado: pino, coordenadas e campo de busca ficam como
-            // estavam, e a busca manual continua ali em cima.
-            var codigo = err && err.code;
-            estadoGeo(codigo === 1 ? "negada" :
-                      codigo === 2 ? "indisponivel" :
-                      codigo === 3 ? "timeout" : "erro");
+        // O pedido ao navegador, feito aqui e não por `fixmystreet.geolocate`.
+        //
+        // O helper do upstream serviria, com uma ressalva: quando a
+        // geolocalização falha ele escreve a mensagem de erro por cima do
+        // rótulo do botão — `link.innerHTML = translation_strings...` — e não
+        // o devolve nunca mais. O botão fica dizendo "Não foi possível" para
+        // sempre, e a pessoa perde o caminho de tentar de novo.
+        //
+        // A versão anterior contornava isso com um terceiro argumento
+        // acrescentado ao `web/js/geolocation.js` do upstream. As dez linhas
+        // abaixo fazem o mesmo sem tocar em arquivo do core: são as mesmas que
+        // o helper faz, menos o trecho que destrói o rótulo. Os parâmetros são
+        // deliberadamente iguais aos dele.
+        //
+        // O botão já é um clone (acima), então o ouvinte do upstream — o que
+        // navega para /around?geolocate=1 — não está mais neste elemento e não
+        // há dois pedidos.
+        botao.addEventListener("click", function (e) {
+            e.preventDefault();
+            botao.className += " loading";
+
+            navigator.geolocation.getCurrentPosition(function (pos) {
+                liberar();
+                estadoGeo("encontrada");
+                usarPonto(pos.coords.latitude, pos.coords.longitude);
+            }, function (err) {
+                liberar();
+                // Nada é apagado: pino, coordenadas e campo de busca ficam
+                // como estavam, e a busca manual continua ali em cima.
+                var codigo = err && err.code;
+                estadoGeo(codigo === 1 ? "negada" :
+                          codigo === 2 ? "indisponivel" :
+                          codigo === 3 ? "timeout" : "erro");
+            }, {
+                enableHighAccuracy: true,
+                timeout: 10000
+            });
         });
     }
 

@@ -86,7 +86,7 @@ partir do script.
 |---|---|
 | **Sintoma** | Registro sem sessão → e-mail → clique no link → **HTTP 500**. A ocorrência é confirmada no banco; a pessoa vê uma tela de erro |
 | **Causa** | `Report/New.pm:1585` grava `confirmed => \'current_timestamp'`. O objeto em memória fica com a referência escalar, e `prettify_dt` morre ao chamar `strftime` nela (`Utils.pm:173`) |
-| **Fazer** | `$c->stash->{report}->discard_changes` no `confirmation_page_extra` do cobrand, **antes** de renderizar. Uma linha, sem tocar no core |
+| **Fazer** | `$c->stash->{report}->discard_changes` no `mapa_da_confirmacao` do cobrand, **antes** de renderizar. Uma linha, sem tocar no core |
 | **Não fazer** | Defender-se só no template. Trata o sintoma e deixa a próxima página de token com o mesmo problema |
 | **Validar** | Registrar sem sessão, confirmar pelo link, ver a página de agradecimento com o protocolo e a data. E conferir no banco que a ocorrência está `confirmed` |
 | **Custo** | Horas |
@@ -360,21 +360,29 @@ interface passa. E a dívida decidida agora não vira surpresa depois.
 | **Fazer** | Incremental, priorizando o que a demonstração vai mostrar. A varredura de 3.3 diz onde dói |
 | **Custo** | Contínuo |
 
-## 6.4 · As três alterações de core pendentes
+## 6.4 · As alterações de core — **CONCLUÍDA**
 
-`NEXT_ACTION` item 4. **Decisão, não código** — o código existe e funciona:
+`NEXT_ACTION` item 4. Era para ser só uma decisão. Ao abrir o diff contra o ponto
+em que o fork saiu do upstream apareceram **17 arquivos** fora do cobrand, e não
+as três alterações que o item registrava.
 
-| Alteração | O que faz | Se for revertida |
-|---|---|---|
-| `confirmation_page_extra` em `Report.pm` | gancho para o cobrand acrescentar à página de confirmação | a confirmação sai sem mapa |
-| o mesmo em `Report/New.pm` | idem, no caminho do token | idem |
-| terceiro argumento de `fixmystreet.geolocate` | preserva o conteúdo do botão em caso de falha | a falha de geolocalização destrói o rótulo do botão |
+**Decisão tomada:** opção **(a)**, manter como patch local documentado — depois de
+executar a opção **(c)** em tudo o que tinha saída.
 
-**Fazer:** decidir entre (a) manter como patch local documentado, (b) propor ao
-upstream, ou (c) reescrever sem tocar no core. **A 1.1 depende do primeiro
-gancho** — se ele for revertido, a correção do `F1` muda de lugar.
+| | |
+|---|---|
+| **Inventário** | [`PATCHES_DE_CORE.md`](PATCHES_DE_CORE.md) — cada arquivo, por que existe, e o que fazer com ele |
+| **Eliminados** | `Report.pm` e `Report/New.pm` (o gancho `confirmation_page_extra`) e `web/js/geolocation.js` (o terceiro argumento). Os três voltaram a ser idênticos ao upstream |
+| **A propor** | quatro PRs independentes: o `Gaze` desligável, as três guardas de `allow_photo_display`, o gancho `report_moderate_after`, e a hora fixa do `claims.t` |
+| **Ficam** | o `MOD-005` e a exclusão de dados pela própria pessoa. Os dois precisam de coisa que cobrand não substitui: uma ação de controller e uma rota nova |
+| **Guarda** | `bin/catanduva/conferir-core`, no `CI BR`. Falha se um arquivo de core mudar sem uma linha no inventário |
 
-**Custo:** a decisão, horas. A opção (b), semanas de ida e volta com o upstream.
+**O que mudou de lugar:** a correção do `F1` não depende mais de gancho no core.
+O template chama `c.cobrand.mapa_da_confirmacao` e **atribui o retorno** — o
+`Catalyst::View::TT` copia a stash antes de renderizar, então uma chave gravada
+na stash durante a renderização não chegaria à página. O sintoma seria a
+confirmação renderizar inteira e sem mapa; `t/cobrand/catanduva.t` confere
+`id="map_box"` nos dois caminhos para que não seja silencioso.
 
 ## 6.5 · `KNOWN_ISSUES` do mapa que continuam abertos
 

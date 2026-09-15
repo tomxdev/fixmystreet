@@ -845,7 +845,7 @@ página de texto, sem mapa. Para a moldura da referência (painel + mapa + faixa
 existir ali, foi acrescentado **um gancho de cobrand** nos dois pontos:
 
 ```perl
-$c->cobrand->call_hook('confirmation_page_extra');
+map = c.cobrand.mapa_da_confirmacao;   # no proprio template, sem gancho no core
 ```
 
 em `Report.pm` (`sub confirmation`) e em `Report/New.pm`
@@ -1376,7 +1376,7 @@ web/cobrands/catanduva/_map.scss                            novo — painel, fai
 web/cobrands/catanduva/catanduva-map.js                     novo — contador, endereço, similares, resumo, confirmação
 web/cobrands/catanduva/base.scss                            + @import "./_map"
 web/cobrands/catanduva/layout.scss                          + geometria de mapa ≥768px (mapa, painel, faixa, confirmação)
-perllib/FixMyStreet/Cobrand/Catanduva.pm                    + confirmation_page_extra (mapa da confirmação),
+perllib/FixMyStreet/Cobrand/Catanduva.pm                    + mapa_da_confirmacao (mapa da confirmação),
                                                             category_icon (ícone por categoria),
                                                             display_days_ago_threshold (dias em vez de data),
                                                             reverse_geocode_pin + short_address (endereço no cartão)
@@ -1387,8 +1387,8 @@ templates/web/catanduva/front/_list-entry.html              endereco curto tambe
 templates/web/catanduva/front/stats.html                    "1 cidadao", nao "1 cidadaos"
 templates/web/catanduva/around/index.html                   novo — busca sem ponto; + geolocation.js e catanduva-map.js
 templates/web/catanduva/around/_error_multiple.html         novo — opcoes de busca ambigua como cartoes
-perllib/FixMyStreet/App/Controller/Report.pm                + call_hook('confirmation_page_extra')
-perllib/FixMyStreet/App/Controller/Report/New.pm            + call_hook('confirmation_page_extra')
+perllib/FixMyStreet/App/Controller/Report.pm                (revertido — ver docs/PATCHES_DE_CORE.md §1.1)
+perllib/FixMyStreet/App/Controller/Report/New.pm            (revertido — ver docs/PATCHES_DE_CORE.md §1.1)
 web/js/geolocation.js                                       + terceiro argumento opcional error_callback
 docs/ui/map/MAP_COMPONENT_MAPPING.md                        novo
 docs/ui/map/MAP_EVOLUTION_STATUS.md                         este arquivo
@@ -3820,12 +3820,12 @@ atendido e medido. O que fica para quem revisar:
    foi criado por elas.
 3. Decidir o que fazer com os itens 6 e 7 de `KNOWN_ISSUES`, que são defeitos de
    conteúdo do upstream e não da composição.
-4. Decidir sobre as três alterações de core (ver FILES_CHANGED): o gancho
-   `confirmation_page_extra` em `Report.pm` e `Report/New.pm`, e o terceiro
-   argumento de `fixmystreet.geolocate`. Sem o gancho, a confirmação sai sem
-   mapa — o template já cai nesse caminho quando `map.type` está vazio. Sem o
-   terceiro argumento, a falha de geolocalização volta a destruir o conteúdo do
-   botão.
+4. ~~Decidir sobre as três alterações de core~~ — **feito**. As três foram
+   eliminadas: o mapa da confirmação é montado pelo próprio template, com
+   `map = c.cobrand.mapa_da_confirmacao`, e a geolocalização chama o navegador
+   direto do `catanduva-map.js`. Os três arquivos voltaram a ser idênticos ao
+   upstream. O inventário do que ainda toca no core, com a decisão sobre cada
+   item, está em [`PATCHES_DE_CORE.md`](../../PATCHES_DE_CORE.md).
 5. A folha inferior do celular agora traz busca, localização e filtros, e o link
    que a abre continua se chamando "Filtro" — o rótulo ficou estreito para o que
    ela passou a conter.
