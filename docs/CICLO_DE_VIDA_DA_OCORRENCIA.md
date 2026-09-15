@@ -25,9 +25,9 @@
 
 | # | Achado | Gravidade | Onde |
 |---|---|---|---|
-| F1 | Confirmar a ocorrência pelo link do e-mail devolve **erro 500** | **Crítica** | `Report/New.pm:1585` + `tokens/confirm_problem.html` |
-| F2 | O e-mail de confirmação chega **inteiro em inglês** | **Crítica** | catálogo/templates de e-mail |
-| F3 | Toda ocorrência é enviada a **dois órgãos duplicados** | **Alta** | tabela `body`, ids 1 e 2 |
+| F1 | Confirmar a ocorrência pelo link do e-mail devolve **erro 500** | ~~Crítica~~ **RESOLVIDO** | `Catanduva.pm`, `confirmation_page_extra` |
+| F2 | O e-mail de confirmação chega **inteiro em inglês** | ~~Crítica~~ **RESOLVIDO** | `templates/email/catanduva/` |
+| F3 | Toda ocorrência é enviada a **dois órgãos duplicados** | ~~Alta~~ **RESOLVIDO** | dado; coberto por `checar-configuracao` |
 | F4 | Quem registra sem conta é **inscrito em alertas sem pedir** | Alta | `add_alert` marcado por padrão |
 | F5 | O autor **não pode editar nem cancelar** a própria ocorrência | Alta | ausência de rota |
 | F6 | O passo "Nos conte sobre você" não passou pela evolução visual e tem **dois campos "Seu e-mail"** | Média | `report/new/fill_in_details.html` |

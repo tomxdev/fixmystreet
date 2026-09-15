@@ -506,6 +506,56 @@ em seguida. Mas não para depois — é a fase que impede o retrabalho.
 
 ---
 
+---
+
+# Andamento
+
+> Atualizado em 15 de setembro de 2026, ao fim da execução das fases 0 a 3.
+
+| Fase | Situação | Onde |
+|---|---|---|
+| **0** Parar de acumular risco | **concluída** | 7 commits, árvore limpa |
+| **1** O caminho do cidadão | **concluída** | `F1`, `F1b`, `F2` |
+| **2** O destino do envio | **concluída** | `F3`, `demonstration_recipient` |
+| **3** A rede de testes | **concluída** | 3.1 a 3.5 |
+| **4** O que a pessoa pede | a fazer | `F5`, `F12`, transparência |
+| **5** Telas que ficaram para trás | a fazer | `F6`, `F10`, celular |
+| **6** Vocabulário e dívida | a fazer | textos, protocolo, decisões de core |
+| **7** Evolução | a fazer | contínua |
+
+## O que a execução encontrou, e o plano não previa
+
+**226 arquivos com falso positivo no git.** Quase todo o repositório aparecia
+modificado, mas eram mudanças só do bit de execução, efeito de acessar o
+repositório pelo Windows. Commitar aquilo teria tirado o bit de execução de todo
+o `bin/`. `core.fileMode false` neutralizou, e só então o trabalho real ficou
+visível: 17 modificados e 53 novos.
+
+**Uma sobra da própria correção do `F3`.** Marcar o órgão duplicado como
+`deleted` não aposentou os contatos dele, e as categorias continuaram contando
+como "em mais de um órgão". Quem apontou foi o `checar-configuracao` recém-escrito,
+na primeira vez que rodou — o que é a melhor defesa possível da fase 3.
+
+**Sessão órfã derruba a aplicação com 500.** Depois de `dados-exemplo --limpar`,
+um navegador com sessão aberta apontando para um usuário que não existe mais
+recebe `Store claimed to have a restorable user, but restoration failed`. Em
+produção isso está protegido no caminho que importa — `/my/erase` encerra as
+outras sessões antes de anonimizar a conta —, mas continua valendo para remoção
+feita direto no banco. Não é do piloto; é comportamento do upstream, e fica
+registrado aqui porque atrapalha o desenvolvimento.
+
+## O que ficou provado, e não apenas escrito
+
+Três correções foram verificadas **removendo-as** e vendo o teste falhar:
+
+- `F1`: sem o `discard_changes`, o teste falha com o `strftime` na referência
+  crua — o mesmo erro do relato original.
+- A varredura de idioma: com "Catanduva" na lista de frases proibidas, as quatro
+  páginas falham, o que prova que ela lê o conteúdo de verdade.
+- `checar-configuracao`: sai com 1 com dois órgãos ativos e 0 com um.
+
+Um teste que nunca falhou não protege nada.
+
 ## Atualizado em
 
 15 de setembro de 2026
