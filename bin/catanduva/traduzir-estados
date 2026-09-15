@@ -1,0 +1,98 @@
+#!/usr/bin/env perl
+#
+# Traduz para pt-BR os nomes dos estados de uma ocorrência.
+#
+# Por que isto é um script de dados e não código: o FixMyStreet guarda o nome de
+# cada estado na tabela `state` e as traduções na tabela `translation`, lidas por
+# FixMyStreet::DB::Result::State::msgstr. É o mecanismo do próprio sistema, e é
+# administrável pela área de administração — traduzir por aqui não cria um
+# segundo vocabulário paralelo ao do resto da aplicação.
+#
+# Sem isto, toda tela que mostra o estado de uma ocorrência — a home, a listagem,
+# a página da ocorrência e o passo "Já foi relatado?" — escreve "Open",
+# "Investigating", "Action scheduled" em inglês, no meio de uma interface em
+# português. Era o UI-021.
+#
+# Os dois estados fixos (aberta e fechada) não estão na tabela `state`: eles têm
+# ids negativos e vêm do próprio código. A tabela `translation` os aceita pelo
+# mesmo par (tbl, object_id).
+#
+# É idempotente: rodar de novo apenas reescreve as mesmas linhas.
+
+use strict;
+use warnings;
+use v5.14;
+use utf8;
+binmode STDOUT, ":encoding(UTF-8)";
+
+BEGIN {
+    use File::Basename qw(dirname);
+    use File::Spec;
+    my $d = dirname(File::Spec->rel2abs($0));
+    require "$d/../../setenv.pl";
+}
+
+use FixMyStreet::DB;
+
+my $LANG = 'pt-br';
+
+# O texto que cada estado passa a mostrar. À esquerda, o rótulo interno, que
+# nunca muda — é ele que o banco, as regras e a API usam.
+my %TRADUCAO = (
+    # Os dois fixos, por id negativo.
+    -1 => 'Aberta',
+    -2 => 'Fechada',
+);
+
+my %POR_ROTULO = (
+    'investigating'     => 'Em análise',
+    'in progress'       => 'Em andamento',
+    'planned'           => 'Planejada',
+    'action scheduled'  => 'Ação agendada',
+    'unable to fix'     => 'Sem solução possível',
+    'not responsible'   => 'Fora da competência',
+    'duplicate'         => 'Duplicada',
+    'internal referral' => 'Encaminhada internamente',
+    'cancelled'         => 'Cancelada',
+    'fixed'             => 'Resolvida',
+);
+
+my $db = FixMyStreet::DB->schema;
+my $estados = $db->resultset('State');
+
+for my $estado ($estados->all) {
+    my $texto = $POR_ROTULO{ $estado->label };
+    unless ($texto) {
+        say sprintf('  ignorado: %s (sem tradução definida)', $estado->label);
+        next;
+    }
+    $TRADUCAO{ $estado->id } = $texto;
+}
+
+my $traducoes = $db->resultset('Translation');
+my $n = 0;
+
+for my $id (sort { $a <=> $b } keys %TRADUCAO) {
+    my $texto = $TRADUCAO{$id};
+    $traducoes->update_or_create(
+        {
+            tbl       => 'state',
+            object_id => $id,
+            col       => 'name',
+            lang      => $LANG,
+            msgstr    => $texto,
+        },
+        { key => 'translation_tbl_object_id_col_lang_key' },
+    );
+    say sprintf('  state %-4s -> %s', $id, $texto);
+    $n++;
+}
+
+say sprintf('%d estados traduzidos para %s.', $n, $LANG);
+
+# Os estados ficam em cache no memcached porque mudam raramente — e quem os
+# muda, normalmente, é a administração, que limpa o cache sozinha. Escrevendo
+# direto no banco, a limpeza é nossa; sem ela a aplicação continua servindo os
+# nomes antigos até o cache expirar.
+$estados->clear;
+say 'Cache de estados limpo.';

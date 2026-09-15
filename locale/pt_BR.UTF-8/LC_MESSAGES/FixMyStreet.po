@@ -52,7 +52,7 @@ msgstr "%d edições por %s"
 
 #: templates/web/base/pagination.html:7
 msgid "%d to %d of %d"
-msgstr "%d de %d de %d"
+msgstr "%d a %d de %d"
 
 #: templates/web/base/admin/users/import.html:42
 msgid "%d users already existed"
@@ -7370,9 +7370,9 @@ msgstr[2] ""
 #, perl-format
 msgid "last updated %d day ago"
 msgid_plural "last updated %d days ago"
-msgstr[0] "atualizado pela última vez a %d dia atrás"
-msgstr[1] "atualizado pela última vez %d dias atŕas"
-msgstr[2] "atualizado pela última vez %d dias atŕas"
+msgstr[0] "atualizado pela última vez há %d dia"
+msgstr[1] "atualizado pela última vez há %d dias"
+msgstr[2] "atualizado pela última vez há %d dias"
 
 #: templates/email/default/cy/inactive-account.html:18
 #, perl-format
