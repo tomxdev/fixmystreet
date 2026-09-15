@@ -261,15 +261,15 @@ e `checar-configuracao` responde verde.
 | **Custo pago** | A nota "Juntos por uma Catanduva melhor!" saiu. A tela não rola, a linha nova custa 74px, e aquela nota era o segundo agradecimento da mesma página. Divergência registrada em `MAP_EVOLUTION_STATUS.md` |
 | **Validado** | Dois subtestes em `t/cobrand/catanduva.t`, um por estado da configuração. Sem rolagem em 1440×900, 768×1024 e 390×844 |
 
-## 4.4 · Explicar cada mudança de estado a quem registrou
+## 4.4 · Explicar cada mudança de estado a quem registrou — **CONCLUÍDA**
 
 | | |
 |---|---|
-| **Situação** | Quando uma ocorrência vira "Sem solução possível" ou "Fora da competência", o cidadão vê o rótulo e mais nada. O campo "incluir atualização" da inspeção existe e é **opcional** |
-| **Fazer** | Tornar a atualização **obrigatória** ao mudar para qualquer estado de fechamento. A equipe escreve uma linha, e essa linha chega a quem registrou pelo alerta que ele já tem |
-| **Custo** | Um dia |
+| **Situação** | Quando uma ocorrência virava "Sem solução possível" ou "Fora da competência", o cidadão via o rótulo e mais nada. O campo "incluir atualização" da inspeção existe e era **opcional** |
+| **Feito** | `report_inspect_invalid`, no cobrand: fechar sem uma linha pública é recusado, e a tela diz por quê. Vale só para os estados do tipo `closed`, e só quando o estado **muda** — salvar prioridade numa ocorrência já fechada não pede explicação de novo |
+| **Custou um gancho de core** | Seis linhas em `Report.pm`. A ação de inspeção valida várias coisas e nenhuma é extensível; `report_inspect_update_extra`, que já existe, roda antes da decisão e não a alcança. Registrado em [`PATCHES_DE_CORE.md`](PATCHES_DE_CORE.md) §2.3, na seção de propor ao upstream |
+| **Validado** | Cinco subtestes: fechar sem texto, fechar com espaço em branco, fechar com uma linha, mudar para estado aberto, e salvar outra coisa numa ocorrência já fechada |
 | **Ganho** | É a diferença entre um canal que responde e um que engole |
-| **Depende de** | 4.2 — só se pode exigir explicação depois de definir o que cada estado quer dizer |
 
 **Pronto quando:** o autor consegue corrigir um erro de digitação, e nenhuma
 ocorrência é fechada sem uma frase dizendo por quê.

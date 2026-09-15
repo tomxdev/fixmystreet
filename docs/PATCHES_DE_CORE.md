@@ -33,8 +33,8 @@ git diff --numstat 691e1b8cc8 -- perllib web/js templates/web/base templates/ema
 | Situação | Arquivos | Linhas |
 |---|---:|---:|
 | **Eliminado** — reescrito dentro do cobrand | 3 | −19 |
-| **Propor ao upstream** — genérico, aditivo, útil a qualquer instalação | 7 | +55 −8 |
-| **Patch local** — decisão de produto do piloto, não do upstream | 6 | +81 −1 |
+| **Propor ao upstream** — genérico, aditivo, útil a qualquer instalação | 8 | +61 −8 |
+| **Patch local** — decisão de produto do piloto, não do upstream | 5 | +72 −1 |
 | **Fixture de teste** — só faz sentido com o cobrand brasileiro junto | 1 | +15 |
 
 Fora da conta: `perllib/FixMyStreet/Cobrand/Catanduva.pm` e `t/cobrand/catanduva.t`
@@ -93,7 +93,7 @@ recentrado e fluxo de registro aberto no ponto.
 
 ## 2. Propor ao upstream
 
-Aditivas, genéricas, e nenhuma muda comportamento existente. São quatro PRs
+Aditivas, genéricas, e nenhuma muda comportamento existente. São cinco PRs
 independentes — pequenas o bastante para serem revisadas, e que não dependem uma
 da outra nem de o upstream aceitar o cobrand brasileiro.
 
@@ -117,7 +117,17 @@ da outra nem de o upstream aceitar o cobrand brasileiro.
 | **Por que é do upstream** | Isto é **defeito do upstream**, não necessidade nossa. O `Photo` controller já recusa servir os bytes de uma foto que o cobrand não publica; os templates não perguntam, e emitem `<img>` condenados a falhar. No `header_opengraph_image.html` é pior: a meta tag anuncia uma URL vazia **e** suprime a imagem padrão do cobrand — o link compartilhado fica sem prévia nenhuma |
 | **Risco de aceitação** | Baixo. Para quem não filtra foto, `allow_photo_display` devolve 1 e nada muda |
 
-### 2.3 `Moderate.pm` — o gancho `report_moderate_after`
+### 2.3 `Report.pm` — o gancho `report_inspect_invalid`
+
+| | |
+|---|---|
+| **O que faz** | Seis linhas na ação de inspeção: se o cobrand devolver uma mensagem, a gravação é recusada e a mensagem aparece na tela |
+| **Por que é do upstream** | A ação de inspeção valida várias coisas — tamanho da informação detalhada, localização, foto, duplicata — e **nenhuma delas é extensível**. Um cobrand que precise recusar uma gravação não tem onde se pendurar: o `report_inspect_update_extra`, que já existe, roda antes da decisão e não a alcança, porque `$valid` é uma variável léxica |
+| **Para que serve aqui** | A regra de que nenhuma ocorrência é fechada sem uma frase dizendo por quê — fase 4.4, e a última seção do [`VOCABULARIO_DE_ESTADOS.md`](VOCABULARIO_DE_ESTADOS.md) |
+| **Por que não deu para fazer sem** | O caminho sem core seria o cobrand escrever em `$c->stash->{photo_error}`, que a linha seguinte lê e transforma em recusa. Funciona, e é exatamente o tipo de esperteza que desaparece em silêncio no dia em que o upstream mexer no tratamento de foto |
+| **Risco de aceitação** | Baixo. Sem cobrand que responda, `call_hook` devolve vazio e nada muda |
+
+### 2.4 `Moderate.pm` — o gancho `report_moderate_after`
 
 | | |
 |---|---|
@@ -125,7 +135,7 @@ da outra nem de o upstream aceitar o cobrand brasileiro.
 | **Por que é do upstream** | É a forma que o próprio upstream usa para abrir extensão a cobrand. Sem ele, um cobrand que precise reagir à moderação não tem onde se pendurar |
 | **Risco de aceitação** | Baixo, mas é o tipo de PR que fica parado esperando alguém achar que precisa |
 
-### 2.4 `t/app/controller/claims.t` — hora fixa
+### 2.5 `t/app/controller/claims.t` — hora fixa
 
 | | |
 |---|---|
@@ -144,6 +154,10 @@ de produto do piloto — não algo que o upstream tenha pedido.
 
 `perllib/FixMyStreet/App/Controller/Report.pm` (+9 −1),
 `templates/web/base/report/banner.html` (+14).
+
+> `Report.pm` aparece **duas vezes** neste documento: aqui, e em §2.3. São
+> alterações independentes, em partes distantes do arquivo — a PR de §2.3 leva
+> só o gancho de inspeção.
 
 | | |
 |---|---|
@@ -196,5 +210,5 @@ exatamente o custo que deve ter.
 ## Recomendação, em uma frase
 
 **Manter como patch local documentado** (opção *a* da fase 6.4), com os três itens
-da seção 1 já eliminados, as quatro PRs da seção 2 abertas quando houver folga, e
+da seção 1 já eliminados, as cinco PRs da seção 2 abertas quando houver folga, e
 o `conferir-core` impedindo que a seção 3 cresça sem que alguém decida.

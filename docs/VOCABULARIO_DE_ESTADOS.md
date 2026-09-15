@@ -124,21 +124,26 @@ quem a abriu.
 
 > **Nenhuma ocorrência é fechada sem uma frase dizendo por quê.**
 
-Na tela de inspeção, o campo "Salvar com uma atualização pública" existe e é
-**opcional**. Enquanto for opcional, o vocabulário acima é decoração: quem
+Na tela de inspeção, o campo "Salvar com uma atualização pública" é **opcional**
+no upstream. Enquanto for opcional, o vocabulário acima é decoração: quem
 registrou vê o rótulo mudar de "Aberta" para "Sem solução possível" e não fica
 sabendo de mais nada.
 
-A atualização passa a ser **obrigatória** ao mudar para qualquer estado do tipo
-`closed`. A equipe escreve uma linha, e essa linha chega a quem registrou pelo
-alerta que ele já tem — é a diferença entre um canal que responde e um que
-engole.
+**Aqui ele é obrigatório** ao mudar para qualquer estado do tipo `closed`. A
+equipe escreve uma linha, e essa linha chega a quem registrou pelo alerta que ele
+já tem — é a diferença entre um canal que responde e um que engole.
 
-Não vale para os estados abertos: "Em análise" e "Em andamento" são passos de um
-trabalho em curso, e exigir um texto a cada passo transformaria a tela num
-formulário que ninguém preenche.
+Três limites, e cada um evita que a regra vire um formulário que ninguém
+preenche:
 
-Implementação na fase 4.4 do [`PLANO_DE_FASES.md`](PLANO_DE_FASES.md).
+| Não é cobrada quando | Por quê |
+|---|---|
+| o novo estado é aberto | "Em análise" e "Em andamento" são passos de um trabalho em curso |
+| o estado não mudou | salvar prioridade ou categoria numa ocorrência já fechada não muda nada para quem registrou |
+| a explicação já foi dada | é a mesma gravação: o texto vira a atualização pública |
+
+Quem recusa é `report_inspect_invalid`, em `Cobrand/Catanduva.pm`. A tela diz o
+que falta, e não perde o que já estava preenchido.
 
 ---
 

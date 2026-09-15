@@ -14,6 +14,7 @@ use FixMyStreet::Geocode::Address;
 use FixMyStreet::Map;
 use FixMyStreet::DB::Result::Problem;
 use Memcached;
+use Utils;
 use Unicode::Normalize qw(NFD);
 
 =encoding utf-8
@@ -827,6 +828,53 @@ sub categorias_da_ocorrencia {
     }
 
     return [ sort keys %nomes ];
+}
+
+=head2 report_inspect_invalid
+
+Nenhuma ocorrencia e fechada sem uma frase dizendo por que.
+
+Na tela de inspecao, "Salvar com uma atualizacao publica" e opcional. Enquanto
+for opcional, o vocabulario de estados e decoracao: quem registrou ve o rotulo
+mudar de "Aberta" para "Sem solucao possivel" e nao fica sabendo de mais nada.
+Essa linha, escrita pela equipe, chega a ele pelo alerta que ele ja tem - e a
+diferenca entre um canal que responde e um que engole.
+
+Vale so para os estados de fechamento. "Em analise" e "Em andamento" sao passos
+de um trabalho em curso, e exigir um texto a cada passo transformaria a tela num
+formulario que ninguem preenche.
+
+E so quando o estado MUDA para fechado: salvar outra coisa - prioridade,
+categoria - numa ocorrencia ja fechada nao pede explicacao nenhuma, porque nada
+mudou para quem registrou. Dai o C<get_from_storage>, que diz o que esta gravado
+agora; C<< $problem->state >> ja traz o que esta prestes a ser gravado.
+
+O vocabulario esta em F<docs/VOCABULARIO_DE_ESTADOS.md>, e esta regra e a
+ultima secao dele - a que o faz valer.
+
+=cut
+
+sub report_inspect_invalid {
+    my ($self, $problem) = @_;
+
+    my $c = $self->{c} or return;
+
+    my $novo = $problem->state || '';
+    return unless FixMyStreet::DB::Result::Problem->closed_states->{$novo};
+
+    my $gravado = $problem->get_from_storage;
+    return if $gravado && ($gravado->state || '') eq $novo;
+
+    # A mesma limpeza que o controlador faz antes de gravar: espaco em branco
+    # nao e explicacao.
+    my $texto = $c->get_param('include_update')
+        ? Utils::cleanup_text( $c->get_param('public_update'), { allow_multiline => 1 } )
+        : '';
+    return if $texto;
+
+    return 'Para fechar uma ocorrência, marque "Salvar com uma atualização pública" '
+         . 'e escreva o motivo. Quem registrou recebe essa linha por e-mail, e é '
+         . 'a única explicação que vai chegar.';
 }
 
 =head2 must_have_2fa

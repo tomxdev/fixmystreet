@@ -1333,6 +1333,124 @@ subtest 'whoever wrote the report can correct it, for a while' => sub {
     };
 };
 
+subtest 'no report is closed without a line saying why' => sub {
+    # Fase 4.4. O campo "Salvar com uma atualizacao publica" da tela de inspecao
+    # existe e e opcional. Enquanto for opcional, o vocabulario de estados e
+    # decoracao: quem registrou ve o rotulo mudar de "Aberta" para "Sem solucao
+    # possivel" e nao fica sabendo de mais nada.
+    # `skip_must_have_2fa` porque o cobrand exige segundo fator de quem tem
+    # `from_body` (SEC-003), e sem ele o `log_in_ok` para na tela do codigo.
+    # A regra em si tem subteste proprio; aqui ela so atrapalha.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+        STAGING_FLAGS => { skip_must_have_2fa => 1 },
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(
+            body_id => $body->id, category => 'Buraco na via', email => 'buraco@example.org');
+
+        my $equipe = $mech->create_user_ok('inspetor@example.org',
+            name => 'Quem Inspeciona', from_body => $body);
+        $equipe->user_body_permissions->find_or_create({
+            body => $body, permission_type => 'report_inspect' });
+        $equipe->update({ password => 'secret' });
+
+        my $cidadao = $mech->create_user_ok('registrou@example.org', name => 'Quem Registrou');
+
+        my $nova = sub {
+            my ($o) = $mech->create_problems_for_body(1, $body->id, 'Ocorrencia a fechar', {
+                user => $cidadao, cobrand => 'catanduva',
+                category => 'Buraco na via',
+                latitude => -21.1383, longitude => -48.9736,
+            });
+            $o->discard_changes;
+            return $o;
+        };
+
+        # `category` vai sempre, com o valor atual. O formulario de inspecao
+        # manda todos os campos, e `edit_category` grava o que receber - sem
+        # ele, grava NULL numa coluna NOT NULL e o pedido morre com 500. E a
+        # mesma armadilha do `moderate_text`, noutro controlador.
+        my $inspecionar = sub {
+            my ($o, %params) = @_;
+            $mech->get_ok('/report/' . $o->id);
+            my ($token) = $mech->content =~ /name="token" value="([^"]+)"/;
+            $mech->post('http://catanduva.fixmystreet.com/report/' . $o->id, {
+                token    => $token,
+                save     => 'Save changes',
+                category => $o->category,
+                %params,
+            });
+            $o->discard_changes;
+        };
+
+        $mech->log_in_ok($equipe->email);
+
+        subtest 'fechar sem explicar nao passa' => sub {
+            my $o = $nova->();
+            $inspecionar->($o, state => 'unable to fix');
+
+            is $o->state, 'confirmed', 'o estado nao mudou';
+            $mech->content_contains('Para fechar uma ocorrência',
+                'e a tela diz por que nao mudou');
+        };
+
+        subtest 'a caixa marcada com o campo vazio tambem nao' => sub {
+            # Este caso quem barra e o proprio upstream: com `include_update`
+            # marcado ele ja exige texto. Fica aqui porque a regra completa e
+            # "nao fecha sem explicar", e quem le o teste precisa ver os dois
+            # caminhos - o nosso, que cobra a caixa, e o dele, que cobra o
+            # conteudo. Medido: desligando `report_inspect_invalid`, este
+            # continua passando e o de cima falha.
+            my $o = $nova->();
+            $inspecionar->($o,
+                state => 'not responsible', include_update => 1, public_update => '   ');
+            is $o->state, 'confirmed', 'espaco em branco nao e explicacao';
+        };
+
+        subtest 'fechar com uma linha passa, e a linha vira atualizacao publica' => sub {
+            my $o = $nova->();
+            $inspecionar->($o,
+                state          => 'not responsible',
+                include_update => 1,
+                public_update  => 'O poste é da concessionária de energia, e o pedido foi repassado.',
+            );
+
+            is $o->state, 'not responsible', 'o estado mudou';
+            my ($comentario) = $o->comments->all;
+            ok $comentario, 'ha uma atualizacao publica';
+            like $comentario->text, qr/concession/, 'com o que a equipe escreveu';
+            is $comentario->problem_state, 'not responsible', 'e o estado que ela registra';
+        };
+
+        subtest 'estado aberto nao exige explicacao' => sub {
+            # "Em analise" e "Em andamento" sao passos de um trabalho em curso.
+            # Exigir um texto a cada passo transformaria a tela num formulario
+            # que ninguem preenche.
+            my $o = $nova->();
+            $inspecionar->($o, state => 'investigating');
+            is $o->state, 'investigating', 'mudou sem precisar de texto';
+        };
+
+        subtest 'ocorrencia ja fechada nao pede explicacao de novo' => sub {
+            # Salvar prioridade ou categoria numa ocorrencia ja fechada nao muda
+            # nada para quem registrou, e nao ha o que explicar.
+            my $o = $nova->();
+            $o->update({ state => 'unable to fix' });
+            $o->discard_changes;
+
+            $inspecionar->($o, state => 'unable to fix', traffic_information => 'Nenhuma');
+            is $o->state, 'unable to fix', 'continua fechada';
+            $mech->content_lacks('Para fechar uma ocorrência',
+                'e ninguem foi cobrado por uma explicacao que ja foi dada');
+        };
+
+        $mech->log_out_ok;
+    };
+};
+
 subtest 'every page reached from an email link renders' => sub {
     # Fase 3.2 do PLANO_DE_FASES.md.
     #
