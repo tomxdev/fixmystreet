@@ -52,6 +52,7 @@
 | Caixa de CEP (home) | `<div>` de 20em com botão preto quadrado | caixa branca com botão verde encaixado | REPLACE | `around/postcode_form.html`, `_home.scss` |
 | Caixa de CEP (demais) | idem | mesma forma, markup do upstream | RESTYLE | `_components.scss` §18 |
 | Dropzone | pontilhado cinza | mint com tracejado verde | RESTYLE | herda tokens |
+| Consentimento de acompanhamento | não existia: o upstream inscrevia sem perguntar | caixa marcada acima do botão de envio, 22px, sem fundo | NEW | `report/form/submit.html`, `_map.scss` |
 
 ## Conteúdo
 
@@ -175,3 +176,9 @@ uma rodada de correção:
     classe solta (`.form-error`) pinta o fundo do próprio campo; a regra precisa
     ser escrita por elemento (`div`/`p` para a mensagem, `input`/`select`/
     `textarea` para o campo).
+11. **Num painel de altura fixa, decoração custa rolagem.** A caixa de
+    consentimento nasceu com fundo e preenchimento: 91px, e o passo `user` — que
+    cabia inteiro em 1440×900 — passou a rolar 41px. Sem o fundo o bloco cai para
+    22px e o rótulo cabe numa linha só; o painel volta a não rolar em nenhum dos
+    três tamanhos. Antes de acrescentar qualquer coisa a um passo, medir
+    `scrollHeight - clientHeight` do `.map-panel` com e sem ela.

@@ -112,13 +112,13 @@ partir do script.
 | **Custo** | Um dia |
 | **Depende de** | 2.1, para não escrever dois nomes de prefeitura |
 
-## 1.4 · `F4` — o alerta que ninguém pediu
+## 1.4 · `F4` — o alerta que ninguém pediu — **CONCLUÍDA**
 
 | | |
 |---|---|
 | **Sintoma** | Registrar sem conta cria um alerta `new_updates` sem escolha visível. `add_alert` vem marcado por padrão e a caixa não aparece na composição |
-| **Fazer** | Trazer a caixa para o passo final, **marcada**, com o texto que a tela "Problema identificado" já usa. Quem quiser desmarcar, desmarca |
-| **Validar** | Registrar sem conta com a caixa marcada → alerta criado; desmarcada → nenhum alerta |
+| **Feito** | A caixa está no passo final, marcada, acima do botão de envio, com o texto da tela "Problema identificado". Três peças, nenhuma no core: o `submit.html` do cobrand, o `report_new_munge_before_insert` e o `suppress_reporter_alerts` — gancho que o upstream já tinha |
+| **Validado** | Marcada → alerta criado; desmarcada → nenhum alerta **e** a confirmação não promete e-mail; sem a pergunta no formulário → o padrão do upstream continua valendo. Os três estão em `t/cobrand/catanduva.t`, e a correção foi provada removendo-a e vendo o teste falhar |
 | **Custo** | Horas |
 | **Por que aqui** | É consentimento, e o piloto conversa com a LGPD em vários outros pontos |
 

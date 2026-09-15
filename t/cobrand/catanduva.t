@@ -794,6 +794,156 @@ subtest 'the report date is written in Portuguese, whatever the container locale
     is $cobrand->data_por_extenso(undef), '', 'sem data, nenhum texto';
 };
 
+subtest 'nobody is subscribed to updates without saying so' => sub {
+    # F4. O upstream inscreve quem registra em `new_updates` sempre: a unica
+    # caixa `add_alert` que ele tem esta no formulario de COMENTARIO, e o
+    # proprio template a esconde quando o tipo nao e `update`. Para quem
+    # registra uma ocorrencia nao havia escolha nenhuma.
+    #
+    # A caixa agora existe no ultimo passo, marcada. Os tres casos abaixo sao os
+    # tres desfechos possiveis, e o terceiro e o que impede a correcao de virar
+    # um defeito novo.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(
+            body_id => $body->id, category => 'Buraco na via', email => 'buraco@example.org');
+
+        # Sem sessao aberta: e o caminho da maioria, e o unico em que
+        # `create_related_things` roda noutra requisicao. Um subtest anterior
+        # pode ter deixado alguem autenticado.
+        $mech->log_out_ok;
+
+        my $alertas = FixMyStreet::DB->resultset('Alert');
+
+        # As coordenadas sao as que o t/Mock/MapIt.pm conhece. Com qualquer
+        # outra, `check_location_is_acceptable` nao acha orgao e o controlador
+        # devolve a pessoa ao mapa, sem dizer por que.
+        my $lat = -21.1383;
+        my $lon = -48.9736;
+
+        subtest 'a caixa esta na tela, e vem marcada' => sub {
+            $mech->get_ok("/report/new?latitude=$lat&longitude=$lon");
+            $mech->content_contains('name="quero_acompanhar"',
+                'a caixa existe no passo final');
+            $mech->content_contains('name="acompanhar_respondido"',
+                'e o campo que diz que a pergunta foi feita');
+            like $mech->content, qr/name="quero_acompanhar"[^>]*\schecked/,
+                'e ela vem marcada';
+        };
+
+        # Um envio de verdade. Nao passa por submit_form porque nesta interface a
+        # lista de categorias chega por AJAX - sem JavaScript o passo mostra
+        # "Carregando..." e nao ha radio para preencher. O POST e o mesmo que o
+        # navegador faz.
+        my $registrar = sub {
+            my (%extra) = @_;
+            my $titulo = delete $extra{titulo};
+
+            # Cada registro comeca sem sessao. O `/P/<token>` do caso anterior
+            # autentica quem clicou - e de proposito, no upstream: quem confirma
+            # pelo e-mail entra na conta. Sem este `log_out`, o segundo registro
+            # sairia pela variante de quem ja tem conta, que e outro formulario.
+            $mech->log_out_ok;
+
+            $mech->get_ok("/report/new?latitude=$lat&longitude=$lon");
+            my ($token) = $mech->content =~ /name="token" value="([^"]+)"/;
+            ok $token, 'a pagina trouxe o token de CSRF';
+
+            # Host explicito. `get_ok` aplica o `$mech->host` definido no inicio
+            # do arquivo; `post_ok` nao - o pedido sai para localhost, onde
+            # nenhum cobrand responde, e volta 400 com o corpo vazio.
+            $mech->post_ok('http://catanduva.fixmystreet.com/report/new', {
+                token             => $token,
+                submit_problem    => 1,
+                latitude          => $lat,
+                longitude         => $lon,
+                title             => $titulo,
+                detail            => 'Descricao suficiente para passar na validacao.',
+                category          => 'Buraco na via',
+                name              => 'Quem Registra',
+                may_show_name     => 1,
+                %extra,
+            });
+
+            my $ocorrencia = FixMyStreet::DB->resultset('Problem')
+                ->search({ title => $titulo }, { order_by => { -desc => 'id' }, rows => 1 })->first;
+            ok $ocorrencia, 'a ocorrencia foi criada';
+            return $ocorrencia;
+        };
+
+        # Confirma pelo link do e-mail: e quando `create_related_things` roda
+        # para quem nao tem conta - outra requisicao, sem a stash do envio.
+        my $confirmar = sub {
+            my $ocorrencia = shift;
+            my $token = FixMyStreet::DB->resultset('Token')->create({
+                scope => 'problem',
+                data  => { id => $ocorrencia->id,
+                           name => $ocorrencia->name,
+                           email => $ocorrencia->user->email },
+            });
+            $mech->get_ok('/P/' . $token->token);
+            $ocorrencia->discard_changes;
+        };
+
+        subtest 'caixa marcada: inscreve' => sub {
+            my $o = $registrar->(
+                titulo                => 'Buraco de quem quer acompanhar',
+                username_register     => 'quer@example.org',
+                acompanhar_respondido => 1,
+                quero_acompanhar      => 1,
+            );
+            ok !$o->get_extra_metadata('sem_acompanhamento'),
+                'nada foi marcado na ocorrencia';
+
+            $confirmar->($o);
+            is $alertas->search({ alert_type => 'new_updates', parameter => $o->id })->count,
+                1, 'ha uma inscricao em atualizacoes';
+            $mech->content_contains('Acompanhe por e-mail',
+                'e a confirmacao promete o e-mail');
+        };
+
+        subtest 'caixa desmarcada: nao inscreve' => sub {
+            # Caixa desmarcada nao e enviada pelo navegador - por isso
+            # `quero_acompanhar` simplesmente nao vai. O que vai e o escondido,
+            # dizendo que a pergunta foi feita.
+            my $o = $registrar->(
+                titulo                => 'Buraco de quem nao quer acompanhar',
+                username_register     => 'nao.quer@example.org',
+                acompanhar_respondido => 1,
+            );
+            ok $o->get_extra_metadata('sem_acompanhamento'),
+                'a recusa ficou gravada na ocorrencia';
+
+            $confirmar->($o);
+            is $alertas->search({ alert_type => 'new_updates', parameter => $o->id })->count,
+                0, 'nenhuma inscricao foi criada';
+            $mech->content_lacks('Acompanhe por e-mail',
+                'e a confirmacao nao promete e-mail nenhum');
+        };
+
+        subtest 'quem nao perguntou mantem o padrao do upstream' => sub {
+            # Silencio nao e recusa. Uma ocorrencia que chegue por um caminho sem
+            # a caixa - Open311, um aplicativo, um formulario futuro - nao traz o
+            # campo, e ler a ausencia como "nao quero" cancelaria em silencio a
+            # inscricao de todo mundo que nao passa por esta tela.
+            my $o = $registrar->(
+                titulo            => 'Buraco vindo de outro caminho',
+                username_register => 'outro.caminho@example.org',
+            );
+            ok !$o->get_extra_metadata('sem_acompanhamento'),
+                'nada foi marcado';
+
+            $confirmar->($o);
+            is $alertas->search({ alert_type => 'new_updates', parameter => $o->id })->count,
+                1, 'a inscricao acontece, como no upstream';
+        };
+    };
+};
+
 subtest 'confirming a report from the email link does not blow up' => sub {
     # O caminho de quem registra SEM conta, que e o da maioria e o unico que
     # passa pelo token do e-mail. Ele nao era coberto por teste nenhum, e por

@@ -5318,3 +5318,50 @@ body.map-ficha-aberta .map-panel__flow-head {
     background: var(--c-surface-alt);
     color: var(--c-text-muted);
 }
+
+// ---------------------------------------------------------------------------
+// A caixa de acompanhamento do ultimo passo (F4)
+//
+// Fica entre o ultimo campo do formulario e o botao de envio, que e a ultima
+// coisa que a pessoa le antes de mandar - e ali ela e vista sem precisar de
+// destaque nenhum.
+//
+// SEM fundo e sem preenchimento, e isso foi medido e nao escolhido. A primeira
+// versao tinha os dois, e custava 91px: o passo `user`, que cabia inteiro em
+// 1440x900, passava a rolar 41px. Tirando o fundo e o preenchimento o bloco cai
+// para 22px, o rotulo cabe numa linha so, e o painel volta a nao rolar.
+//
+// Trocar uma correcao de consentimento por uma tela que rola nao e troca: e
+// pagar um defeito com outro.
+//
+// A forma continua sendo a da caixa equivalente da tela "Problema identificado"
+// (.map-ident__opcao) - e a mesma pergunta, feita no mesmo tom, em dois lugares
+// do fluxo.
+// ---------------------------------------------------------------------------
+
+.map-panel .map-acompanhar {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    box-sizing: border-box;
+    width: 100%;
+    margin: var(--space-3) 0;
+
+    input[type="checkbox"] {
+        flex: 0 0 auto;
+        // 2px alinham o quadrado com a primeira linha do rotulo; sem isso ele
+        // fica preso ao topo e a linha parece torta quando o texto quebra.
+        margin: 2px 0 0;
+        width: 20px;
+        height: 20px;
+        accent-color: var(--c-primary);
+    }
+
+    label {
+        margin: 0;
+        color: var(--c-text-body);
+        font-size: var(--fs-sm);
+        line-height: var(--lh-snug);
+        cursor: pointer;
+    }
+}

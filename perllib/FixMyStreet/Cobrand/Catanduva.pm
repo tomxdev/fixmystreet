@@ -434,7 +434,8 @@ sub short_address {
 =head2 report_new_munge_before_insert
 
 Settles C<problem.postcode> just before the row is written, when the coordinates
-are already on the report.
+are already on the report, keeps the rest of the reverse geocoding, and records
+whether the reporter asked to be kept informed (see C<suppress_reporter_alerts>).
 
 Order of preference: what the reporter typed in the CEP field, then the CEP of
 the pin, then the search box if it happens to hold a CEP, and failing all three
@@ -472,9 +473,52 @@ sub report_new_munge_before_insert {
     # veio de algum caminho que sabia mais do que este.
     $report->geocode($reverso) if $reverso && !$report->geocode;
 
+    # -- A resposta sobre acompanhar por e-mail (F4) --------------------------
+    #
+    # Guardada na linha, e nao na stash, porque quem le nao esta nesta
+    # requisicao. Para quem registra sem conta, `create_related_things` so roda
+    # quando a pessoa clica no link do e-mail - outra requisicao, outro dia
+    # talvez. A stash nao atravessa isso; a coluna atravessa.
+    #
+    # As duas perguntas sao separadas de proposito:
+    #
+    #   acompanhar_respondido   o formulario chegou a perguntar?
+    #   quero_acompanhar        e a resposta foi sim?
+    #
+    # Sem a primeira, qualquer ocorrencia que entrasse por outro caminho - o
+    # formulario sem JavaScript de uma versao futura, Open311, um aplicativo -
+    # nao traria o campo, e a ausencia seria lida como "nao quero". Silencio nao
+    # e recusa: sem a pergunta, vale o padrao do upstream, que e inscrever.
+    if ($self->{c} && $self->{c}->get_param('acompanhar_respondido')
+                   && !$self->{c}->get_param('quero_acompanhar')) {
+        $report->set_extra_metadata( sem_acompanhamento => 1 );
+    }
+
     # Uma ocorrencia a mais muda os numeros do painel. Limpar aqui, antes da
     # insercao, e o bastante: a proxima leitura acontece depois dela e recalcula.
     $self->limpar_cache_dos_numeros;
+}
+
+=head2 suppress_reporter_alerts
+
+Nao inscreve quem disse que nao quer ser inscrito (F4).
+
+O upstream cria um alerta C<new_updates> para quem registra, sempre, sem caixa
+para desmarcar - o F4 de F<docs/CICLO_DE_VIDA_DA_OCORRENCIA.md>. A caixa existe
+agora no ultimo passo do formulario, marcada; quem a desmarca deixa a marca
+C<sem_acompanhamento> na ocorrencia, e e ela que este metodo le.
+
+Le da ocorrencia, e nao do pedido, porque e chamado de
+C<create_related_things> - que para quem registra sem conta roda na requisicao
+do link do e-mail, e para quem ja tem sessao roda na do envio. O objeto de
+cobrand ali vem de C<get_cobrand_logged> e nao tem C<$c>; a linha do banco e o
+unico lugar que os dois caminhos enxergam.
+
+=cut
+
+sub suppress_reporter_alerts {
+    my ($self, $problem) = @_;
+    return $problem->get_extra_metadata('sem_acompanhamento') ? 1 : 0;
 }
 
 =head2 Aprovação prévia de fotografia (MOD-002)

@@ -28,7 +28,7 @@
 | F1 | Confirmar a ocorrência pelo link do e-mail devolve **erro 500** | ~~Crítica~~ **RESOLVIDO** | `Catanduva.pm`, `mapa_da_confirmacao` |
 | F2 | O e-mail de confirmação chega **inteiro em inglês** | ~~Crítica~~ **RESOLVIDO** | `templates/email/catanduva/` |
 | F3 | Toda ocorrência é enviada a **dois órgãos duplicados** | ~~Alta~~ **RESOLVIDO** | dado; coberto por `checar-configuracao` |
-| F4 | Quem registra sem conta é **inscrito em alertas sem pedir** | Alta | `add_alert` marcado por padrão |
+| F4 | Quem registra sem conta é **inscrito em alertas sem pedir** | ~~Alta~~ **RESOLVIDO** | `Catanduva.pm`, `suppress_reporter_alerts` |
 | F5 | O autor **não pode editar nem cancelar** a própria ocorrência | Alta | ausência de rota |
 | F6 | O passo "Nos conte sobre você" não passou pela evolução visual e tem **dois campos "Seu e-mail"** | Média | `report/new/fill_in_details.html` |
 | F7 | `"poítica de privacidade"` — erro de digitação | Baixa | catálogo pt_BR |
@@ -113,7 +113,7 @@ Este é o caminho do cidadão comum, e é onde estão as duas falhas mais graves
 | 4 | Um e-mail sai com link `/P/<token>` | **F2** — chega em inglês |
 | 5 | Ao clicar no link, a ocorrência **é confirmada** no banco… | ok |
 | 6 | …e a página devolve **erro 500** | **F1** |
-| 7 | Um alerta de atualizações é criado **sem que a pessoa tenha pedido** | **F4** |
+| 7 | Um alerta de atualizações é criado, **se a pessoa não tiver desmarcado a caixa** | ~~F4~~ resolvido |
 
 ### F1 — o erro 500, com a causa exata
 
@@ -192,8 +192,34 @@ Não é ilegal — é o comportamento do upstream —, mas é uma inscrição em
 comunicação por e-mail feita sem escolha visível. Num piloto que conversa com a
 LGPD em vários outros pontos, destoa.
 
-**Correção:** mostrar a caixa, marcada, no passo "Nos conte sobre você" — igual
-à que a tela "Problema identificado" já usa. Quem quiser desmarcar, desmarca.
+**Correção — aplicada.** A caixa existe no passo "Nos conte sobre você", logo
+acima do botão de envio, marcada, com o mesmo texto da tela "Problema
+identificado". Quem quiser desmarcar, desmarca.
+
+Três peças, e nenhuma toca no core:
+
+| Onde | O quê |
+|---|---|
+| `templates/web/catanduva/report/form/submit.html` | a caixa e o campo escondido que diz que a pergunta foi feita. É o único ponto por onde passam os três caminhos do passo `user` |
+| `Catanduva.pm`, `report_new_munge_before_insert` | grava `sem_acompanhamento` na ocorrência quando a resposta foi não |
+| `Catanduva.pm`, `suppress_reporter_alerts` | o gancho que o upstream já tinha; lê a marca e não inscreve |
+
+**Por que a marca fica na linha do banco, e não na sessão.** Para quem registra
+sem conta, `create_related_things` roda quando a pessoa clica no link do e-mail
+— outra requisição, talvez outro dia. A stash do envio não chega lá; a coluna,
+sim. E o objeto de cobrand que o `create_related_things` usa vem de
+`get_cobrand_logged`, que não tem `$c`: a linha é o único lugar que os dois
+caminhos enxergam.
+
+**Silêncio não é recusa.** São dois campos e não um: `acompanhar_respondido`
+(escondido, sempre enviado) diz que o formulário perguntou; `quero_acompanhar`
+diz a resposta. Sem o primeiro, uma ocorrência vinda de qualquer outro caminho —
+Open311, aplicativo, um formulário futuro — chegaria sem o campo, e a ausência
+seria lida como "não quero". Há teste para os três desfechos.
+
+**O fundo da caixa saiu depois de medido.** Com fundo e preenchimento o bloco
+custava 91px e fazia o passo `user` rolar 41px em 1440×900, numa tela que cabia
+inteira. Sem eles são 22px, e o painel não rola em nenhum dos três tamanhos.
 
 ## E3 — Publicação e visibilidade
 
@@ -475,12 +501,13 @@ um. O cidadão lê os dois nomes na página e no e-mail.
 E ligar o `demonstration_recipient`, que foi desenhado exatamente para impedir
 que o piloto escreva para fora e **não está configurado**.
 
-### F4 · Inscrição em alertas sem escolha visível
+### F4 · Inscrição em alertas sem escolha visível — **RESOLVIDO**
 
 **Medido.** Registro sem conta criou um alerta `new_updates`.
 
-**Correção:** trazer a caixa para o passo final, marcada, como a tela "Problema
-identificado" já faz.
+**Corrigido.** A caixa está no passo final, marcada. Quem desmarca não é
+inscrito, e a tela de confirmação deixa de prometer o e-mail. Detalhe na seção
+do F4, acima.
 
 ### F5 · O autor não pode editar nem cancelar
 

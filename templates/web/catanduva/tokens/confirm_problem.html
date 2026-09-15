@@ -134,10 +134,23 @@
 
         [%# ---- Acompanhamento ----
             So aparece quando ha de fato uma assinatura de atualizacoes por
-            e-mail. create_related_things inscreve quem relata, a menos que
-            no_reporter_alert esteja marcado — entao a promessa abaixo e
-            verdadeira nesse caso, e so nele. %]
-        [% IF report.user.email AND NOT no_reporter_alert %]
+            e-mail, porque e uma promessa e nao um enfeite.
+
+            Sao tres condicoes, e cada uma corresponde a um jeito de nao haver
+            inscricao:
+
+              report.user.email         sem endereco nao ha para onde escrever;
+              NOT no_reporter_alert     funcionario, ocorrencia anonima e afins,
+                                        que o upstream ja nao inscreve;
+              NOT sem_acompanhamento    quem desmarcou a caixa do ultimo passo.
+                                        E a marca que o cobrand grava e que o
+                                        `suppress_reporter_alerts` le (F4).
+
+            A terceira e lida da ocorrencia, e nao da stash, pelo mesmo motivo
+            que la: para quem registra sem conta esta pagina e outra requisicao,
+            e a stash da anterior nao chega aqui. %]
+        [% IF report.user.email AND NOT no_reporter_alert
+              AND NOT report.get_extra_metadata('sem_acompanhamento') %]
         <div class="map-sent__follow">
             <span class="map-sent__follow-icon" aria-hidden="true">
                 [% INCLUDE '_ui-icon.html' icon = 'mail' %]
