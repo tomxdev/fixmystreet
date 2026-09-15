@@ -1,0 +1,102 @@
+[%# Conjunto de icones do cobrand.
+
+    Um arquivo so, com um SWITCH, em vez de um SVG por arquivo: os icones desta
+    interface sao pequenos, aparecem varias vezes na mesma pagina e mudam de cor
+    com o contexto. Em linha eles herdam currentColor e nao custam uma requisicao
+    cada.
+
+    Uso: INCLUDE '_ui-icon.html' icon = 'search' — dentro de uma diretiva.
+
+    Cuidado ao editar este cabecalho: um comentario [%# ... termina na primeira
+    ocorrencia de fecha-diretiva, entao um exemplo de codigo escrito por inteiro
+    aqui dentro faz o resto do comentario virar texto na pagina. Foi o que
+    aconteceu na primeira versao deste arquivo.
+
+    Todos sao decorativos — aria-hidden — porque em todos os lugares em que
+    aparecem ha texto ao lado dizendo a mesma coisa. Se algum dia um icone ficar
+    sozinho, quem o usar precisa dar o rotulo no elemento que o envolve.
+
+    Traco de 1.8, pontas e juntas arredondadas, grade de 24: e o desenho que a
+    referencia usa (docs/ui/reference/home-layout.png).
+%]
+[%- DEFAULT icon = 'pin' -%]
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+[%- SWITCH icon -%]
+[%- CASE 'pin' -%]
+  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+[%- CASE 'pin-solid' -%]
+  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" fill="currentColor" stroke="none"/><circle cx="12" cy="10" r="3" fill="#fff" stroke="none"/>
+[%- CASE 'search' -%]
+  <circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/>
+[%- CASE 'pencil' -%]
+  <path d="M4 20h4L20 8a2.8 2.8 0 0 0-4-4L4 16v4Z"/><path d="m14 6 4 4"/>
+[%- CASE 'map' -%]
+  <path d="m9 4 6 2 5-2v14l-5 2-6-2-5 2V6l5-2Z"/><path d="M9 4v14M15 6v14"/>
+[%- CASE 'bell' -%]
+  <path d="M18 16V11a6 6 0 1 0-12 0v5l-2 3h16l-2-3Z"/><path d="M10 22h4"/>
+[%- CASE 'users' -%]
+  <circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16.5 5.6a3.2 3.2 0 0 1 0 6.2M17 20a6.4 6.4 0 0 0-1.6-4.3"/>
+[%- CASE 'arrow-right' -%]
+  <path d="M4 12h15"/><path d="m13 6 6 6-6 6"/>
+[%- CASE 'arrow-left' -%]
+  <path d="M20 12H5"/><path d="m11 6-6 6 6 6"/>
+[%- CASE 'calendar' -%]
+  <rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3.5v3M16 3.5v3"/>
+[%- CASE 'clipboard' -%]
+  <path d="M9 4.5H7.5A2.5 2.5 0 0 0 5 7v12a2.5 2.5 0 0 0 2.5 2.5h9A2.5 2.5 0 0 0 19 19V7a2.5 2.5 0 0 0-2.5-2.5H15"/><rect x="9" y="2.5" width="6" height="4" rx="1.4"/>
+[%- CASE 'info' -%]
+  <circle cx="12" cy="12" r="9" fill="currentColor" stroke="none"/><path d="M12 11v5" stroke="#fff" stroke-width="2.2"/><circle cx="12" cy="7.9" r="1.2" fill="#fff" stroke="none"/>
+[%- CASE 'check' -%]
+  <path d="m5 12.5 4.5 4.5L19 7.5"/>
+[%- CASE 'check-circle' -%]
+  <circle cx="12" cy="12" r="8.5"/><path d="m8.4 12.2 2.5 2.5 4.7-5"/>
+[%# As variantes solidas sao as do bloco de indicadores do mapa: disco cheio na
+     cor do estado e simbolo em branco por dentro, como na referencia
+     docs/ui/map/reference/flows/samples/tela_pesquisa_informacoes.png. O `pin`
+     ja tinha a sua (pin-solid). -%]
+[%- CASE 'check-circle-solid' -%]
+  <circle cx="12" cy="12" r="11" fill="currentColor" stroke="none"/><path d="m7.6 12.3 2.9 2.9 5.9-6.2" stroke="#fff" stroke-width="2.2"/>
+[%- CASE 'clock-solid' -%]
+  <circle cx="12" cy="12" r="11" fill="currentColor" stroke="none"/><path d="M12 6.6V12l3.7 2.3" stroke="#fff" stroke-width="2.2"/>
+[%# -- Icones de categoria. Ver Catanduva.pm, category_icon, que decide qual
+     categoria usa qual. Nenhum deles e escolhido por nome de categoria aqui. -- %]
+[%- CASE 'road' -%]
+  <path d="M8.5 3 6 21"/><path d="M15.5 3 18 21"/><path d="M12 4v3M12 10.5v3M12 17v3"/>
+[%- CASE 'lamp' -%]
+  <path d="M9.5 18h5"/><path d="M10.5 21h3"/><path d="M12 3a6 6 0 0 0-3.4 10.9c.5.4.9 1 .9 1.6v.5h5v-.5c0-.6.4-1.2.9-1.6A6 6 0 0 0 12 3Z"/>
+[%- CASE 'trash' -%]
+  <path d="M4 7h16"/><path d="M9.5 7V5.6A1.6 1.6 0 0 1 11 4h2a1.6 1.6 0 0 1 1.5 1.6V7"/><path d="m6.5 7 .9 12.1A2 2 0 0 0 9.4 21h5.2a2 2 0 0 0 2-1.9L17.5 7"/><path d="M10 11v6M14 11v6"/>
+[%- CASE 'sign' -%]
+  <path d="M12 14.5V21"/><path d="M9 21h6"/><path d="m12 2.5 6 6-6 6-6-6 6-6Z"/>
+[%- CASE 'droplet' -%]
+  <path d="M12 3.5s6 6.2 6 10a6 6 0 0 1-12 0c0-3.8 6-10 6-10Z"/>
+[%- CASE 'check-badge' -%]
+  <circle cx="12" cy="12" r="9" fill="currentColor" stroke="none"/><path d="m8 12.2 2.8 2.8L16.2 9.6" stroke="#fff"/>
+[%- CASE 'mail' -%]
+  <rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="m3.8 7.2 7.1 5.3a2 2 0 0 0 2.4 0l7.1-5.3"/>
+[%- CASE 'plus-circle' -%]
+  <circle cx="12" cy="12" r="8.5"/><path d="M12 8.2v7.6M8.2 12h7.6"/>
+[%- CASE 'copy' -%]
+  <rect x="9" y="9" width="11.5" height="11.5" rx="2.4"/><path d="M15 6.2A2.4 2.4 0 0 0 12.6 4H6a2.4 2.4 0 0 0-2.4 2.4V13a2.4 2.4 0 0 0 2.2 2.4"/>
+[%- CASE 'clock' -%]
+  <circle cx="12" cy="12" r="8.5"/><path d="M12 7.4V12l3.2 2"/>
+[%- CASE 'leaf' -%]
+  <path d="M20 4S8.5 4.5 6 10c-2 4.4 0 8 0 8s4.6 1.2 8-1c4.4-2.8 6-13 6-13Z"/><path d="M5 20c2.5-4.5 6-8 11-11"/>
+[%- CASE 'accessibility' -%]
+  <circle cx="12" cy="4.6" r="1.9"/><path d="M4.5 8.6h15M12 8.6v6M12 14.6l-3 6M12 14.6l3 6"/>
+[%- CASE 'image' -%]
+  <rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="m4.5 17 4.6-4.4 4 3.6 2.8-2.4 3.6 3.2"/>
+[%- CASE 'menu' -%]
+  <path d="M4 7h16M4 12h16M4 17h16"/>
+[%- CASE 'shield' -%]
+  <path d="M12 3 5 6v5.5c0 4.4 3 8 7 9.5 4-1.5 7-5.1 7-9.5V6l-7-3Z"/><path d="m9 12 2.2 2.2L15.4 10"/>
+[%# -- Passo das fotos. O escudo cheio e o da orientacao de privacidade: em
+     ambar, e de proposito que ele nao pareca um aviso de erro. -- %]
+[%- CASE 'shield-solid' -%]
+  <path d="M12 3 5 6v5.5c0 4.4 3 8 7 9.5 4-1.5 7-5.1 7-9.5V6l-7-3Z" fill="currentColor" stroke="none"/><path d="m9 12 2.2 2.2L15.4 10" stroke="#fff" stroke-width="2.2"/>
+[%- CASE 'camera-solid' -%]
+  <path d="M4 8h3.2l1.5-2.2h6.6L16.8 8H20a1.8 1.8 0 0 1 1.8 1.8v8.4A1.8 1.8 0 0 1 20 20H4a1.8 1.8 0 0 1-1.8-1.8V9.8A1.8 1.8 0 0 1 4 8Z" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="3.6" fill="#fff" stroke="none"/>
+[%- CASE 'upload' -%]
+  <path d="M12 16V4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16"/>
+[%- END -%]
+</svg>

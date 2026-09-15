@@ -1,0 +1,34 @@
+[%# Paginacao — Map Evolution.
+
+    Copia de templates/web/base/pagination.html com **uma** diferenca: a contagem
+    "%d a %d de %d" ganha um elemento proprio.
+
+    Por que: na faixa inferior da pagina de mapa essa contagem descreve outra
+    lista que nao a que esta na tela. O `pager` conta so `on_map`, e a faixa
+    mostra `on_map` + `around_map` — dizia "1 a 12 de 12" com 18 cartoes a vista.
+    La o titulo da faixa passou a carregar o numero certo, contado do DOM, e esta
+    contagem fica escondida por CSS. Os links continuam: sao eles que alcancam o
+    que esta alem da pagina.
+
+    Sem o elemento nao daria para separar uma coisa da outra — o texto e um no
+    solto dentro do <nav>, ao lado dos links, e esconde-lo esconderia os dois.
+
+    Fora da faixa nada muda: um <span> sem estilo nao altera nem a aparencia nem
+    o que o leitor de tela anuncia. Ao atualizar o upstream, conferir se este
+    bloco continua correspondendo.
+%]
+[% IF pager AND pager.total_entries > 1 %]
+    <nav aria-label="Pagination" class="pagination" data-page="[% pager.current_page | html %]">
+        [% IF pager.previous_page %]
+            <a class="prev" href="[% c.uri_with({ $param => pager.previous_page, ajax => undefined }) %][% '#' _ hash IF hash %]">[% loc('Previous') %]</a>
+        [% END %]
+
+        <span class="pagination__count">[% tprintf( loc('%d to %d of %d'), pager.first, pager.last, pager.total_entries ) %]</span>
+
+        [% IF pager.next_page %]
+            <a class="next" href="[% c.uri_with({ $param => pager.next_page, ajax => undefined }) %][% '#' _ hash IF hash %]">[% loc('Next') %]</a>
+        [% ELSIF page == 'around' AND num_old_reports > 0 AND NOT show_old_reports %]
+            <a class="next show_old" href="[% c.uri_with({ $param => pager.current_page, show_old_reports = 1, ajax => undefined }) %][% '#' _ hash IF hash %]">[% loc('Show older') %]</a>
+        [% END %]
+    </nav>
+[% END %]

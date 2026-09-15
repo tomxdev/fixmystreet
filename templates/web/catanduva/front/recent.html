@@ -1,0 +1,45 @@
+[%# Painel "Ocorrencias recentes" — UI Evolution V2.
+
+    Substitui templates/web/base/front/recent.html. O upstream monta um
+    .item-list generico, o mesmo de /reports e da barra lateral do mapa; a
+    referencia pede uma linha com miniatura, titulo, local, pilula de estado e
+    tempo relativo, em colunas fixas. Markup proprio, .recent-list, para nao
+    torcer o componente compartilhado — e para nao mudar como ele se comporta
+    nas outras tres paginas.
+
+    Os dados sao os de sempre: c.cobrand.recent_photos('front', 3). Tres, e nao
+    cinco, porque o painel divide a linha com o de numeros e precisa terminar na
+    mesma altura.
+
+    A foto passa por c.cobrand.allow_photo_display: durante o piloto uma
+    fotografia so aparece depois de aprovada (MOD-002). Quando nao ha foto — ou
+    ela ainda espera aprovacao — o lugar recebe um marcador da identidade, e nao
+    um <img> que vai falhar. Era o UI-010.
+%]
+[% recent_photos = c.cobrand.recent_photos('front', 3) %]
+
+<section class="recent-panel" aria-labelledby="recent-title">
+    <div class="recent-panel__head">
+        <h2 class="recent-panel__title" id="recent-title">Ocorrências recentes</h2>
+        [% IF c.cobrand.council_area %]
+            [% SET all_uri = '/reports/' _ c.cobrand.council_area | uri %]
+        [% ELSE %]
+            [% SET all_uri = '/reports' %]
+        [% END %]
+        <a class="recent-panel__more" href="[% all_uri %]">
+            Ver todas [% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]
+        </a>
+    </div>
+
+    [% IF recent_photos.size %]
+        <ul class="recent-list" id="js-reports-list">
+            [% FOREACH problem IN recent_photos %]
+                [% INCLUDE 'front/_list-entry.html' %]
+            [% END %]
+        </ul>
+    [% ELSE %]
+        <p class="c-empty">
+            Ainda não há ocorrências registradas. A primeira pode ser a sua.
+        </p>
+    [% END %]
+</section>

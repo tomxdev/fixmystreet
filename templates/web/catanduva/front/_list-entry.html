@@ -1,0 +1,65 @@
+[%# Uma linha do painel "Ocorrencias recentes".
+
+    Substitui templates/web/catanduva/../base/front/_list-entry.html, que so
+    delega para report/_item.html — o componente de lista compartilhado, cheio de
+    ramos de equipe (atalhos, prioridade, atribuicao) que nao existem na home e
+    com uma ordem de elementos que a referencia nao usa.
+
+    Os rotulos de estado vem de prettify_state, e nao das palavras da imagem de
+    referencia. A imagem diz "Pendente / Em andamento / Resolvida"; o resto da
+    aplicacao — o banner da propria ocorrencia, a listagem, os e-mails — usa o
+    vocabulario de estados do sistema. Fazer a home falar diferente do resto
+    seria trocar uma inconsistencia visual por uma inconsistencia de conteudo.
+    Ver UI_MIGRATION_MATRIX, nota sobre UX-004.
+%]
+[%- SET state_class = 'c-badge--pending' -%]
+[%- IF problem.is_fixed; SET state_class = 'c-badge--resolved';
+    ELSIF problem.is_closed; SET state_class = 'c-badge--closed';
+    ELSIF problem.state != 'confirmed'; SET state_class = 'c-badge--progress';
+    END -%]
+
+[%- SET days = problem.days_ago -%]
+
+<li class="recent-list__item" data-report-id="[% problem.id | html %]">
+    <a href="[% c.cobrand.relative_url_for_report(problem) %][% problem.url %]">
+        [%# A foto so aparece depois de aprovada (MOD-002). O controlador de
+            fotos recusa servir o que o cobrand nao exibe, entao perguntar aqui
+            tambem e o que evita renderizar um <img> fadado a falhar. %]
+        [% IF problem.photo AND c.cobrand.allow_photo_display(problem, 0) %]
+            <img class="recent-list__thumb" src="[% problem.photos.first.url_fp %]" alt="" width="96" height="48" loading="lazy">
+        [% ELSE %]
+            <span class="recent-list__thumb recent-list__thumb--empty" aria-hidden="true">
+                [% INCLUDE '_ui-icon.html' icon = 'image' %]
+            </span>
+        [% END %]
+
+        <span class="recent-list__body">
+            <span class="recent-list__title">[% problem.title | html %]</span>
+            <span class="recent-list__meta">
+                [% INCLUDE '_ui-icon.html' icon = 'pin' %]
+                [%# Rua e numero, pela mesma razao do cartao da faixa: o
+                    `nearest_address` e o display_name inteiro do Nominatim, que
+                    aqui dava "Travessa Maria Cândida Motta Clemente,
+                    Higienópolis, Catanduva, São Paulo, Região Sudeste,
+                    15804-040, Brasil" numa linha que cabe um terço disso. Sem
+                    endereco, a categoria diz o que da para dizer. %]
+                <span>[% c.cobrand.short_address(problem) || problem.category | html %]</span>
+            </span>
+        </span>
+
+        <span class="recent-list__aside">
+            <span class="c-badge [% state_class %] recent-list__state">[% prettify_state(problem.state) %]</span>
+            <span class="recent-list__time">
+                [%- IF days == 0 -%]
+                    Hoje
+                [%- ELSIF days == 1 -%]
+                    Há 1 dia
+                [%- ELSIF days <= c.cobrand.display_days_ago_threshold -%]
+                    Há [% days %] dias
+                [%- ELSE -%]
+                    [% prettify_dt(problem.confirmed, 1) %]
+                [%- END -%]
+            </span>
+        </span>
+    </a>
+</li>

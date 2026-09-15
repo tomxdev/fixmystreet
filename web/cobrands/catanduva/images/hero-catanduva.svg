@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 560" width="800" height="560" role="img" aria-labelledby="hero-catanduva-title">
+  <title id="hero-catanduva-title">Ilustração da praça central de Catanduva, com palmeiras e a torre da igreja</title>
+  <!--
+    Imagem do hero.
+
+    A referencia usa uma fotografia da praca central. Este arquivo e o lugar dela:
+    uma ilustracao da mesma cena, nas cores da identidade, que ocupa o espaco sem
+    inventar uma fotografia que ninguem tirou. Para trocar por uma foto real basta
+    substituir o src em templates/web/catanduva/around/postcode_form.html — o
+    recorte e a proporcao vem do CSS (object-fit: cover), nao do arquivo.
+  -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#BFE4F2"/>
+      <stop offset="0.55" stop-color="#DCF0F3"/>
+      <stop offset="1" stop-color="#EAF7F2"/>
+    </linearGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#CDE7D8"/>
+      <stop offset="1" stop-color="#A9D4BE"/>
+    </linearGradient>
+    <linearGradient id="tower" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F3EDE3"/>
+      <stop offset="1" stop-color="#DED4C4"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="560" fill="url(#sky)"/>
+
+  <!-- nuvens -->
+  <g fill="#FFFFFF" opacity="0.7">
+    <ellipse cx="150" cy="96" rx="66" ry="24"/>
+    <ellipse cx="196" cy="86" rx="46" ry="20"/>
+    <ellipse cx="612" cy="140" rx="74" ry="22"/>
+    <ellipse cx="660" cy="130" rx="44" ry="18"/>
+  </g>
+
+  <!-- casario ao fundo -->
+  <g fill="#C8DDD9">
+    <rect x="40" y="330" width="120" height="130"/>
+    <rect x="170" y="300" width="90" height="160"/>
+    <rect x="600" y="320" width="110" height="140"/>
+    <rect x="700" y="348" width="90" height="112"/>
+  </g>
+
+  <!-- igreja -->
+  <g>
+    <rect x="330" y="300" width="150" height="164" fill="url(#tower)"/>
+    <rect x="372" y="150" width="66" height="316" fill="url(#tower)"/>
+    <path d="M372 150l33-64 33 64z" fill="#9C8C74"/>
+    <path d="M405 86V60" stroke="#9C8C74" stroke-width="5" stroke-linecap="round"/>
+    <path d="M394 70h22" stroke="#9C8C74" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="405" cy="196" r="17" fill="#EAF3F6" stroke="#9C8C74" stroke-width="4"/>
+    <path d="M405 186v10l7 5" stroke="#9C8C74" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <g fill="#7FA9A0">
+      <path d="M348 356a14 14 0 0 1 28 0v42h-28z"/>
+      <path d="M434 356a14 14 0 0 1 28 0v42h-28z"/>
+      <path d="M391 392a14 14 0 0 1 28 0v72h-28z"/>
+    </g>
+    <rect x="330" y="292" width="150" height="12" fill="#C9BCA6"/>
+  </g>
+
+  <!-- palmeiras -->
+  <g stroke="#4E7C5E" stroke-width="9" stroke-linecap="round" fill="none">
+    <path d="M120 464c6-70 2-128-6-176"/>
+    <path d="M232 464c-4-86 0-150 8-202"/>
+    <path d="M560 464c6-78 4-140-4-186"/>
+    <path d="M672 464c-6-64-6-118 0-158"/>
+  </g>
+  <g fill="#3F7355">
+    <g transform="translate(114,286)">
+      <path d="M0 0c-24-16-52-18-68-6 20 2 40 8 56 20zM0 0c24-16 52-18 68-6-20 2-40 8-56 20zM0 0c-10-24-30-42-50-46 12 16 24 34 32 54zM0 0c12-24 32-40 52-44-14 16-26 32-36 52z"/>
+    </g>
+    <g transform="translate(240,260)">
+      <path d="M0 0c-26-14-54-14-70 0 20 0 42 6 58 16zM0 0c26-14 54-14 70 0-20 0-42 6-58 16zM0 0c-8-26-26-46-46-52 10 18 22 36 28 58zM0 0c10-26 30-44 50-48-14 16-28 34-38 54z"/>
+    </g>
+    <g transform="translate(556,276)">
+      <path d="M0 0c-22-14-48-16-62-6 18 2 36 8 50 18zM0 0c22-14 48-16 62-6-18 2-36 8-50 18zM0 0c-8-22-26-38-44-42 10 14 20 30 28 48zM0 0c10-22 28-36 46-40-12 14-24 30-32 48z"/>
+    </g>
+    <g transform="translate(672,304)">
+      <path d="M0 0c-20-12-42-14-54-4 16 0 32 6 44 14zM0 0c20-12 42-14 54-4-16 0-32 6-44 14zM0 0c-6-20-22-34-38-38 8 12 18 26 24 42zM0 0c8-20 24-32 40-36-10 12-22 26-28 42z"/>
+    </g>
+  </g>
+
+  <!-- praca -->
+  <rect x="0" y="458" width="800" height="102" fill="url(#ground)"/>
+  <g stroke="#8FC0A8" stroke-width="3" opacity="0.8">
+    <path d="M0 486h800M0 514h800"/>
+    <path d="M120 458v102M300 458v102M480 458v102M660 458v102"/>
+  </g>
+
+  <!-- arbustos -->
+  <g fill="#5C9476">
+    <ellipse cx="70" cy="462" rx="46" ry="18"/>
+    <ellipse cx="330" cy="464" rx="38" ry="15"/>
+    <ellipse cx="620" cy="462" rx="52" ry="18"/>
+  </g>
+</svg>

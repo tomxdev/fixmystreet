@@ -1,0 +1,63 @@
+[%# Itens da navegacao principal — UI Evolution V2.
+
+    Substitui templates/web/base/main_nav_items.html. A referencia mostra cinco
+    itens (Inicio, Ocorrencias, Mapa, Alertas, Sobre); o upstream mostra outros,
+    em outra ordem, e mistura navegacao com acao (Entrar, Registrar) — que nesta
+    interface sao botoes proprios no cabecalho.
+
+    Rotas preservadas. Nenhuma URL nova foi inventada, e os itens que dependem de
+    permissao (Painel, Admin) continuam vindo do mesmo teste de sempre.
+
+    Dois detalhes que parecem cosmeticos e nao sao:
+
+    "Mapa" vai com coordenadas. /around sem localizacao devolve a pessoa para a
+    home — o item ficaria no menu sem levar a lugar nenhum. Com o centro do
+    municipio ele abre o mapa da cidade, que e o que o rotulo promete. Os valores
+    sao o centro da caixa delimitadora declarada em Cobrand/Catanduva.pm.
+
+    As coordenadas vao em `suffix`, e nao dentro de `uri`, e isso importa: o bloco
+    navitem decide entre <a> e <span> comparando c.req.uri.path com `uri`. Com as
+    coordenadas coladas na uri a comparacao nunca casava, e o item "Mapa" ficava
+    sem a marca de pagina atual justamente na pagina de mapa. Pelo mesmo motivo
+    `always_url` saiu: ele forca o link mesmo quando a pagina e a atual.
+
+    "Entrar" e "Privacidade" continuam no menu do celular, onde o cabecalho nao
+    tem espaco para os botoes; o layout.scss esconde Privacidade no desktop, como
+    o upstream ja fazia, e o botao Entrar cobre o outro.
+%]
+[%~ INCLUDE navitem uri='/' label='Início' ~%]
+
+[%~ INCLUDE 'navigation/_all_reports.html' ~%]
+
+[%~ INCLUDE navitem uri='/around' suffix='?lat=-21.1383&amp;lon=-48.9728&amp;zoom=3' label='Mapa' ~%]
+
+[%~
+  IF pc;
+    pc_uri = pc | uri;
+    pc_suffix = "/list?pc=" _ pc_uri;
+  END;
+
+  INCLUDE navitem uri='/alert' label='Alertas' suffix=pc_suffix;
+~%]
+
+[%~ INCLUDE navitem uri='/faq' label='Sobre' ~%]
+
+[%~ IF c.user_exists ~%]
+    [%~ INCLUDE navitem uri='/my' label='Minha conta' liattrs='class="nav-menu__item--account"' ~%]
+[%~ ELSE ~%]
+    [%~ INCLUDE navitem uri='/auth' label='Entrar' liattrs='class="nav-menu__item--account"' ~%]
+[%~ END ~%]
+
+[%~ IF c.user_exists AND c.user.has_body_permission_to('planned_reports') ~%]
+    [%~ INCLUDE navitem always_url=1 uri='/my/planned' label=loc('Shortlist') ~%]
+[%~ END ~%]
+
+[%~ UNLESS hide_privacy_link ~%]
+  [%~ INCLUDE navitem uri=c.cobrand.privacy_policy_url label=loc('Privacy') liattrs='class="nav-menu__item--privacy"' ~%]
+[%~ END ~%]
+
+[%~ IF c.user_exists AND c.cobrand.admin_allow_user(c.user) ~%]
+  [%~ INCLUDE navitem uri='/admin' label=loc('Admin') ~%]
+[%~ END ~%]
+
+[%~ INCLUDE navitem uri='/report/new' liattrs='class="hidden js-continue-draft"' always_url=1 label=loc('Continue draft report...') ~%]

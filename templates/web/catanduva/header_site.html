@@ -1,0 +1,75 @@
+[%# Cabecalho do cobrand — UI Evolution V2.
+
+    Substitui templates/web/base/header_site.html, que compoe logotipo e
+    navegacao em dois blocos irmaos e deixa o upstream posicionar a navegacao em
+    absoluto sobre o cabecalho. A referencia poe logotipo, navegacao e acoes na
+    mesma linha, entao a .nav-wrapper entra dentro do container do cabecalho e o
+    layout.scss a devolve ao fluxo.
+
+    Os ids do upstream sao preservados de proposito:
+      #site-header      offsets das paginas de mapa partem dele
+      #site-logo        o texto dentro dele e o nome acessivel da marca
+      #main-nav-btn     a caixa de selecao que abre o menu no celular
+      #main-nav         precisa continuar irmao posterior da caixa, senao o
+                        seletor #main-nav-btn:checked ~ #main-nav para de casar
+    Trocar qualquer um deles quebra JS ou CSS compartilhado.
+%]
+[%- SET is_home = c.req.uri.path == '/' -%]
+
+[%# Barra utilitaria. Aparece em todas as paginas, inclusive nas de mapa; o que
+    as paginas de mapa precisam e somar a altura dela aos seus offsets absolutos,
+    e isso esta em --mappage-offset (base.scss). %]
+<div class="utility-bar">
+    <div class="container utility-bar__inner">
+        <p class="utility-bar__place">
+            [% INCLUDE '_ui-icon.html' icon = 'pin-solid' %]
+            Catanduva - SP
+        </p>
+        <p class="utility-bar__tagline">Cidades melhores são feitas por pessoas.</p>
+
+        <div class="utility-bar__tools">
+            <a class="utility-bar__link" href="/faq#acessibilidade">Acessibilidade</a>
+            <button type="button" class="utility-bar__link js-contrast-toggle" aria-pressed="false">Contraste</button>
+            <div class="text-size" role="group" aria-label="Tamanho do texto">
+                <button type="button" class="text-size__btn js-text-size" data-step="down" aria-label="Diminuir o tamanho do texto">A-</button>
+                <button type="button" class="text-size__btn js-text-size" data-step="reset" aria-label="Tamanho normal do texto">A</button>
+                <button type="button" class="text-size__btn js-text-size" data-step="up" aria-label="Aumentar o tamanho do texto">A+</button>
+            </div>
+            <a class="utility-bar__link" href="/faq#acessibilidade" aria-label="Recursos de acessibilidade">
+                [% INCLUDE '_ui-icon.html' icon = 'accessibility' %]
+            </a>
+        </div>
+    </div>
+</div>
+
+<header id="site-header" role="banner">
+    <div class="container site-header__inner">
+        <a href="[% c.cobrand.base_url IF admin %]/" id="site-logo">[% site_name %]</a>
+
+        <div class="nav-wrapper">
+            [% INCLUDE 'main_nav.html' %]
+        </div>
+
+        <div class="site-header__actions">
+            <a class="site-header__search" href="[% is_home ? '#pc' : '/' %]" aria-label="[% loc('Search') %]">
+                [% INCLUDE '_ui-icon.html' icon = 'search' %]
+            </a>
+
+            [% IF c.user_exists %]
+                <a class="btn site-header__signin" href="/my">Minha conta</a>
+            [% ELSE %]
+                <a class="btn site-header__signin" href="/auth">Entrar</a>
+            [% END %]
+
+            [%# O destino muda com a pagina, e por um motivo funcional: registrar
+                uma ocorrencia exige um ponto no mapa, entao /report/new sem
+                coordenadas devolve a pessoa para a home. Na home o botao leva ao
+                campo de busca, que e o primeiro passo real do fluxo; fora dela,
+                leva a home. Um CTA que nao leva a lugar nenhum e pior que
+                nenhum CTA. %]
+            <a class="btn btn--primary site-header__cta" href="[% is_home ? '#pc' : '/' %]">Registrar ocorrência</a>
+        </div>
+
+        <label id="nav-link" for="main-nav-btn">[% loc('Main Navigation') %]</label>
+    </div>
+</header>

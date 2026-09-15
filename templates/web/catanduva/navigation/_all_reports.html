@@ -1,0 +1,24 @@
+[%# Item "Ocorrencias" da navegacao.
+
+    Copia de templates/web/base/navigation/_all_reports.html com uma unica
+    diferenca: o rotulo. O upstream usa loc('All reports'), que o catalogo pt_BR
+    rende como "Todas as ocorrencias" — longo demais para a linha de cinco itens
+    da referencia, e redundante ao lado de "Mapa" e "Alertas".
+
+    A logica de destino e a do upstream, inclusive o desvio para o inspetor: quem
+    e do orgao e tem categorias ou areas atribuidas cai em /my/inspector_redirect,
+    nao na listagem publica. Mudar isso mudaria regra de negocio.
+%]
+[%~
+    IF c.user_exists AND c.user.from_body AND ( c.user.categories.size OR c.user.area_ids.size );
+      reports_uri = '/my/inspector_redirect';
+    ELSE;
+      reports_uri = '/reports';
+      IF c.cobrand.council_area;
+         body_name = c.cobrand.council_area | uri;
+         reports_uri = "${reports_uri}/${body_name}";
+      END;
+    END;
+
+    INCLUDE navitem uri=reports_uri label='Ocorrências';
+~%]
