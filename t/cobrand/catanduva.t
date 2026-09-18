@@ -1451,6 +1451,143 @@ subtest 'no report is closed without a line saying why' => sub {
     };
 };
 
+subtest 'the last step asks only what the report needs' => sub {
+    # F6, fase 5.1. Era o unico passo do fluxo que nao tinha passado pela
+    # evolucao visual, e o unico que nao cabia no painel: 251px de rolagem em
+    # 1440x900. Tres coisas responderam por essa altura, e cada uma tem um
+    # motivo que nao e "sobrou espaco".
+    my $lat = -21.1383;
+    my $lon = -48.9736;
+
+    subtest 'nao pergunta telefone' => sub {
+        # Nao e economia de espaco: hoje o numero nao serve a ninguem. Sem
+        # autenticacao por SMS, sem questionario, e com a caixa de demonstracao
+        # ligada nenhuma ocorrencia chega a orgao nenhum - o telefone iria
+        # junto para uma caixa de demonstracao. Dado pessoal coletado e usado
+        # por ninguem.
+        FixMyStreet::override_config {
+            ALLOWED_COBRANDS => ['catanduva'],
+            MAPIT_URL => 'http://mapit.uk/',
+        }, sub {
+            my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+                { cobrand => 'catanduva' });
+            $mech->create_contact_ok(body_id => $body->id,
+                category => 'Buraco na via', email => 'buraco@example.org');
+
+            $mech->log_out_ok;
+            $mech->get_ok("/report/new?latitude=$lat&longitude=$lon");
+            $mech->content_lacks('name="phone"', 'o campo de telefone nao aparece');
+            $mech->content_lacks('id="form_phone"', 'nem com o id do upstream');
+        };
+    };
+
+    subtest 'a senha fica atras de uma porta, e o campo continua no formulario' => sub {
+        # Criar uma senha nao faz parte de registrar um problema. Fechada, a
+        # oferta ocupa uma linha; o campo continua no DOM, e vazio significa
+        # "sem senha" para o New.pm - nao ha ramo novo no servidor.
+        FixMyStreet::override_config {
+            ALLOWED_COBRANDS => ['catanduva'],
+            MAPIT_URL => 'http://mapit.uk/',
+        }, sub {
+            my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+                { cobrand => 'catanduva' });
+            $mech->create_contact_ok(body_id => $body->id,
+                category => 'Buraco na via', email => 'buraco@example.org');
+
+            $mech->log_out_ok;
+            $mech->get_ok("/report/new?latitude=$lat&longitude=$lon");
+            $mech->content_contains('js-quero-senha', 'a porta existe');
+            $mech->content_contains('name="password_register"',
+                'e o campo continua sendo enviado');
+        };
+    };
+
+    subtest 'a frase de privacidade diz a verdade, inclusive pelo AJAX' => sub {
+        # Este e o caso que custou caro para achar. O `fixmystreet.js` faz
+        # `$('#js-councils_text_private').html(...)` a cada troca de categoria,
+        # com o que o /report/new/ajax devolve. Qualquer escolha de frase feita
+        # so no template do passo dura ate o primeiro clique numa categoria.
+        #
+        # Com a caixa de demonstracao ligada, dizer "serao enviados a
+        # prefeitura" e falso: `munge_sendreport_params` desvia tudo para ela.
+        FixMyStreet::override_config {
+            ALLOWED_COBRANDS => ['catanduva'],
+            MAPIT_URL => 'http://mapit.uk/',
+            COBRAND_FEATURES => {
+                demonstration_recipient => { catanduva => 'ocorrencias@example.org' },
+            },
+        }, sub {
+            my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+                { cobrand => 'catanduva' });
+            $mech->create_contact_ok(body_id => $body->id,
+                category => 'Buraco na via', email => 'buraco@example.org');
+
+            $mech->log_out_ok;
+            $mech->get_ok("/report/new?latitude=$lat&longitude=$lon");
+            $mech->content_lacks('enviados à prefeitura',
+                'a pagina nao promete envio a orgao nenhum');
+
+            my $json = $mech->get_ok_json("/report/new/ajax?latitude=$lat&longitude=$lon&w=1");
+            unlike $json->{councils_text_private}, qr/enviados à prefeitura/,
+                'e o AJAX, que e quem escreve a frase depois, tambem nao';
+        };
+    };
+
+    subtest 'sem a caixa de demonstracao, volta a frase do upstream' => sub {
+        FixMyStreet::override_config {
+            ALLOWED_COBRANDS => ['catanduva'],
+            MAPIT_URL => 'http://mapit.uk/',
+        }, sub {
+            my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+                { cobrand => 'catanduva' });
+            $mech->create_contact_ok(body_id => $body->id,
+                category => 'Buraco na via', email => 'buraco@example.org');
+
+            $mech->log_out_ok;
+            my $json = $mech->get_ok_json("/report/new/ajax?latitude=$lat&longitude=$lon&w=1");
+            like $json->{councils_text_private}, qr/enviados à prefeitura/,
+                'havendo para onde enviar, a frase do upstream e a certa';
+        };
+    };
+
+    subtest 'registrar sem senha continua funcionando' => sub {
+        # O caminho da maioria. A porta fechada nao pode ter tornado a senha
+        # obrigatoria por acidente.
+        FixMyStreet::override_config {
+            ALLOWED_COBRANDS => ['catanduva'],
+            MAPIT_URL => 'http://mapit.uk/',
+        }, sub {
+            my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+                { cobrand => 'catanduva' });
+            $mech->create_contact_ok(body_id => $body->id,
+                category => 'Buraco na via', email => 'buraco@example.org');
+
+            $mech->log_out_ok;
+            $mech->get_ok("/report/new?latitude=$lat&longitude=$lon");
+            my ($token) = $mech->content =~ /name="token" value="([^"]+)"/;
+
+            $mech->post_ok('http://catanduva.fixmystreet.com/report/new', {
+                token             => $token,
+                submit_problem    => 1,
+                latitude          => $lat,
+                longitude         => $lon,
+                title             => 'Registro sem senha nenhuma',
+                detail            => 'Descricao suficiente para passar na validacao.',
+                category          => 'Buraco na via',
+                name              => 'Quem Registra',
+                username_register => 'sem.senha@example.org',
+                may_show_name     => 1,
+                password_register => '',
+            });
+
+            my $o = FixMyStreet::DB->resultset('Problem')
+                ->search({ title => 'Registro sem senha nenhuma' })->first;
+            ok $o, 'a ocorrencia foi criada';
+            ok !$o->user->password, 'e a conta ficou sem senha, como pedido';
+        };
+    };
+};
+
 subtest 'every page reached from an email link renders' => sub {
     # Fase 3.2 do PLANO_DE_FASES.md.
     #

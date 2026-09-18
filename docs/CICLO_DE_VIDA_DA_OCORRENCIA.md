@@ -30,8 +30,8 @@
 | F3 | Toda ocorrência é enviada a **dois órgãos duplicados** | ~~Alta~~ **RESOLVIDO** | dado; coberto por `checar-configuracao` |
 | F4 | Quem registra sem conta é **inscrito em alertas sem pedir** | ~~Alta~~ **RESOLVIDO** | `Catanduva.pm`, `suppress_reporter_alerts` |
 | F5 | O autor **não pode editar nem cancelar** a própria ocorrência | ~~Alta~~ **RESOLVIDO** | `Catanduva.pm`, `moderate_permission` |
-| F6 | O passo "Nos conte sobre você" não passou pela evolução visual e tem **dois campos "Seu e-mail"** | Média | `report/new/fill_in_details.html` |
-| F7 | `"poítica de privacidade"` — erro de digitação | Baixa | catálogo pt_BR |
+| F6 | O passo "Nos conte sobre você" não passou pela evolução visual e tem **dois campos "Seu e-mail"** | ~~Média~~ **RESOLVIDO** | `report/new/fill_in_details.html` |
+| F7 | `"poítica de privacidade"` — erro de digitação | ~~Baixa~~ **RESOLVIDO** | catálogo pt_BR |
 | F8 | `"Você tem uma FixMyStreet Catanduva senha?"` — frase quebrada | Média | catálogo pt_BR |
 | F9 | `"This field is required."` em inglês na validação | Média | `translation_strings` |
 | F10 | A tela de inspeção/moderação não passou pela evolução visual | Média | `report/inspect.html` |

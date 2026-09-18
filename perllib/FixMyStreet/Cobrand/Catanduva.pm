@@ -877,6 +877,31 @@ sub report_inspect_invalid {
          . 'a única explicação que vai chegar.';
 }
 
+=head2 disable_phone_number_entry
+
+Nao pergunta telefone (F6).
+
+Nao e economia de espaco - e o mesmo principio do F4, aplicado a um campo: nao
+se pede o que nao se vai usar.
+
+Hoje o numero nao serve a ninguem. O piloto nao usa autenticacao por SMS
+(C<sms_authentication> e falso), nao envia questionario
+(C<send_questionnaires> devolve 0), e enquanto houver C<demonstration_recipient>
+nenhuma ocorrencia chega a orgao nenhum - o telefone iria junto para uma caixa
+de demonstracao. Seria dado pessoal coletado, guardado e usado por ninguem.
+
+Tambem e o campo que fazia o ultimo passo nao caber: com ele, o painel rolava
+89px.
+
+REVERSIVEL EM UMA LINHA no dia em que houver parceria. A prefeitura pode muito
+bem querer um telefone para retornar, e ai o campo volta - com um proposito,
+que e o que falta hoje. O gancho e do upstream e outros cobrands o usam
+(C<CyclingUK>).
+
+=cut
+
+sub disable_phone_number_entry { 1 }
+
 =head2 must_have_2fa
 
 SEC-003. Any account that can act on other people's data - a superuser, or

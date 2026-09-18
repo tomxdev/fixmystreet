@@ -282,15 +282,17 @@ ocorrência é fechada sem uma frase dizendo por quê.
 **Por que só agora:** são atrito, não quebra. Mas a de 5.1 está no caminho de
 todo mundo, e a de 5.2 é a que a prefeitura vai usar todo dia.
 
-## 5.1 · `F6` — o passo "Nos conte sobre você"
+## 5.1 · `F6` — o passo "Nos conte sobre você" — **CONCLUÍDA**
 
 | | |
 |---|---|
-| **Situação** | É o **único passo do fluxo** que não passou pela evolução visual, e o que mais precisava. Mistura login, cadastro e confirmação por e-mail na mesma tela, com **dois campos chamados "Seu e-mail"** — `username` (login) e `username_register` (cadastro). Preencher o errado dá erro num campo que a pessoa não vê |
-| **Fazer** | Aplicar o Design System e **separar as duas intenções**: "já tenho conta" e "não tenho" em caminhos que não dividam a tela. O caminho sem senha — que existe e funciona — precisa ser o mais visível, porque é o da maioria |
-| **Validar** | 1440, 768, 390; sem rolagem; registrar pelos dois caminhos |
-| **Custo** | Dois a três dias |
-| **Junta com** | 1.4 (a caixa de alerta entra nessa mesma tela) |
+| **Situação** | O único passo do fluxo que não tinha passado pela evolução visual, e o único que **não cabia**: rolava **251px** em 1440×900 |
+| **Os dois "Seu e-mail"** | Não são simultâneos, ao contrário do que o item supunha: o upstream já separa as duas caixas e mostra uma de cada vez. O que faltava era o convite — a frase inteira "Ou entre com uma senha para preencher previamente essas informações." era o link. Virou **"Já tenho conta"**, uma linha |
+| **De onde vieram os 251px** | telefone **−89**; senha atrás de uma porta **−123**; a frase de privacidade verdadeira, que é uma linha mais curta **−16**; e o ritmo vertical do upstream (17,5px por rótulo, 30px por grupo) trocado pela escala do sistema **−23** |
+| **Telefone** | `disable_phone_number_entry`. Não é economia de espaço: sem SMS, sem questionário e com a caixa de demonstração ligada, o número não serve a ninguém. Reversível numa linha quando houver parceria |
+| **Senha** | Criar conta não faz parte de registrar um problema. Fechada, a oferta ocupa uma linha; o campo continua no DOM e vazio significa "sem senha" — não há ramo novo no servidor. Quem vem de "esqueci a senha" chega com a porta aberta |
+| **Validado** | 1440×900, 768×1024 e 390×844 sem rolagem e sem transbordo horizontal; cinco subtestes, incluindo registrar sem senha nenhuma |
+| **Custo real** | Um dia |
 
 ## 5.2 · `F10` — a tela de inspeção
 

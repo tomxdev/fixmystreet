@@ -1909,6 +1909,29 @@
     }
 
     // -----------------------------------------------------------------------
+    // A porta da senha, quando quem chega vem de "esqueci a senha"
+    // -----------------------------------------------------------------------
+    //
+    // No passo "Nos conte sobre você" a senha fica atrás de uma caixa de
+    // seleção: criar conta não faz parte de registrar um problema, e o bloco
+    // aberto custava 162px num passo que já não cabia no painel.
+    //
+    // Há um caminho em que ela deixa de ser opcional. Quem está na caixa de
+    // entrar e clica em "Esqueceu sua senha?" é trazido de volta para o
+    // formulário de cadastro, e o upstream troca o rótulo para "Nova senha:" —
+    // é ali que a pessoa define a senha nova. Com a porta fechada, ela cairia
+    // num formulário sem campo de senha nenhum.
+    //
+    // O ouvinte do upstream continua fazendo o que faz; este só marca a caixa
+    // no mesmo clique. Registrado depois dele não faria diferença: os dois
+    // rodam, e a ordem entre eles não importa.
+    function abrirSenhaAoEsquecer() {
+        $(".js-new-report-sign-in-forgotten").on("click", function () {
+            $("#js-quero-senha").prop("checked", true);
+        });
+    }
+
+    // -----------------------------------------------------------------------
     // Altura da folha de "onde olhar" no celular
     // -----------------------------------------------------------------------
     //
@@ -2885,6 +2908,7 @@
         ligarBuscaDaLocalizacao();
         ligarFotos();
         ligarDetalhes();
+        abrirSenhaAoEsquecer();
         ajustarBarraDaFolha();
         refreshAddress();
         ligarCopia();

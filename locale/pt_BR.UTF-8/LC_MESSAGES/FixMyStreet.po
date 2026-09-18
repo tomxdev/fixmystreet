@@ -4711,7 +4711,7 @@ msgstr "Segurança"
 #: templates/web/base/report/form/private_details.html:14
 #: templates/web/base/report/new/councils_text_private.html:8
 msgid "See our privacy policy"
-msgstr "Veja nossa poítica de privacidade"
+msgstr "Veja nossa política de privacidade"
 
 #: perllib/FixMyStreet/Cobrand/Default.pm:794
 msgid "See user detail for reports created as the council"

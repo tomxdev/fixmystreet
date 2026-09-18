@@ -5467,3 +5467,135 @@ body.map-ficha-aberta .map-panel__flow-head {
 .map-sent__next--aviso .map-sent__next-icon {
     color: var(--c-warning);
 }
+
+// ---------------------------------------------------------------------------
+// O passo "Nos conte sobre você" (F6, fase 5.1)
+//
+// Era o único dos nove que não tinha passado pela evolução visual, e o único
+// que não cabia: 251px de rolagem em 1440×900. As regras abaixo não são
+// maquiagem — cada uma responde por uma parte daquela altura, e o que sobra
+// está no `disable_phone_number_entry` (89px) e na porta da senha (123px).
+// ---------------------------------------------------------------------------
+
+// O link "Já tenho conta". Uma linha, encostada no texto de apoio acima — são a
+// mesma ideia ("é isto que vamos fazer; a não ser que você já tenha conta") e
+// um respiro entre as duas as separaria à toa.
+.map-panel .map-step__entrar {
+    margin: calc(var(--space-2) * -1) 0 var(--space-3);
+    font-size: var(--fs-sm);
+
+    a {
+        color: var(--c-primary);
+        font-weight: var(--fw-semibold);
+    }
+}
+
+// -- O ritmo vertical do passo ----------------------------------------------
+//
+// Os espaços aqui eram os do upstream: 17,5px acima de cada rótulo e 30px
+// abaixo de cada `govuk-form-group`. Somados davam 101px de respiro num passo
+// que já não cabia. Os outros oito passos usam a escala do sistema, e é ela que
+// entra — não é aperto, é a mesma medida que o resto do fluxo.
+// `> label` e nao `label`, e isso custou uma medicao para aparecer: a primeira
+// versao pegava tambem os rotulos DENTRO das caixas de selecao, e cada um
+// ganhava 12px de respiro que nao tinha. Os dois blocos de caixa cresceram — 45
+// para 59 e 39 para 51 — e o passo ficou mais alto do que antes da regra que
+// existia para encolhe-lo.
+//
+// Os rotulos que interessam sao os que anunciam um campo, e esses sao filhos
+// diretos da caixa do formulario.
+.map-panel [data-page-name="user"] {
+    #form_sign_in_no > label,
+    #form_sign_in_yes > label {
+        margin-top: var(--space-3);
+    }
+
+    .govuk-form-group {
+        margin-bottom: var(--space-3);
+    }
+}
+
+// A nota de privacidade. É a única frase da tela que diz para onde os dados
+// vão, então não encolhe até sumir: fica no mesmo bloco de aviso que o passo de
+// categoria usa, com o ícone de escudo.
+//
+// Sem margem em cima: o "Já tenho conta" logo acima já tem a dele, e as duas
+// somavam 28px entre uma linha e outra. Os últimos 22px que faltavam para o
+// passo caber saíram daqui e do respiro abaixo do cabeçalho — espaço, e não
+// conteúdo.
+.map-panel .map-step__aviso--privacidade {
+    margin-top: 0;
+    margin-bottom: var(--space-3);
+
+    strong {
+        font-weight: var(--fw-semibold);
+    }
+
+    a {
+        color: var(--c-primary);
+    }
+}
+
+.map-panel [data-page-name="user"] .map-step__head {
+    margin-bottom: var(--space-3);
+}
+
+// -- A porta da senha -------------------------------------------------------
+//
+// Fechada é uma linha; aberta, o bloco inteiro. Sem JavaScript para abrir: o
+// irmão adjacente de uma caixa marcada é uma regra de CSS, e funciona mesmo se
+// o JS falhar ao carregar.
+// Grid, e nao flex, por um motivo estrutural: a caixa de selecao precisa ser
+// IRMA do bloco que ela abre, senao `:checked ~` nao o alcanca. O grid poe a
+// caixa e o rotulo lado a lado sem envolve-los num elemento, e deixa o bloco
+// ocupar a linha inteira abaixo.
+.map-step__senha {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: var(--space-3);
+    align-items: start;
+    margin: var(--space-3) 0;
+
+    > input[type="checkbox"].js-quero-senha {
+        // 2px alinham o quadrado com a primeira linha do rotulo.
+        margin: 2px 0 0;
+        width: 20px;
+        height: 20px;
+        accent-color: var(--c-primary);
+    }
+}
+
+.map-panel label.map-step__senha-porta {
+    margin: 0;
+    color: var(--c-text-body);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-regular);
+    line-height: var(--lh-snug);
+    cursor: pointer;
+}
+
+// O campo continua no DOM, e vazio significa "sem senha" para o New.pm. Por
+// isso `display: none` e não remoção: escondido, ele é enviado vazio, que é
+// exatamente o que quem não marcou a caixa quer dizer.
+.map-step__senha-campos {
+    display: none;
+    grid-column: 1 / -1;
+    margin-top: 0;
+}
+
+.map-step__senha > .js-quero-senha:checked ~ .map-step__senha-campos {
+    display: block;
+}
+
+// A ajuda da senha só aparece com a porta aberta, e ali ela cabe: é a hora em
+// que a pessoa está decidindo o que digitar.
+.map-panel .map-step__senha-campos #password_register_hint {
+    margin: 0 0 var(--space-2);
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+
+    p {
+        margin: 0;
+    }
+}

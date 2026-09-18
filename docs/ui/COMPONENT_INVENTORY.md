@@ -54,6 +54,7 @@
 | Dropzone | pontilhado cinza | mint com tracejado verde | RESTYLE | herda tokens |
 | Consentimento de acompanhamento | não existia: o upstream inscrevia sem perguntar | caixa marcada acima do botão de envio, 22px, sem fundo | NEW | `report/form/submit.html`, `_map.scss` |
 | Janela de correção do autor | não existia: só a equipe editava | painel tracejado na página da ocorrência, visível só para quem a escreveu e só dentro da janela | NEW | `report/_main_after.html`, `_components.scss` |
+| Porta de senha | campo sempre aberto, com ajuda de três linhas | caixa de seleção que revela o bloco, sem JavaScript | NEW | `user_loggedout_by_email_password.html`, `_map.scss` |
 
 ## Conteúdo
 
@@ -195,3 +196,21 @@ uma rodada de correção:
     22px e o rótulo cabe numa linha só; o painel volta a não rolar em nenhum dos
     três tamanhos. Antes de acrescentar qualquer coisa a um passo, medir
     `scrollHeight - clientHeight` do `.map-panel` com e sem ela.
+12. **`~` só enxerga irmãos.** A porta da senha nasceu com a caixa de seleção
+    dentro de um `div` e o bloco revelado ao lado dele; `:checked ~ .campos` não
+    encontrava nada e a porta ficava fechada para sempre. Quando um controle
+    revela um bloco por CSS, os dois têm de ser irmãos — um `grid` recompõe a
+    linha sem precisar do elemento que os separava.
+13. **Um `id` que começa com `js-` provavelmente é reescrito por JavaScript.**
+    `#js-councils_text_private` recebe `$(...).html(...)` do `fixmystreet.js` a
+    cada troca de categoria, com o que o `/report/new/ajax` devolve. Com o `id`
+    no contêiner, o primeiro clique apagava o ícone e a composição inteira do
+    aviso — o servidor mandava o certo e o JavaScript o desfazia, o que rende
+    horas olhando para o template. O `id` vai no elemento **de texto**; a
+    moldura fica de fora. E a escolha do conteúdo tem de morar no template que
+    o AJAX renderiza, não no passo.
+14. **Uma regra de espaçamento por elemento atinge os rótulos das caixas de
+    seleção.** `[data-page-name="user"] label { margin-top }` cresceu dois
+    blocos de caixa (45→59 e 39→51) e deixou o passo mais alto do que antes da
+    regra que existia para encolhê-lo. Os rótulos que anunciam um campo são os
+    filhos diretos do formulário: `> label`.

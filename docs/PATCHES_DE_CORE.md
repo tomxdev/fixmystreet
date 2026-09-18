@@ -181,16 +181,31 @@ de produto do piloto — não algo que o upstream tenha pedido.
 
 ---
 
-## 4. Fixture de teste
+## 4. O catálogo de tradução, que a guarda não vigia
 
-### 4.1 `t/Mock/MapIt.pm` (+15)
+`locale/pt_BR.UTF-8/LC_MESSAGES/FixMyStreet.po` fica **de fora** do
+`conferir-core`, de propósito.
+
+Traduzir é o trabalho normal de um piloto em português — vigiá-lo faria o
+script reclamar de toda correção de texto, e uma guarda que reclama sempre deixa
+de ser lida. O `.mo` compilado não é versionado; quem o gera é o
+`gettext-makemo`, que já roda no `CI BR`.
+
+Corrigido até agora: `"poítica de privacidade"` → `"política de privacidade"`
+(o `F7`). Um erro de digitação no catálogo aparece em toda tela que usa a
+chave — corrigir ali resolve de uma vez, e é por isso que não foi corrigido no
+template onde ele foi visto.
+
+## 5. Fixture de teste
+
+### 5.1 `t/Mock/MapIt.pm` (+15)
 
 Três pontos de Catanduva, para o `bin/browser-tests` do CI. Só faz sentido para
 quem tem o cobrand brasileiro — vai junto se o cobrand for proposto, e não antes.
 
 ---
 
-## 5. O que impede a lista de crescer sozinha
+## 6. O que impede a lista de crescer sozinha
 
 Um inventário só vale enquanto estiver certo. `bin/catanduva/conferir-core`
 compara **o conjunto de arquivos de core alterados** com a lista deste documento e
