@@ -34,7 +34,7 @@
 | F7 | `"poítica de privacidade"` — erro de digitação | ~~Baixa~~ **RESOLVIDO** | catálogo pt_BR |
 | F8 | `"Você tem uma FixMyStreet Catanduva senha?"` — frase quebrada | Média | catálogo pt_BR |
 | F9 | `"This field is required."` em inglês na validação | Média | `translation_strings` |
-| F10 | A tela de inspeção/moderação não passou pela evolução visual | Média | `report/inspect.html` |
+| F10 | A tela de inspeção/moderação não passou pela evolução visual | ~~Média~~ **RESOLVIDO** | `report/inspect.html` |
 | F11 | "Protocolo FixMyStreet: 75" — marca errada e id interno como protocolo | Média | `report/_main.html` |
 | F12 | `cancelled` existe como estado mas **nada o usa** | ~~Média~~ **RESOLVIDO** | `VOCABULARIO_DE_ESTADOS.md` |
 | F13 | O rótulo da lista de atualizações diz "ATUALIZADOS" | Baixa | catálogo pt_BR |

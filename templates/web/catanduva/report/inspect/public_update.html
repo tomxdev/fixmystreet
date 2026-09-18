@@ -1,0 +1,44 @@
+[%# "Salvar com uma atualização pública", e a regra que a torna obrigatória.
+
+    Substitui templates/web/base/report/inspect/public_update.html.
+
+    A ÚNICA DIFERENÇA é o aviso: o resto — a caixa, o campo de foto, a lista de
+    modelos de resposta e o textarea — é o do upstream, com os mesmos nomes de
+    campo, que é o que o `Report.pm` lê.
+
+    POR QUE O AVISO. Desde a fase 4.4, fechar uma ocorrência sem escrever uma
+    linha é recusado: `report_inspect_invalid`, no cobrand, devolve a mensagem e
+    a gravação não acontece. A recusa funciona, mas chegar a ela é frustrante —
+    a pessoa escolhe o estado, clica em salvar e só então descobre a regra.
+
+    Dizer antes custa uma linha. O texto não repete a regra inteira: diz o que
+    ela protege, que é o que faz alguém escrever uma frase de verdade em vez de
+    um ponto final para passar pela validação.
+%]
+[% IF NOT public_update_defaulted.defined %]
+    [% public_update_defaulted = 1 %]
+[% END %]
+          <p>
+            <label class="label-containing-checkbox">
+              <input type="checkbox" name="include_update" value="1" class="js-toggle-public-update"[% ' checked' IF public_update_defaulted %]>
+              [% loc('Save with a public update') %]
+            </label>
+          </p>
+
+          <p class="inspect-aviso-fechamento">
+            [% INCLUDE '_ui-icon.html' icon = 'info' %]
+            <span>
+              Ao encerrar uma ocorrência, esta linha é <strong>obrigatória</strong> —
+              é o que quem registrou recebe por e-mail, e a única explicação que
+              vai chegar até ela.
+            </span>
+          </p>
+
+          <div id="public_update_form_fields"[% ' class="hidden-js"' IF NOT public_update_defaulted %]>
+          [% INCLUDE report/form/photo_upload.html %]
+          <p>
+            <label for="public_update">[% loc('Public update:') %]</label>
+            [% INCLUDE 'admin/response_templates_select.html' for='public_update' %]
+            <textarea rows="2" name="public_update" id="public_update" class="form-control">[% public_update | html %]</textarea>
+          </p>
+          </div>

@@ -1986,3 +1986,99 @@ body:not(.frontpage) {
         color: var(--c-error);
     }
 }
+
+// ---------------------------------------------------------------------------
+// A tela de inspeção (F10, fase 5.2)
+//
+// É a tela de trabalho da equipe da prefeitura, e a adoção do piloto passa por
+// ela. Ao medir, a maior parte do que o plano descrevia — "sem os tokens, sem a
+// tipografia" — já não era verdade: os campos herdaram o sistema de
+// `_components.scss` §4 e vêm com 44px, raio 10 e a fonte do piloto.
+//
+// O que restava era a moldura: a coluna em azul-claro do upstream
+// (rgb(233,242,255)), as divisórias em preto a 20% e o título fora da escala.
+// São as três coisas que faziam a tela parecer de outro site.
+//
+// Tudo aqui é CSS. A composição do formulário é do `report/_inspect.html`, 87
+// linhas do upstream, e copiá-las para dar nome a cada seção é uma dívida que
+// não se paga com o que ela devolveria — ver a fase 5.2 no PLANO_DE_FASES.md.
+// ---------------------------------------------------------------------------
+
+#side-inspect {
+    // A coluna deixa de ser azul-clara: é uma superfície do sistema, como o
+    // painel do mapa e a ficha da ocorrência.
+    background: var(--c-surface-alt);
+    color: var(--c-text-body);
+}
+
+// O título da coluna. Mesma medida dos títulos de passo do fluxo do mapa
+// (`--fs-h3`): é o mesmo nível de hierarquia — o nome do que se está fazendo
+// nesta tela.
+.inspect-form-heading {
+    margin: 0 0 var(--space-4);
+    color: var(--c-text);
+    font-size: var(--fs-h3);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-tight);
+}
+
+// As divisórias entre seções. Em preto a 20% elas ficavam mais pesadas do que
+// qualquer coisa que separassem; na cor de borda do sistema elas fazem o que
+// divisória faz — separar sem chamar atenção.
+#report_inspect_form .inspect-section {
+    padding-top: var(--space-5);
+    border-top-color: var(--c-border);
+
+    &:first-child {
+        padding-top: 0;
+    }
+
+    // Rótulo e campo com o mesmo ritmo do resto do sistema. O upstream envolve
+    // cada par num <p>, então é nele que a medida vale.
+    > p {
+        margin: 0 0 var(--space-4);
+    }
+
+    label {
+        display: block;
+        margin-bottom: var(--space-2);
+        color: var(--c-text);
+        font-size: var(--fs-sm);
+        font-weight: var(--fw-bold);
+    }
+}
+
+// A linha que o formulário escreve sobre quem registrou: nome, e-mail,
+// telefone, coordenadas. É informação de trabalho, não corpo de texto — fica
+// legível sem competir com os campos.
+#report_inspect_form .inspect-section:first-child p {
+    margin: 0 0 var(--space-2);
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-snug);
+
+    strong {
+        color: var(--c-text);
+        font-weight: var(--fw-semibold);
+    }
+}
+
+// O aviso de que fechar exige explicar (fase 4.4). Fica colado na caixa de
+// "Salvar como uma atualização pública", que é o controle que ele explica.
+.inspect-aviso-fechamento {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: var(--space-3);
+    align-items: start;
+    margin: var(--space-2) 0 var(--space-4);
+    color: var(--c-text-body);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-snug);
+
+    svg {
+        width: 18px;
+        height: 18px;
+        margin-top: 1px;
+        color: var(--c-warning);
+    }
+}

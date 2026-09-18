@@ -55,6 +55,7 @@
 | Consentimento de acompanhamento | não existia: o upstream inscrevia sem perguntar | caixa marcada acima do botão de envio, 22px, sem fundo | NEW | `report/form/submit.html`, `_map.scss` |
 | Janela de correção do autor | não existia: só a equipe editava | painel tracejado na página da ocorrência, visível só para quem a escreveu e só dentro da janela | NEW | `report/_main_after.html`, `_components.scss` |
 | Porta de senha | campo sempre aberto, com ajuda de três linhas | caixa de seleção que revela o bloco, sem JavaScript | NEW | `user_loggedout_by_email_password.html`, `_map.scss` |
+| Coluna de inspeção | azul-claro do upstream, divisórias em preto a 20% | superfície do sistema, divisórias em `--c-border`, título em `--fs-h3` | RESTYLE | `_components.scss` |
 
 ## Conteúdo
 

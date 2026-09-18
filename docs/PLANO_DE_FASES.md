@@ -294,15 +294,18 @@ todo mundo, e a de 5.2 é a que a prefeitura vai usar todo dia.
 | **Validado** | 1440×900, 768×1024 e 390×844 sem rolagem e sem transbordo horizontal; cinco subtestes, incluindo registrar sem senha nenhuma |
 | **Custo real** | Um dia |
 
-## 5.2 · `F10` — a tela de inspeção
+## 5.2 · `F10` — a tela de inspeção — **CONCLUÍDA**
 
 | | |
 |---|---|
-| **Situação** | A coluna com categoria, estado e prioridade é o layout do upstream: sem os tokens, sem a tipografia, campos soltos |
-| **Por que importa** | É a tela de trabalho da equipe da prefeitura. A adoção do piloto passa por ela |
-| **Fazer** | Aplicar o Design System, com a mesma disciplina das telas do cidadão |
-| **Custo** | Três dias |
-| **Depende de** | 4.4, se a atualização obrigatória mudar o formulário |
+| **O que a medição mostrou** | Metade da descrição já não valia: os campos **herdaram o sistema** de `_components.scss` §4 — 44px, raio 10, a fonte do piloto, 16px. Não eram "campos soltos sem tokens" |
+| **O que de fato destoava** | A moldura: coluna em azul-claro do upstream (`rgb(233,242,255)`), divisórias em preto a 20%, título fora da escala. As três coisas que faziam a tela parecer de outro site |
+| **Feito** | Coluna na superfície do sistema, divisórias em `--c-border`, título em `--fs-h3` — a mesma medida dos títulos de passo do fluxo do mapa. Rótulo e campo com o ritmo do sistema. Tudo em CSS |
+| **Junto com a 4.4** | O aviso de que fechar exige explicar entrou ao lado da caixa "Salvar como uma atualização pública". A recusa funcionava; chegar a ela depois de escolher o estado e clicar em salvar é que era frustrante |
+| **`"Change asset"`** | Estava sem tradução no catálogo. O botão é escondido pelo `staff.js` quando não há camadas de equipamento — e o piloto não tem nenhuma —, mas um rótulo em inglês esperando o dia em que aparecer é dívida barata de pagar |
+| **O que NÃO foi feito, e por quê** | Dar nome a cada seção do formulário exige copiar as 87 linhas do `report/_inspect.html`. As quatro seções existem e agora se separam visualmente; títulos de seção custariam uma cópia que envelhece em troca de quatro palavras. Fica registrado como escolha, não como esquecimento |
+| **Validado** | 1440×900, 768×1024 e 390×844 sem transbordo; 208 testes, incluindo o `report_inspect.t` do upstream |
+| **Custo real** | Horas |
 
 ## 5.3 · `KNOWN_ISSUES` 13 — o celular esconde metade do painel — **CONCLUÍDA**
 

@@ -852,7 +852,7 @@ msgstr "Alterar"
 
 #: templates/web/base/report/inspect/information.html:82
 msgid "Change asset"
-msgstr ""
+msgstr "Trocar equipamento"
 
 #: templates/web/base/auth/change_email.html:2
 #: templates/web/base/auth/change_email.html:3
