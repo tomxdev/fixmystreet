@@ -1421,7 +1421,7 @@ msgstr "Não enviar alertas de e-mail sobre comentários para o criador de probl
 #. ("%s is the site name")
 #: templates/web/base/report/form/user_loggedout.html:5
 msgid "Do you have a %s password?"
-msgstr "Você tem uma %s senha?"
+msgstr "Você já tem uma senha no %s?"
 
 #: templates/web/fixmystreet.com/contact/unsuitable-text.html:2
 msgid "Does this report break our <a href=\"/about/house-rules\">Conditions of Use</a>? Use this form to let us know."
@@ -4375,27 +4375,27 @@ msgstr "Registrado na categoria %s"
 
 #: perllib/FixMyStreet/DB/Result/Problem.pm:788
 msgid "Reported in the %s category anonymously at %s"
-msgstr "Registrado anonimamente às %s na categoria %s"
+msgstr "Registrado anonimamente às %2$s na categoria %1$s"
 
 #: perllib/FixMyStreet/DB/Result/Problem.pm:812
 msgid "Reported in the %s category by %s at %s"
-msgstr "Registrado por %s às %s na categoria %s"
+msgstr "Registrado por %2$s às %3$s na categoria %1$s"
 
 #: perllib/FixMyStreet/DB/Result/Problem.pm:785
 msgid "Reported via %s anonymously at %s"
-msgstr "Registrado anonimamente às %s via %s"
+msgstr "Registrado anonimamente às %2$s via %1$s"
 
 #: perllib/FixMyStreet/DB/Result/Problem.pm:809
 msgid "Reported via %s by %s at %s"
-msgstr "Registrado por %s às %s via %s"
+msgstr "Registrado por %2$s às %3$s via %1$s"
 
 #: perllib/FixMyStreet/DB/Result/Problem.pm:782
 msgid "Reported via %s in the %s category anonymously at %s"
-msgstr "Registrado anonimamente às %s via %s na categoria %s"
+msgstr "Registrado anonimamente às %3$s via %1$s na categoria %2$s"
 
 #: perllib/FixMyStreet/DB/Result/Problem.pm:804
 msgid "Reported via %s in the %s category by %s at %s"
-msgstr "Registrado via %s na categoria %s por %s as %s"
+msgstr "Registrado via %s na categoria %s por %s às %s"
 
 #: templates/web/fixmystreet.com/reports/summary.html:69
 #: templates/web/zurich/admin/report_edit-sdm.html:38
@@ -6208,7 +6208,7 @@ msgstr "Atualizado!"
 #: templates/web/base/report/update.html:4
 #: templates/web/zurich/report/updates.html:2
 msgid "Updates"
-msgstr "Atualizados"
+msgstr "Atualizações"
 
 #: perllib/FixMyStreet/DB/Result/Comment.pm:205
 msgid "Updates are limited to %s characters in length. Please shorten your update"

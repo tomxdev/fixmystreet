@@ -338,19 +338,23 @@ destoa do Design System.
 **Por que aqui:** cada item é pequeno; juntos mudam a impressão de cuidado que a
 interface passa. E a dívida decidida agora não vira surpresa depois.
 
-## 6.1 · Os erros de texto
+## 6.1 · Os erros de texto — **CONCLUÍDA**
 
-| Item | O que é | Correção |
+| Item | O que era | Como foi corrigido |
 |---|---|---|
-| `F7` | `"poítica de privacidade"` — falta o "l" | catálogo pt_BR |
-| `F8` | `"Você tem uma FixMyStreet Catanduva senha?"` — ordem das palavras do inglês | "Você já tem uma senha no FixMyStreet Catanduva?" |
-| `F13` | `"ATUALIZADOS"` como título da lista de atualizações | "Atualizações" |
-| `F9` | `"This field is required."` em inglês | mensagem própria em `translation_strings` |
-| `UI-006` | metadados com argumentos trocados: "Registrado anonimamente às desktop via Buraco na via na categoria 17:27 hoje" | `tprintf` com a ordem certa |
-| `UI-011` | "Ocorrências" no menu, "Painel de Controle" na página | escolher um |
+| `F7` | `"poítica de privacidade"` | catálogo pt_BR — some de todas as telas, e não só daquela onde foi visto |
+| `F8` | `"Você tem uma FixMyStreet Catanduva senha?"` | `"Você já tem uma senha no %s?"`, no catálogo |
+| `F13` | `"ATUALIZADOS"` (o maiúsculo é do CSS; o particípio era do catálogo) | `"Atualizações"` |
+| `F9` | `"This field is required."` | **não dava para corrigir no catálogo**: são strings do jQuery Validate, em JavaScript, e não passam pelo gettext. `$.extend($.validator.messages, …)` no `catanduva.js`, que é a forma que a própria biblioteca documenta. Mexer no `vendor/` seria dívida que some no próximo `npm` |
+| `UI-006` | `"Registrado anonimamente às desktop via Buraco na via na categoria 17:27 hoje"` | as seis frases de metadados reordenavam os `%s` **sem** dizer ao `sprintf` que a ordem tinha mudado. `%N$s` resolve — o número diz qual argumento entra ali. Ou todos os marcadores são posicionais, ou nenhum |
+| `UI-011` | "Ocorrências" no menu, "Painel de Controle" na página | ficou o do menu. A troca é no template do cobrand, e não no catálogo: `Dashboard` também nomeia a tela de outro cobrand, e ali a palavra está certa |
 
-**Custo:** um dia para o conjunto.
-**Ganho:** desproporcional. São os erros que quem visita percebe primeiro.
+**Validado:** um subteste sobre `meta_line` — o `UI-006` volta no dia em que
+alguém traduzir uma daquelas frases e reordenar de novo. Os outros cinco foram
+conferidos no navegador.
+
+**Ganho:** desproporcional, como o plano previa. São os erros que quem visita
+percebe primeiro.
 
 ## 6.2 · `F11` — o protocolo
 

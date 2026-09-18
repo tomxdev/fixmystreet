@@ -29,10 +29,22 @@
     last_seven_fixed = last_seven_days.fixed_total | format_number;
     other_categories_formatted = other_categories | format_number;
 -%]
-[% INCLUDE 'header.html', title = loc('Dashboard'), bodyclass = 'dashboard' %]
+[%# "Ocorrências", e não "Painel de Controle" (UI-011).
+
+    O menu leva a esta página com o rótulo "Ocorrências"; a página se
+    apresentava como "Painel de Controle", que é o `loc('Dashboard')` do
+    upstream. Dois nomes para o mesmo lugar, e nenhum deles errado sozinho —
+    juntos, fazem a pessoa achar que clicou em outra coisa.
+
+    Fica o do menu: quem chega aqui veio ver as ocorrências da cidade, e não
+    operar um painel. A troca é no template, e não no catálogo, porque
+    `Dashboard` também nomeia a tela de outro cobrand — ali a palavra está
+    certa.
+%]
+[% INCLUDE 'header.html', title = 'Ocorrências', bodyclass = 'dashboard' %]
 
 <div class="dashboard-header">
-    <h1>[% loc('Dashboard') %]
+    <h1>Ocorrências
     [% IF body %] – [% body.name %] [% END %]
     </h1>
 </div>

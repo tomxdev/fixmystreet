@@ -119,3 +119,44 @@
         bind();
     }
 })();
+
+// ---------------------------------------------------------------------------
+// As mensagens de validação, em português (F9)
+// ---------------------------------------------------------------------------
+//
+// O jQuery Validate traz as mensagens dele em inglês, no próprio arquivo da
+// biblioteca (`web/vendor/jquery.validate.js`), e o FixMyStreet não as traduz
+// em lugar nenhum. O resultado é "This field is required." no meio de um
+// formulário em português — e aparece justamente na hora em que a pessoa já
+// errou alguma coisa, que é a pior hora para trocar de idioma.
+//
+// Não dá para resolver no catálogo: são strings de JavaScript, e não passam
+// pelo gettext. Também não se corrige no `vendor/` — aquilo é a biblioteca
+// como ela vem, e mexer ali é dívida que some no próximo `npm`.
+//
+// `$.extend` sobre `$.validator.messages` é a forma que a própria biblioteca
+// documenta para isto. Só as mensagens que o piloto pode alcançar estão aqui:
+// as regras em uso são `required`, `email` e `remote` (senha vazada), mais as
+// de tamanho que os campos de texto podem disparar.
+(function () {
+    if (!window.jQuery || !jQuery.validator) {
+        return;
+    }
+
+    jQuery.extend(jQuery.validator.messages, {
+        required: "Preencha este campo.",
+        email: "Digite um e-mail válido.",
+        url: "Digite um endereço válido.",
+        date: "Digite uma data válida.",
+        number: "Digite um número.",
+        digits: "Digite apenas números.",
+        equalTo: "Digite o mesmo valor novamente.",
+        remote: "Corrija este campo.",
+        maxlength: jQuery.validator.format("Use no máximo {0} caracteres."),
+        minlength: jQuery.validator.format("Use pelo menos {0} caracteres."),
+        rangelength: jQuery.validator.format("Use entre {0} e {1} caracteres."),
+        range: jQuery.validator.format("Digite um valor entre {0} e {1}."),
+        max: jQuery.validator.format("Digite um valor menor ou igual a {0}."),
+        min: jQuery.validator.format("Digite um valor maior ou igual a {0}.")
+    });
+})();

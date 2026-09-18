@@ -1588,6 +1588,56 @@ subtest 'the last step asks only what the report needs' => sub {
     };
 };
 
+subtest 'the report metadata line puts each piece where it belongs' => sub {
+    # UI-006. O catalogo pt_BR reordenava os `%s` sem dizer ao sprintf que a
+    # ordem tinha mudado, e a linha saia assim:
+    #
+    #   "Registrado anonimamente às desktop via Buraco na via na categoria
+    #    17:27 hoje"
+    #
+    # Hora no lugar do canal, canal no lugar da categoria, categoria no lugar da
+    # hora. `%N$s` resolve - e este teste existe porque a proxima pessoa a
+    # traduzir uma dessas frases vai reordenar de novo.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(body_id => $body->id,
+            category => 'Buraco na via', email => 'buraco@example.org');
+
+        my $usuario = $mech->create_user_ok('meta@example.org', name => 'Quem Registrou');
+        my ($o) = $mech->create_problems_for_body(1, $body->id, 'Ocorrencia para a linha', {
+            user => $usuario, cobrand => 'catanduva',
+            category => 'Buraco na via', service => 'desktop',
+            latitude => -21.1383, longitude => -48.9736,
+        });
+        $o->discard_changes;
+
+        # Anonima: canal + categoria + hora.
+        $o->update({ anonymous => 1 });
+        $o->discard_changes;
+        my $linha = $o->meta_line;
+
+        like $linha, qr/via desktop/, 'o canal vem depois de "via"';
+        like $linha, qr/categoria Buraco na via/, 'a categoria vem depois de "categoria"';
+        unlike $linha, qr/às desktop/, 'e a hora nao ocupa o lugar do canal';
+        unlike $linha, qr/via \d/, 'nem o contrario';
+
+        # Com nome: a mesma frase, com quem registrou no lugar certo.
+        $o->update({ anonymous => 0 });
+        $o->discard_changes;
+        my $com_nome = $o->meta_line;
+        # A linha usa `problem.name`, e nao o nome da conta: o
+        # `create_problems_for_body` grava um proprio, e quem registra pode
+        # assinar com outro nome.
+        my $quem = $o->name;
+        like $com_nome, qr/por \Q$quem\E/, 'o nome vem depois de "por"';
+        like $com_nome, qr/categoria Buraco na via/, 'e a categoria continua no lugar';
+    };
+};
+
 subtest 'every page reached from an email link renders' => sub {
     # Fase 3.2 do PLANO_DE_FASES.md.
     #
