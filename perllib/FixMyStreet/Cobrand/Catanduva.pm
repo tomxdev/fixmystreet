@@ -980,6 +980,80 @@ mistake.
 
 sub demonstration_recipient { $_[0]->feature('demonstration_recipient') }
 
+=head2 O protocolo da ocorrencia (F11)
+
+O upstream mostra "Protocolo FixMyStreet: 75". Sao dois problemas numa frase: a
+marca e a dele, e o numero e o C<id> da linha - sequencial e global, de onde se
+deduz o volume do piloto e a ordem em que as coisas chegaram.
+
+O formato daqui e C<CTD-2026-0075>: origem, ano e numero.
+
+O QUE ELE RESOLVE E O QUE NAO RESOLVE, para ninguem se enganar:
+
+=over 4
+
+=item * resolve a marca. E um protocolo de Catanduva, e nao do FixMyStreet.
+
+=item * resolve a ambiguidade. "75" nao diz de onde vem nem de quando e;
+C<CTD-2026-0075> diz as duas coisas, e e citavel por telefone.
+
+=item * NAO esconde a sequencia. O numero continua la dentro. Esconde-la exigiria
+um identificador guardado a parte, e o plano e explicito em nao inventar um
+segundo identificador no banco - seria uma coluna a mais para manter, sincronizar
+e explicar, em troca de um sigilo que o proprio mapa publico nao tem: qualquer
+pessoa conta as ocorrencias abertas.
+
+=back
+
+Nao ha coluna nova: o protocolo e DERIVADO do C<id> e da data de criacao. Entra e
+sai pelo mesmo caminho - C<protocolo> escreve, C<id_do_protocolo> le de volta -,
+e por isso a equipe continua achando a ocorrencia pelo numero que o cidadao
+citar.
+
+=head2 protocolo
+
+Devolve C<CTD-2026-0075> para uma ocorrencia. Sem data de criacao, devolve so o
+numero - uma linha sem C<created> e anomala, e inventar um ano nao a conserta.
+
+=cut
+
+sub protocolo {
+    my ($self, $problem) = @_;
+
+    return '' unless $problem && $problem->id;
+
+    my $criada = $problem->created;
+    return sprintf('CTD-%04d', $problem->id) unless $criada && ref $criada && $criada->can('year');
+
+    return sprintf('CTD-%d-%04d', $criada->year, $problem->id);
+}
+
+=head2 id_do_protocolo
+
+O caminho de volta: recebe o que a pessoa digitou e devolve o C<id>, ou nada.
+
+Aceita o protocolo inteiro, com ou sem o ano, e com ou sem os zeros a esquerda -
+quem le um numero por telefone nao repete zeros. Aceita tambem so o numero, que e
+o que a equipe ja digitava antes.
+
+Nao confere se o ano bate com o da ocorrencia: quem digita C<CTD-2025-0075>
+procurando a 75 quer a 75, e recusar por causa do ano seria esconder o que a
+pessoa pediu para ver.
+
+=cut
+
+sub id_do_protocolo {
+    my ($self, $termo) = @_;
+
+    return unless defined $termo;
+    $termo =~ s/^\s+|\s+$//g;
+
+    return $1 if $termo =~ /^ctd-(?:\d{4}-)?0*(\d+)$/i;
+    return $1 if $termo =~ /^#?(\d+)$/;
+
+    return;
+}
+
 =head2 buscar_ocorrencias
 
 Ocorrencias cujo titulo ou descricao contem o texto procurado.
@@ -1007,6 +1081,20 @@ sub buscar_ocorrencias {
     $termo =~ s/\s+$//;
 
     return [] if length($termo) < 3;
+
+    # Um protocolo e uma resposta so, e exata. Quem digita CTD-2026-0075 nao
+    # esta procurando texto - esta citando uma ocorrencia, provavelmente lendo
+    # de um e-mail ou repetindo o que ouviu por telefone.
+    if (my $id = $self->id_do_protocolo($termo)) {
+        my $achada = $self->problems->search({
+            id         => $id,
+            state      => [ FixMyStreet::DB::Result::Problem->visible_states() ],
+            non_public => 0,
+        })->first;
+        return [ $achada ] if $achada;
+        # Nao achou por id: pode ser um numero que tambem aparece num titulo.
+        # Cai na busca por texto, abaixo.
+    }
 
     # `%` e `_` sao curingas do LIKE. Quem digita "100%" procura por "100%", e
     # nao por "100 seguido de qualquer coisa".

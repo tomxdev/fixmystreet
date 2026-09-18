@@ -987,7 +987,12 @@ subtest 'confirming a report from the email link does not blow up' => sub {
 
         # O que o 500 impedia de acontecer: a pagina existir.
         $mech->content_contains('Ocorrência enviada', 'a pagina de agradecimento renderiza');
-        $mech->content_contains('#' . $ocorrencia->id, 'com o protocolo');
+        # O protocolo, e nao mais "#<id>": desde a fase 6.2 a tela mostra
+        # CTD-<ano>-<numero>. Perguntar pelo id cru aqui deixaria de testar o
+        # que a pessoa ve.
+        $mech->content_contains(
+            FixMyStreet::Cobrand::Catanduva->new->protocolo($ocorrencia),
+            'com o protocolo');
         $mech->content_lacks('unblessed reference', 'e sem o erro de data crua');
 
         # O mapa desta tela nao vem de nenhuma das duas rotas que chegam a ela:
@@ -1033,7 +1038,12 @@ subtest 'confirming a report while signed in does not blow up either' => sub {
             . '?token=' . $ocorrencia->confirmation_token);
 
         $mech->content_contains('Ocorrência enviada', 'a pagina de agradecimento renderiza');
-        $mech->content_contains('#' . $ocorrencia->id, 'com o protocolo');
+        # O protocolo, e nao mais "#<id>": desde a fase 6.2 a tela mostra
+        # CTD-<ano>-<numero>. Perguntar pelo id cru aqui deixaria de testar o
+        # que a pessoa ve.
+        $mech->content_contains(
+            FixMyStreet::Cobrand::Catanduva->new->protocolo($ocorrencia),
+            'com o protocolo');
         $mech->content_lacks('unblessed reference', 'e sem o erro de data crua');
 
         # O mapa. `map_box` so existe quando `map` chegou a stash, e so
@@ -1635,6 +1645,67 @@ subtest 'the report metadata line puts each piece where it belongs' => sub {
         my $quem = $o->name;
         like $com_nome, qr/por \Q$quem\E/, 'o nome vem depois de "por"';
         like $com_nome, qr/categoria Buraco na via/, 'e a categoria continua no lugar';
+    };
+};
+
+subtest 'the report has a protocol of its own, and the search understands it' => sub {
+    # F11. O upstream mostrava "Protocolo FixMyStreet: 75" - a marca dele e o id
+    # da linha. Agora e CTD-2026-0075: origem, ano e numero.
+    #
+    # O que importa guardar com teste nao e o formato em si, e sim o par: o que
+    # a tela escreve tem de ser o que a busca le de volta. Um protocolo que a
+    # equipe nao acha e pior do que nenhum.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $cobrand = FixMyStreet::Cobrand::Catanduva->new;
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        my $usuario = $mech->create_user_ok('protocolo@example.org', name => 'Quem Registrou');
+
+        my ($o) = $mech->create_problems_for_body(1, $body->id, 'Ocorrencia com protocolo', {
+            user => $usuario, cobrand => 'catanduva',
+            latitude => -21.1383, longitude => -48.9736,
+        });
+        $o->discard_changes;
+
+        my $ano = $o->created->year;
+        my $esperado = sprintf('CTD-%d-%04d', $ano, $o->id);
+
+        subtest 'o formato' => sub {
+            is $cobrand->protocolo($o), $esperado, 'origem, ano e numero';
+            like $cobrand->protocolo($o), qr/^CTD-/, 'e nao a marca do upstream';
+        };
+
+        subtest 'o caminho de volta' => sub {
+            is $cobrand->id_do_protocolo($esperado), $o->id, 'o protocolo inteiro';
+            is $cobrand->id_do_protocolo(sprintf('CTD-%d', $o->id)), $o->id,
+                'sem o ano, que e como alguem abrevia';
+            is $cobrand->id_do_protocolo(lc $esperado), $o->id,
+                'em minusculas, que e como alguem digita';
+            is $cobrand->id_do_protocolo(' ' . $esperado . ' '), $o->id,
+                'com espaco em volta, que e como alguem cola';
+            is $cobrand->id_do_protocolo("" . $o->id), $o->id,
+                'so o numero, que e o que a equipe digitava antes';
+            is $cobrand->id_do_protocolo('Buraco na via'), undef,
+                'e um texto qualquer nao vira protocolo';
+        };
+
+        subtest 'a busca acha pelo protocolo' => sub {
+            my $achadas = $cobrand->buscar_ocorrencias($esperado);
+            is scalar @$achadas, 1, 'uma resposta, e exata';
+            is $achadas->[0]->id, $o->id, 'e e a ocorrencia certa';
+        };
+
+        subtest 'a pagina da ocorrencia mostra o protocolo' => sub {
+            $o->update({ whensent => \'current_timestamp' });
+            $o->discard_changes;
+            $mech->get_ok('/report/' . $o->id);
+            $mech->content_contains($esperado, 'o protocolo aparece na pagina');
+            $mech->content_lacks('Protocolo FixMyStreet',
+                'e a marca do upstream nao');
+        };
     };
 };
 

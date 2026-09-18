@@ -356,14 +356,16 @@ conferidos no navegador.
 **Ganho:** desproporcional, como o plano previa. São os erros que quem visita
 percebe primeiro.
 
-## 6.2 · `F11` — o protocolo
+## 6.2 · `F11` — o protocolo — **CONCLUÍDA**
 
 | | |
 |---|---|
-| **Situação** | "Protocolo FixMyStreet: 75". Dois problemas: a marca é a do upstream, e o número é o id interno — sequencial e global, dá para deduzir o volume e a ordem |
-| **Fazer** | Um protocolo opaco e com origem: `CTD-2026-0075` ou equivalente. Derivado do id, não substituto dele |
-| **Cuidado** | O número precisa continuar buscável pela equipe. Não inventar um segundo identificador no banco |
-| **Custo** | Um dia |
+| **Situação** | "Protocolo FixMyStreet: 75" — a marca do upstream e o id da linha |
+| **Feito** | `CTD-2026-0075`: origem, ano e número. **Derivado** do id e da data de criação, sem coluna nova, como o plano pedia |
+| **O caminho de volta** | `id_do_protocolo` lê o protocolo inteiro, sem o ano, em minúsculas, com espaço em volta, ou só o número — que é o que a equipe já digitava. A busca do site o entende e devolve uma resposta exata |
+| **O que ele NÃO resolve** | **Não esconde a sequência.** O número continua lá dentro. Escondê-la exigiria um identificador guardado à parte — o que o plano proíbe — em troca de um sigilo que o próprio mapa público não tem: qualquer pessoa conta as ocorrências abertas. O formato do plano (`CTD-2026-0075`) já embutia essa escolha; aqui ela fica escrita |
+| **Onde aparece** | A página da ocorrência (`report/_council_sent_info.html`, 46 linhas do upstream com onze ramos de outros cobrands, reduzidas a dois casos: a referência do órgão, quando há, e a nossa) e a tela de confirmação |
+| **Validado** | Quatro subtestes: o formato, as cinco formas de digitar o número de volta, a busca, e a página |
 
 ## 6.3 · `1.3` — o catálogo pt-BR
 
@@ -397,21 +399,15 @@ na stash durante a renderização não chegaria à página. O sintoma seria a
 confirmação renderizar inteira e sem mapa; `t/cobrand/catanduva.t` confere
 `id="map_box"` nos dois caminhos para que não seja silencioso.
 
-## 6.5 · `KNOWN_ISSUES` do mapa que continuam abertos
+## 6.5 · `KNOWN_ISSUES` do mapa — **CONCLUÍDA**
 
-| # | O que é | Recomendação |
-|---|---|---|
-| 1, 8, 9, 12 | painéis que rolam alguns pixels em 1440×900 | **aceitar e fechar**. Já foram medidos e compactados; fechar 28px exigiria cortar conteúdo real. Registrar como divergência aceita, não como defeito aberto |
-| 2 | legenda do passo de categoria não aceitou `form_category_label` | aceitar |
-| 10 | "Please fill out this field" vem do navegador | aceitar — não é da página |
-| 11 | a lista do `<select>` é desenhada pelo sistema | aceitar — trocar daria controle visual ao custo da acessibilidade nativa |
-| 3, 5, 6 | **já resolvidos** | remover da lista |
-
-**Fazer:** uma varredura que separe o que é defeito aberto do que é divergência
-aceita. Uma lista com treze itens em que seis já não valem não é usada por
-ninguém.
-
-**Custo:** horas.
+| | |
+|---|---|
+| **Situação** | Treze itens, seis já resolvidos e nenhum marcado como tal. Uma lista assim não é usada por ninguém |
+| **Feito** | Três grupos: **defeitos abertos** (nenhum), **divergências aceitas** (quatro, cada uma com o motivo) e **resolvidos** (nove, com onde saíram) |
+| **Remedido, não herdado** | Tudo o que falava de rolagem foi medido de novo em 1440×900: painel de explorar, confirmação e cada passo do fluxo. **Zero em todos.** Parte saiu com as compactações das fases 4.3 e 5.1; parte nunca reproduzia sem a tarja "Área de teste", que não está em todas as páginas |
+| **O que virou aviso** | O item 12 deixa de ser defeito e vira o que sempre foi: o painel de explorar está **exatamente cheio**, e qualquer bloco novo traz a rolagem de volta |
+| **Custo real** | Horas, como previsto |
 
 ## 6.6 · `2.1`–`2.6` — o que vem do upstream
 
@@ -531,8 +527,8 @@ em seguida. Mas não para depois — é a fase que impede o retrabalho.
 
 # Andamento
 
-> Atualizado em 15 de setembro de 2026, ao fim da execução das fases 0 a 4 e
-> da 6.4.
+> Atualizado em 18 de setembro de 2026, ao fim das fases 0 a 5 e dos itens
+> 6.1, 6.4 e 6.5.
 
 | Fase | Situação | Onde |
 |---|---|---|
@@ -541,9 +537,16 @@ em seguida. Mas não para depois — é a fase que impede o retrabalho.
 | **2** O destino do envio | **concluída** | `F3`, `demonstration_recipient` |
 | **3** A rede de testes | **concluída** | 3.1 a 3.5 |
 | **4** O que a pessoa pede | **concluída** | `F5`, `F12`, 4.3, 4.4 |
-| **5** Telas que ficaram para trás | a fazer | `F6`, `F10`, celular |
-| **6** Vocabulário e dívida | **6.4 concluída**; o resto a fazer | textos, protocolo |
+| **5** Telas que ficaram para trás | **concluída** | `F6`, `F10`, celular, e a 5.4 decidida |
+| **6** Vocabulário e dívida | **6.1, 6.2, 6.4 e 6.5 concluídas** | falta o catálogo (6.3) e o que vem do upstream (6.6, 6.7) |
 | **7** Evolução | a fazer | contínua |
+
+**Os treze achados da auditoria estão fechados.** `F1` a `F13`: os críticos nas
+fases 1 e 2, os de vocabulário e correção na 4, os de tela na 5, os de texto na
+6.1 e o protocolo na 6.2.
+
+O que resta da fase 6 não vem da auditoria: é trabalho contínuo (o catálogo
+pt-BR, 6.3) e coisas que são do upstream (6.6 e 6.7).
 
 **6.4 saiu de ordem de propósito.** É a única da fase 6 que fica mais cara a cada
 dia: o upstream está 1574 commits à frente, e cada sincronização adiada aumenta o

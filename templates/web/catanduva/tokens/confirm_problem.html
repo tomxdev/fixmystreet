@@ -97,17 +97,22 @@
         </p>
 
         [%# ---- Protocolo ----
-            report.id e o identificador real da ocorrencia. A data e a de
-            confirmacao quando ha, porque e o momento em que a ocorrencia passou
-            a existir publicamente; antes disso ela estava so esperando o clique
-            no e-mail. prettify_dt formata no fuso e no idioma configurados. %]
+            `CTD-2026-0075`, derivado do id e do ano de criacao - ver o POD de
+            `protocolo`, em Catanduva.pm. E o mesmo numero que a pagina da
+            ocorrencia mostra e que a busca do site entende de volta: quem copia
+            daqui acha a ocorrencia digitando isto.
+
+            A data e a de confirmacao quando ha, porque e o momento em que a
+            ocorrencia passou a existir publicamente; antes disso ela estava so
+            esperando o clique no e-mail. prettify_dt formata no fuso e no
+            idioma configurados. %]
         <div class="map-sent__protocol">
             <span class="map-sent__protocol-icon" aria-hidden="true">
                 [% INCLUDE '_ui-icon.html' icon = 'clipboard' %]
             </span>
             <span class="map-sent__protocol-body">
                 <span class="map-sent__protocol-label">Protocolo da ocorrência</span>
-                <span class="map-sent__protocol-value" id="js-protocol">#[% report.id %]</span>
+                <span class="map-sent__protocol-value" id="js-protocol">[% c.cobrand.protocolo(report) %]</span>
 [%# O IF nao e por causa do operador `OR`, como este comentario ja
                     afirmou por engano. A referencia crua que fazia prettify_dt
                     morrer vinha do literal SQL que `process_confirmation` grava

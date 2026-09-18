@@ -1729,71 +1729,55 @@ screenshots/             painel-final-{1440,768,390}.png         (depois das cor
 
 ## KNOWN_ISSUES
 
-1. Painel rola a 900px de altura (aceito, ver divergências do estado 01).
-2. Legenda do passo de categoria não aceitou `form_category_label`; ficou
-   "Categoria" (ver divergências do estado 02).
-3. Rótulos de situação sem tradução pt_BR na tabela `state` (`Open`,
-   `Investigating`, `Action scheduled`). Dado, não interface — `UI-021`.
-4. Miniaturas 404 nos registros de exemplo: `upload/` está vazio. Dado —
-   `UI-010`, a corrigir em `bin/catanduva/dados-exemplo`.
-5. ~~O clique cai no fallback sem JS~~ — **diagnóstico errado meu, corrigido.**
-   O fluxo acontece na própria `/around` por `pushState`. Ver "Correção de um
-   diagnóstico errado meu", acima.
-6. ~~A paginação da faixa sai como "1 de 9 de 9".~~ **Corrigido** — eram dois
-   defeitos somados, a tradução do catálogo pt-BR e uma contagem que descrevia
-   outra lista. Ver "O cabeçalho da faixa, e o número que não descrevia nada".
-7. O metadado expandido dos cartões de próximas sai com os argumentos trocados
-   ("Registrado anonimamente às desktop via Buraco na via na categoria 17:27
-   hoje"). É o `UI-006` já registrado, visível aqui porque o cartão passou a
-   mostrar esse trecho.
-8. O painel da confirmação rola em janelas de 900px de altura: o conteúdo dá 774
-   contra 688 visíveis. Foi compactado até onde compactar não apertava o texto.
-   Em produção 30px disso voltam, porque a tarja "Área de teste" não existe lá.
-9. Dois passos do fluxo de registro ainda rolam em 1440×900 depois da rodada de
-   correções: localização (472 contra 444) e foto (481). "Detalhes" (885) rola
-   por natureza, é um formulário com área de texto. Fechar 28 e 37px exigiria
-   cortar conteúdo real do passo. O critério da rodada era o painel principal, e
-   esse não rola.
-10. A mensagem de campo obrigatório da busca sai no idioma do navegador ("Please
-   fill out this field"), porque é do navegador e não da página.
-11. A lista que o `<select>` "Ordenar por" abre é desenhada pelo sistema
-   operacional e não aceita CSS. O controle em si segue o Design System
-   (40px, 16px, mesmo raio, anel de foco); a lista, não. Trocá-lo por um menu
-   em HTML daria controle visual ao custo da acessibilidade nativa — não foi
-   feito.
-12. O painel fica com **5px** de folga em 1440×900 depois da rodada dos
-   indicadores. É pouquíssimo: qualquer bloco novo nesta tela — um quarto
-   filtro, um aviso — traz a barra de rolagem de volta.
-13. ~~No tablet e no celular os indicadores, o título do painel e a dica de como
-   começar não aparecem.~~ **RESOLVIDO** — fase 5.3.
+> **Revisado em 18/09/2026, fase 6.5.** A lista tinha treze itens, seis já
+> resolvidos e nenhum marcado como tal — uma lista assim não é lida por ninguém.
+> Agora tem duas partes: o que ainda é defeito, e o que é divergência decidida.
+>
+> **Tudo o que fala de rolagem foi remedido**, e não herdado: `.map-panel`, em
+> 1440×900, em cada passo do fluxo e no painel de explorar.
 
-   Os indicadores e a dica passaram a ser filhos do `.map-panel__buscar`, que é
-   o que vira a folha inferior; no desktop nada mudou, porque ali ele é
-   `display: contents`. Entram depois dos filtros, na ordem 4 e 5: são contexto,
-   e a folha é aberta para agir.
+### Defeitos abertos
 
-   **Duas diferenças em relação ao que o item pedia**, as duas deliberadas:
+Nenhum.
 
-   - A frase "Clique no mapa para registrar um problema" **não** entra na folha.
-     A folha cobre o mapa: é um conselho que não se pode seguir enquanto se lê.
-     O atalho ao lado dela fica — "Não consegue usar o mapa?" leva ao
-     `skipped=1`, e quem mais precisa dele é justamente quem está num aparelho
-     pequeno. Quem diz como começar no celular é o botão flutuante do upstream.
-   - O **título** não entra na folha, e sim na árvore de acessibilidade. Uma
-     folha aberta para filtrar não é lugar de título de página. Mas `visibility:
-     hidden` também esconde do leitor de tela, e a página do mapa estava **sem
-     H1** no celular — quem navega por cabeçalhos chegava e não tinha por onde
-     começar. Agora o `.map-panel__header` é recortado (o mesmo padrão do
-     `.map-strip__title`), visível para quem lê por voz e invisível sobre o mapa.
+### Divergências aceitas, e por quê
 
-   Junto: o link que abre a folha deixou de se chamar "Filtro". Ele traz busca
-   por endereço, localização, filtros e os números da cidade — "Buscar e
-   filtrar", com `title` dizendo o resto. Renomeado no `catanduva-map.js`, e não
-   no catálogo: a chave é do upstream e vale para toda instalação; o que mudou
-   foi o conteúdo desta folha, que é nosso.
+| # | O que é | Por que fica |
+|---|---|---|
+| 2 | A legenda do passo de categoria não aceitou `form_category_label`; ficou "Categoria" | O rótulo está correto e a variável é do upstream. Trocar exigiria copiar o template do passo para mudar uma palavra que já está certa |
+| 10 | "Please fill out this field" na busca sai no idioma do navegador | É mensagem **do navegador**, do atributo `required`, e não da página. A alternativa seria validar em JavaScript e perder o aviso de quem tem JS desligado |
+| 11 | A lista que o `<select>` "Ordenar por" abre é desenhada pelo sistema operacional | O controle segue o Design System; a lista não aceita CSS. Trocá-lo por um menu em HTML daria controle visual ao custo da acessibilidade nativa |
+| 12 | O painel de explorar fica **exatamente cheio** em 1440×900 — zero de folga | Não é defeito, é aviso: qualquer bloco novo nesta tela traz a barra de rolagem de volta. Fica registrado para quem for acrescentar algo |
 
-   Medido em 1440×900 (nada mudou), 768×1024 e 390×844: a folha não rola, a
-   barra de ações sobe acima dela, e não há rolagem horizontal.
+### Resolvidos
+
+| # | O que era | Onde saiu |
+|---|---|---|
+| 1, 8, 9 | Painéis que rolavam alguns pixels em 1440×900 — explorar, confirmação, localização, foto | **Medidos hoje: 0 em todos.** Parte saiu com as compactações das fases 4.3 e 5.1; parte nunca reproduzia sem a tarja "Área de teste", que não existe em todas as páginas |
+| 3 | Rótulos de situação sem tradução (`UI-021`) | `bin/catanduva/traduzir-estados`, fase 2 |
+| 4 | Miniaturas 404 nos registros de exemplo (`UI-010`) | `bin/catanduva/dados-exemplo`, fase 2.3 |
+| 5 | ~~O clique cai no fallback sem JS~~ | Diagnóstico errado, corrigido na própria rodada |
+| 6 | Paginação da faixa saindo "1 de 9 de 9" | Dois defeitos somados: a tradução e uma contagem que descrevia outra lista |
+| 7 | Metadados com argumentos trocados (`UI-006`) | Fase 6.1: as seis frases passaram a usar `%N$s` |
+| 13 | Indicadores, título e dica sumindo no celular | Fase 5.3 — ver a nota logo abaixo |
+
+**Sobre o 13, e o que ele trouxe junto.** Os indicadores e a dica passaram a ser
+filhos do `.map-panel__buscar`, que é o que vira a folha inferior; no desktop
+nada mudou, porque ali ele é `display: contents`.
+
+Duas diferenças em relação ao que o item pedia, as duas deliberadas:
+
+- A frase "Clique no mapa para registrar um problema" **não** entra na folha. A
+  folha cobre o mapa: é um conselho que não se pode seguir enquanto se lê. O
+  atalho ao lado dela fica — "Não consegue usar o mapa?" leva ao `skipped=1`, e
+  quem mais precisa dele é justamente quem está num aparelho pequeno.
+- O **título** não entra na folha, e sim na árvore de acessibilidade.
+  `visibility: hidden` também esconde do leitor de tela, e a página do mapa
+  estava **sem H1** no celular. Agora o `.map-panel__header` é recortado, visível
+  para quem lê por voz e invisível sobre o mapa.
+
+Junto: o link que abre a folha deixou de se chamar "Filtro" — traz busca,
+localização, filtros e os números da cidade. Agora é "Buscar e filtrar".
 
 ## Como exercitar o passo de similares
 

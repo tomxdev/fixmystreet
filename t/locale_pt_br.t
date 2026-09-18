@@ -42,13 +42,32 @@ sub translations_of {
     return unwrap($single);
 }
 
+# Conta os marcadores de uma frase, posicionais inclusive.
+#
+# `%s` e `%d` sao a forma comum; `%1$s` e a forma que permite REORDENAR os
+# argumentos, e ela e necessaria sempre que a ordem em portugues nao e a do
+# ingles - o que acontece em toda frase de metadados ("Registrado por X as Y na
+# categoria Z" contra "Reported in the Z category by X at Y").
+#
+# A primeira versao desta funcao so conhecia `%s`, e por isso acusou as frases
+# corrigidas no UI-006 de terem perdido marcadores: contava tres no msgid e zero
+# no msgstr. O teste estava certo em disparar e errado no que media.
 sub placeholders {
     my ($s) = @_;
-    my @found = $s =~ /(%[sd])/g;
+    my @found = $s =~ /(%(?:\d+\$)?[sd])/g;
     return scalar @found;
 }
 
-my (@mismatched, @broken, @denuncia, @malformed,
+# Perl recusa misturar marcadores posicionais e nao posicionais na mesma frase.
+# Uma frase escolhe uma das duas formas, e este teste guarda a escolha.
+sub mistura_posicional {
+    my ($s) = @_;
+    my $posicional = () = $s =~ /%\d+\$[sd]/g;
+    my $simples    = () = $s =~ /%(?!\d+\$)[sd]/g;
+    return ($posicional && $simples) ? 1 : 0;
+}
+
+my (@mismatched, @broken, @misturados, @denuncia, @malformed,
     @sinalizador, @conselho, @codigo_postal, @outra_marca);
 
 for my $block (@blocks) {
@@ -70,6 +89,8 @@ for my $block (@blocks) {
 
         push @mismatched, $msgid
             if placeholders($msgid) != placeholders($msgstr);
+
+        push @misturados, $msgid if mistura_posicional($msgstr);
 
         push @denuncia, $msgid
             if $msgstr =~ /den[uú]nci/i && !$abuse_is_fine{$msgid};
@@ -103,6 +124,8 @@ subtest 'placeholders survive translation' => sub {
         'no msgstr splits a placeholder with whitespace, as in "% s"';
     is_deeply \@mismatched, [],
         'every msgstr keeps as many placeholders as its msgid';
+    is_deeply \@misturados, [],
+        'no msgstr mixes the two placeholder forms - Perl refuses that';
 };
 
 subtest 'reports are ocorrencias, not denuncias' => sub {
