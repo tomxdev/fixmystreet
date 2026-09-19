@@ -1709,6 +1709,62 @@ subtest 'the report has a protocol of its own, and the search understands it' =>
     };
 };
 
+subtest 'a form error says which field it is about' => sub {
+    # Item 2.2. O upstream escreve os erros que vem do servidor como
+    # `<p class="form-error">` sem `id`, e sem nada no campo apontando para
+    # eles. Quem usa leitor de tela ouve "Por favor, digite seu nome" sem saber
+    # a qual dos campos da tela aquilo pertence.
+    #
+    # Sao dezenove templates. Os do caminho do cidadao foram corrigidos na
+    # marcacao, que e onde a correcao vale mesmo com JavaScript desligado; os
+    # outros quinze sao alcancados por uma passagem no catanduva.js. Este teste
+    # guarda os primeiros, que sao os que um teste de servidor consegue ver.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(body_id => $body->id,
+            category => 'Buraco na via', email => 'buraco@example.org');
+
+        $mech->log_out_ok;
+        $mech->get_ok('/report/new?latitude=-21.1383&longitude=-48.9736');
+        my ($token) = $mech->content =~ /name="token" value="([^"]+)"/;
+
+        # Envio com titulo, descricao e nome vazios: o servidor recusa e
+        # redesenha a pagina com os tres erros.
+        $mech->post_ok('http://catanduva.fixmystreet.com/report/new', {
+            token          => $token,
+            submit_problem => 1,
+            latitude       => -21.1383,
+            longitude      => -48.9736,
+            category       => 'Buraco na via',
+            title          => '',
+            detail         => '',
+            name           => '',
+            username_register => 'quem@example.org',
+        });
+
+        for my $campo (qw(form_title form_name)) {
+            $mech->content_contains(qq{id="$campo-error"},
+                "o erro de $campo tem nome");
+            like $mech->content, qr/aria-describedby="[^"]*\Q$campo\E-error/,
+                "e o campo $campo aponta para ele";
+        }
+
+        # `role="alert"` faz o leitor de tela anunciar o erro ao chegar na
+        # pagina, sem esperar o foco cair no campo.
+        like $mech->content, qr/class='form-error' id="form_title-error" role="alert"/,
+            'o erro e anunciado, e nao so descrito';
+
+        # O titulo ja tinha uma dica descrevendo-o. Ganhar o erro nao pode
+        # custar a dica: `aria-describedby` aceita varios ids.
+        like $mech->content, qr/aria-describedby="form_title-error title-hint"/,
+            'e a dica do campo nao foi trocada pelo erro';
+    };
+};
+
 subtest 'every page reached from an email link renders' => sub {
     # Fase 3.2 do PLANO_DE_FASES.md.
     #

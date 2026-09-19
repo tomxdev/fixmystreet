@@ -7,9 +7,17 @@
 %]
 <label id="title-label" for="form_title">[% form_title %]</label>
 <p class="form-hint" id="title-hint">[% contact_title_hint OR form_title_placeholder %]</p>
+[%# O erro ligado ao campo (2.2): `id`, `role="alert"` e o `aria-describedby`.
+
+    Aqui o `aria-describedby` ja existia, apontando para a dica. Quando ha erro,
+    ele passa a apontar para os DOIS, nessa ordem - o erro primeiro, porque e o
+    que precisa ser ouvido antes. A propriedade aceita varios ids separados por
+    espaco; nao ha por que perder a dica para ganhar o erro. %]
 [% IF field_errors.title %]
-    <p class='form-error'>[% field_errors.title %]</p>
+    <p class='form-error' id="form_title-error" role="alert">[% field_errors.title %]</p>
 [% END %]
 <input class="form-control" type="text" value="[% report.title | html %]" name="title" id="form_title"
        placeholder="Ex.: Buraco na rua..."
-       aria-describedby="title-hint"[% field_required %] autocomplete="off">
+       aria-describedby="[% IF field_errors.title %]form_title-error [% END %]title-hint"
+       [%~ IF field_errors.title %] aria-invalid="true"[% END %]
+       [%~ field_required %] autocomplete="off">

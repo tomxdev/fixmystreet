@@ -48,6 +48,7 @@
 | Checkbox / radio | nativo | 20px com `accent-color` | RESTYLE | idem |
 | Erro de campo | só a mensagem | borda de 2px **e** mensagem | RESTYLE | idem |
 | Mensagem de erro | etiqueta sólida do upstream: fundo `$error_color`, texto branco, `width: fit-content` | bloco no vocabulário de `.c-alert--error`: fundo `--c-error-bg`, barra de 3px à esquerda, texto `--c-error` (contraste 5,8:1), largura da coluna até 27rem | RESTYLE | `_components.scss` §4, `layout.scss` |
+| Erro ligado ao campo | mensagem solta, sem `id` e sem `aria-describedby` | `id="<campo>-error"`, `role="alert"` e `aria-describedby` no campo — marcação nos quatro do cidadão, JavaScript nos outros quinze | NEW | `report/form/*.html`, `catanduva.js` |
 | Controles GOV.UK | borda preta 2px, foco amarelo `#FFDD00`, corpo 19px | o mesmo campo do resto do sistema | RESTYLE | `_components.scss` §19 |
 | Caixa de CEP (home) | `<div>` de 20em com botão preto quadrado | caixa branca com botão verde encaixado | REPLACE | `around/postcode_form.html`, `_home.scss` |
 | Caixa de CEP (demais) | idem | mesma forma, markup do upstream | RESTYLE | `_components.scss` §18 |

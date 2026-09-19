@@ -160,3 +160,89 @@
         min: jQuery.validator.format("Digite um valor maior ou igual a {0}.")
     });
 })();
+
+// ---------------------------------------------------------------------------
+// Erros de formulário ligados ao campo que os causou (2.2)
+// ---------------------------------------------------------------------------
+//
+// O upstream escreve os erros que vêm do servidor assim, em dezenove templates:
+//
+//     <p class="form-error">Por favor, digite seu nome</p>
+//
+// Sem `id`, e sem nada no campo apontando para eles. Quem usa leitor de tela
+// ouve a mensagem solta — "Por favor, digite seu nome" — sem saber a qual dos
+// cinco campos da tela ela pertence, e sem ser avisado ao chegar na página.
+//
+// Os quatro campos do caminho do cidadão foram corrigidos na marcação, que é
+// onde a correção vale mesmo com JavaScript desligado. Os outros quinze
+// templates são de admin, contato e páginas de conta — copiá-los todos seria
+// uma dívida maior do que o defeito. Esta passagem os alcança.
+//
+// O QUE ELA FAZ, e só isso: dá `id` ao erro, `role="alert"` para que ele seja
+// anunciado, e amarra o campo a ele com `aria-describedby` + `aria-invalid`.
+// Nada de visual muda.
+//
+// O `id` segue o formato `<id do campo>-error`, que é o mesmo que o jQuery
+// Validate gera. Com ele, o `showLabel` do Validate reaproveita o parágrafo do
+// servidor em vez de criar um segundo logo abaixo — a pessoa veria a mesma
+// queixa duas vezes.
+(function () {
+    function campoDoErro(erro) {
+        // O upstream põe o erro entre o rótulo e o campo, e em alguns casos
+        // depois do campo. Procura-se dos dois lados, e só elementos de
+        // formulário de verdade.
+        var vizinhos = [erro.nextElementSibling, erro.previousElementSibling];
+        for (var i = 0; i < vizinhos.length; i++) {
+            var v = vizinhos[i];
+            while (v) {
+                if (v.matches && v.matches("input, select, textarea")) {
+                    return v;
+                }
+                // Um invólucro à volta do campo é comum (`.home-search__box`).
+                if (v.querySelector) {
+                    var dentro = v.querySelector("input, select, textarea");
+                    if (dentro) { return dentro; }
+                }
+                v = (i === 0) ? v.nextElementSibling : v.previousElementSibling;
+            }
+        }
+        return null;
+    }
+
+    function ligar() {
+        var erros = document.querySelectorAll("p.form-error, div.form-error");
+
+        for (var i = 0; i < erros.length; i++) {
+            var erro = erros[i];
+
+            // O que o jQuery Validate criou já vem ligado; não mexer.
+            if (erro.id) { continue; }
+
+            var campo = campoDoErro(erro);
+            if (!campo || !campo.id) { continue; }
+
+            erro.id = campo.id + "-error";
+            if (!erro.getAttribute("role")) {
+                erro.setAttribute("role", "alert");
+            }
+
+            // Preserva o que já houver: um campo pode ter uma dica descrevendo-o,
+            // e trocar a dica pelo erro seria perder metade da informação. O
+            // erro vem primeiro porque é o que precisa ser ouvido antes.
+            var atual = campo.getAttribute("aria-describedby");
+            if (!atual) {
+                campo.setAttribute("aria-describedby", erro.id);
+            } else if ((" " + atual + " ").indexOf(" " + erro.id + " ") === -1) {
+                campo.setAttribute("aria-describedby", erro.id + " " + atual);
+            }
+
+            campo.setAttribute("aria-invalid", "true");
+        }
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", ligar);
+    } else {
+        ligar();
+    }
+})();

@@ -414,11 +414,33 @@ confirmação renderizar inteira e sem mapa; `t/cobrand/catanduva.t` confere
 | Item | Recomendação |
 |---|---|
 | `2.1` `/reports` com cache sem `Vary: Cookie` | **verificar o impacto real no piloto** antes de agir; pode expor conteúdo de sessão |
-| `2.2` erros de formulário sem associação ao campo | **resolver junto de 5.1** — é a mesma tela |
+| `2.2` erros de formulário sem associação ao campo | **RESOLVIDO.** Passou despercebido na 5.1, apesar de o plano amarrar os dois; corrigido depois, em duas camadas — ver abaixo |
 | `2.3` canal de contestação por token sem produtor | decidir se o piloto o oferece |
 | `2.4` todos os pinos amarelos | cor por estado; combina com o vocabulário de 4.2 |
-| `2.5` `claims.t` sai com 255 | do upstream, sem uso no piloto — **desligar do CI** com nota |
+| `2.5` `claims.t` sai com 255 | **RESOLVIDO**, e não como recomendado: em vez de desligar do CI, foi corrigido (hora fixa). `PATCHES_DE_CORE.md` §2.5 |
 | `2.6` defasagem de 1574 commits | ver 7.4 |
+
+### `2.2`, já feito — como, e por que em duas camadas
+
+O upstream escreve os erros que vêm do servidor como `<p class="form-error">`
+sem `id`, e sem nada no campo apontando para eles: quem usa leitor de tela ouve
+"Por favor, digite seu nome" sem saber a qual dos cinco campos aquilo pertence.
+São **dezenove templates**, e copiar todos seria dívida maior do que o defeito.
+
+| Camada | O que cobre | Por quê |
+|---|---|---|
+| **Marcação** — quatro templates do caminho do cidadão (`user_name`, `user_loggedout_email`, `form_title`, `user_loggedout_by_email_password`) | título, descrição, nome, e-mail e senha | É a única que vale **com JavaScript desligado** — e é justamente aí que não há validação de navegador nenhuma, só a do servidor |
+| **JavaScript** — uma passagem no `catanduva.js` | os outros quinze (admin, contato, conta) | Dá `id`, `role="alert"` e `aria-describedby` a qualquer `.form-error` que ainda não tenha |
+
+**O `id` segue `<id do campo>-error`**, que é o mesmo que o jQuery Validate
+gera. Não é coincidência: com o mesmo nome, o `showLabel` dele **reaproveita** o
+parágrafo do servidor em vez de criar um segundo logo abaixo — medido, uma
+mensagem por campo.
+
+**A dica não é trocada pelo erro.** Onde o campo já tinha um
+`aria-describedby` apontando para uma dica, o erro entra **antes** dela, e as
+duas ficam: a propriedade aceita vários ids, e perder a dica para ganhar o erro
+seria trocar meia informação por outra meia.
 
 ## 6.7 · `1.1` e `1.2`
 

@@ -76,14 +76,16 @@ redescoberto do zero custa uma tarde.
 | **⚠️ Produção** | **Não resolvido, e mais sério.** Em cache de navegador o efeito é confusão, porque o cache é privado. **Atrás de um CDN, um cache compartilhado pode servir a página de um usuário para outro.** Não há dado pessoal nessa página, mas o comportamento é errado |
 | **Resolver** | Decidir junto de `INF-003`, quando houver CDN: ou configurar o CDN para não cachear resposta com cookie de sessão, ou acrescentar `Vary: Cookie` e propor ao upstream |
 
-### 2.2 Erros de formulário não são associados ao campo
+### 2.2 Erros de formulário não são associados ao campo — **RESOLVIDO**
 
 | | |
 |---|---|
-| **Onde** | Dezenas de templates do upstream: `<p class='form-error'>` sem `aria-describedby` nem `aria-errormessage` |
-| **Impacto** | Quem usa leitor de tela ouve o campo sem ouvir o erro dele |
-| **Por que não corrigimos** | São muitas ocorrências em arquivos do upstream; reescrevê-las aqui geraria conflito em toda sincronização futura |
-| **Resolver** | É contribuição a propor ao mysociety, não patch de fork. Ver [`ACESSIBILIDADE.md`](ACESSIBILIDADE.md) |
+| **Onde** | Dezenove templates do upstream: `<p class='form-error'>` sem `id`, e sem `aria-describedby` no campo |
+| **Impacto** | Quem usa leitor de tela ouvia "Por favor, digite seu nome" sem saber a qual dos campos da tela aquilo pertencia |
+| **Por que parecia caro** | "São muitas ocorrências em arquivos do upstream; reescrevê-las aqui geraria conflito em toda sincronização futura." A objeção estava certa — e valia para dezenove arquivos, não para os quatro que importam |
+| **Como foi feito** | Em duas camadas. **Marcação** nos quatro templates do caminho do cidadão (título, descrição, nome, e-mail, senha), que é a única que vale com JavaScript desligado — e é aí que não existe validação de navegador nenhuma. **Uma passagem no `catanduva.js`** alcança os outros quinze, que são de admin, contato e conta |
+| **O detalhe que evita um defeito novo** | O `id` segue `<id do campo>-error`, que é o que o jQuery Validate gera. Com o mesmo nome ele reaproveita o parágrafo do servidor em vez de escrever um segundo logo abaixo |
+| **Validado** | Um subteste em `t/cobrand/catanduva.t`, e medido no navegador nos dois caminhos — erro do servidor e erro do jQuery — sem duplicar mensagem |
 
 ### 2.3 Canal de contestação por token existe sem produtor
 
