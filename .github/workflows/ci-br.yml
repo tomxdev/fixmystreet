@@ -113,6 +113,16 @@ jobs:
     # duplicadas enviando cada ocorrencia duas vezes - no dia em que o segundo
     # orgao foi criado. Ver docs/CICLO_DE_VIDA_DA_OCORRENCIA.md.
     - name: Scripts do piloto compilam
+      # Os scripts fazem `use FixMyStreet`, e o modulo le conf/general.yml ja
+      # em tempo de compilacao. Esse arquivo nasce na instalacao, que aqui nao
+      # acontece - entao `perl -c` morria no YAML antes de chegar a olhar a
+      # sintaxe do script, e o passo reprovava scripts que estao corretos.
+      #
+      # FMS_OVERRIDE_CONFIG e o proprio mecanismo do FixMyStreet para apontar
+      # outro arquivo - e o que o script/test usa. O de exemplo e versionado e
+      # serve: o que se quer aqui e compilar, e nao conectar em coisa alguma.
+      env:
+        FMS_OVERRIDE_CONFIG: general.yml-example
       run: |
         # O diretorio tem scripts em Perl e em bash. Rodar `perl -c` num script
         # de bash produz dezenas de erros de sintaxe que nao dizem nada - o

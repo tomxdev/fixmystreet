@@ -35,7 +35,6 @@ use Memcached;
 use FixMyStreet::Cobrand::Catanduva;
 use File::Spec;
 use Getopt::Long;
-use Image::Magick;
 
 binmode(STDOUT, ':encoding(UTF-8)');
 
@@ -273,6 +272,14 @@ my $user = FixMyStreet::DB->resultset('User')->find_or_create({
 # na listagem. Nao e foto de verdade - e um retangulo com o titulo escrito.
 sub gera_foto {
     my ($texto, $cor) = @_;
+
+    # `require` aqui dentro, e nao `use` no topo: o Image::Magick e dependencia
+    # opcional do FixMyStreet, e o proprio core o carrega dentro de um eval
+    # (FixMyStreet::ImageMagick). Com `use`, o script inteiro deixava de
+    # COMPILAR onde ele falta - e "nao compila" esconde qual e o problema, que
+    # e uma dependencia ausente e nao o script. Nada mais aqui precisa dele.
+    eval { require Image::Magick; Image::Magick->import; 1 }
+        or die "As fotos de exemplo precisam do Image::Magick, e ele nao esta instalado.\n";
 
     my $img = Image::Magick->new;
     $img->Set(size => '640x480');
