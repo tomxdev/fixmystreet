@@ -128,8 +128,14 @@ jobs:
         # de bash produz dezenas de erros de sintaxe que nao dizem nada - o
         # interpretador certo vem do shebang, e nao do diretorio.
         falhou=0
+        # Nem tudo aqui e script: a `imagem-og.html` mora neste diretorio porque
+        # e a fonte versionada da imagem de compartilhamento do cobrand. O que
+        # separa os dois e a extensao - todo script do piloto e sem extensao, e
+        # e por isso que o filtro e esse, e nao o bit de execucao (que esta
+        # inconsistente entre o indice do git e a arvore, e portanto mente).
         for script in bin/catanduva/*; do
           [ -f "$script" ] || continue
+          case "$script" in *.*) continue ;; esac
           case "$(head -1 "$script")" in
             *perl) ~/perl5/perlbrew/bin/perlbrew exec perl -c "$script" || falhou=1 ;;
             *bash|*sh) bash -n "$script" || falhou=1 ;;

@@ -22,15 +22,16 @@ redescoberto do zero custa uma tarde.
 
 ## 1. Nosso, a resolver
 
-### 1.1 O cobrand não tem imagem de compartilhamento própria
+### 1.1 O cobrand não tem imagem de compartilhamento própria — **RESOLVIDO**
 
 | | |
 |---|---|
 | **Onde** | Qualquer link do piloto compartilhado em rede social |
-| **O que acontece** | Falta `web/cobrands/catanduva/images/fms-og_image.jpg`, então o `header_opengraph_image.html` cai na imagem do **FixMyStreet britânico** |
-| **Impacto** | Não quebra nada. É 1200×630 de identidade visual entregue ao projeto errado |
-| **Causa** | Verificada: o arquivo não existe |
-| **Resolver** | Tarefa de design, não de código. Antes de `RD-008`, quando links do piloto começarem a circular |
+| **O que acontecia** | Faltava `web/cobrands/catanduva/images/fms-og_image.jpg`, então o `header_opengraph_image.html` caía na imagem do **FixMyStreet britânico** — 1200×630 de identidade visual entregue ao projeto errado |
+| **Por que passava despercebido** | Não quebra nada, e não aparece no site: só quem cola o link no WhatsApp vê |
+| **Como foi feito** | A imagem existe, e tem **fonte versionada**: `bin/catanduva/imagem-og.html` a desenha em `canvas` com a paleta e a fonte do Design System. Não há ImageMagick nem PIL neste ambiente, e instalar um deles para gerar uma imagem seria pagar caro por pouco — o navegador já sabe desenhar e já tem as fontes carregadas |
+| **Por que a bancada mora em `bin/` e não em `web/`** | Dentro de `web/` ela seria servida como arquivo estático, e o piloto teria uma página solta em pé, sem rota, sem cabeçalho e sem tradução. O passo a passo para regerar está no cabeçalho dela |
+| **Validado** | Subteste em `t/cobrand/catanduva.t`: o arquivo existe, é JPEG, mede 1200×630 — lido do próprio arquivo, que é o que as meta tags anunciam — e a home aponta para `cobrands/catanduva/`, não para `cobrands/fixmystreet/`. Conferido que ele falha com a imagem fora do lugar |
 
 ### 1.2 Alertas de vulnerabilidade do GitHub desligados
 

@@ -1,0 +1,117 @@
+<!doctype html>
+<meta charset="utf-8">
+<!--
+    A bancada que desenha a `fms-og_image.jpg` do cobrand.
+
+    NAO e uma pagina do site, e por isso nao fica dentro de `web/`: ali ela
+    seria servida como arquivo estatico, e o piloto teria uma pagina solta em
+    pe, sem rota, sem cabecalho e sem traducao, que qualquer um abriria.
+
+    PARA REGERAR A IMAGEM:
+
+      1. cp bin/catanduva/imagem-og.html web/cobrands/catanduva/images/_og.html
+      2. abrir http://localhost:3000/cobrands/catanduva/images/_og.html
+         Tem de ser servida pelo app: a bancada usa a base.css e as fontes do
+         piloto, e e delas que sai o desenho do texto.
+      3. no console:
+         copy(document.getElementById('og').toDataURL('image/jpeg', 0.92))
+      4. tirar o prefixo `data:image/jpeg;base64,` e passar por `base64 -d`
+         para web/cobrands/catanduva/images/fms-og_image.jpg
+      5. rm web/cobrands/catanduva/images/_og.html
+
+    Por que canvas, e nao um arquivo pronto de um editor: nao ha ImageMagick nem
+    PIL neste ambiente, e instalar um deles para gerar UMA imagem seria pagar
+    caro por pouco. O navegador ja sabe desenhar e ja tem as fontes carregadas.
+    A vantagem de sobra e que a imagem passa a ter fonte versionada: mudou a
+    paleta, muda aqui e regera - em vez de um .jpg que ninguem sabe refazer.
+
+    O tamanho 1200x630 nao e escolha de gosto: e o que o
+    `header_opengraph_image.html` anuncia nas meta tags `og:image:width` e
+    `og:image:height`. Sair dele faz a previa aparecer cortada.
+-->
+<title>Imagem de compartilhamento — Catanduva</title>
+<link rel="stylesheet" href="/cobrands/catanduva/base.css">
+<style>
+  body { margin: 0; background: #222; }
+  canvas { display: block; margin: 20px auto; box-shadow: 0 0 40px rgba(0,0,0,.5); }
+</style>
+<canvas id="og" width="1200" height="630"></canvas>
+<script>
+(function () {
+  var c = document.getElementById('og');
+  var x = c.getContext('2d');
+  var L = 1200, A = 630;
+
+  // -- Fundo: o degrade da marca -------------------------------------------
+  var g = x.createLinearGradient(0, 0, L, A);
+  g.addColorStop(0, '#00845F');
+  g.addColorStop(1, '#00564F');
+  x.fillStyle = g;
+  x.fillRect(0, 0, L, A);
+
+  // Um brilho no canto superior esquerdo, para o fundo nao ser chapado.
+  var brilho = x.createRadialGradient(180, 120, 20, 180, 120, 620);
+  brilho.addColorStop(0, 'rgba(0,164,127,.55)');
+  brilho.addColorStop(1, 'rgba(0,164,127,0)');
+  x.fillStyle = brilho;
+  x.fillRect(0, 0, L, A);
+
+  // -- Silhueta de cidade, desenhada a mao ---------------------------------
+  //
+  // Nao e o skyline.svg do cobrand: aquele foi desenhado para repetir numa
+  // faixa de 96px de altura e ficaria diminuto aqui. A linguagem e a mesma —
+  // silhueta simples, sem detalhe — na escala desta imagem.
+  x.fillStyle = 'rgba(0, 60, 55, .38)';
+  var predios = [
+    [0, 120, 90], [86, 80, 150], [160, 150, 110], [262, 100, 190],
+    [356, 130, 140], [480, 90, 210], [566, 160, 120], [680, 110, 170],
+    [786, 140, 130], [908, 95, 200], [1000, 150, 115], [1100, 120, 160]
+  ];
+  for (var i = 0; i < predios.length; i++) {
+    var p = predios[i];
+    x.fillRect(p[0], A - p[2], p[1], p[2]);
+  }
+
+  // -- Texto ----------------------------------------------------------------
+  var fonte = '"Plus Jakarta Sans", system-ui, sans-serif';
+
+  x.fillStyle = '#FFFFFF';
+  x.font = '700 76px ' + fonte;
+  x.textBaseline = 'alphabetic';
+  x.fillText('FixMyStreet', 90, 250);
+
+  x.fillStyle = '#B8F0DE';
+  x.font = '800 76px ' + fonte;
+  x.fillText('Catanduva', 90, 340);
+
+  // Regua curta entre o nome e a chamada, como a home usa.
+  x.fillStyle = 'rgba(255,255,255,.55)';
+  x.fillRect(92, 382, 120, 5);
+
+  x.fillStyle = 'rgba(255,255,255,.92)';
+  x.font = '500 34px ' + fonte;
+  x.fillText('Registre e acompanhe os problemas', 90, 452);
+  x.fillText('da sua cidade.', 90, 498);
+
+  // -- Pino, do lado direito -------------------------------------------------
+  //
+  // O mesmo desenho do icone `pin-solid` do conjunto, em escala grande: e o
+  // simbolo que a pessoa vai reconhecer do mapa.
+  x.save();
+  x.translate(940, 180);
+  x.scale(11, 11);
+  x.fillStyle = 'rgba(255,255,255,.96)';
+  var pino = new Path2D('M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7Z');
+  x.fill(pino);
+  x.fillStyle = '#00845F';
+  x.beginPath();
+  x.arc(12, 9, 2.6, 0, Math.PI * 2);
+  x.fill();
+  x.restore();
+
+  window.__og = function (qualidade) {
+    return c.toDataURL('image/jpeg', qualidade || 0.92);
+  };
+  document.title = 'pronta';
+})();
+</script>

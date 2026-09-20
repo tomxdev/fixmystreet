@@ -446,8 +446,53 @@ seria trocar meia informação por outra meia.
 
 | Item | Fazer |
 |---|---|
-| `1.1` sem imagem de compartilhamento própria | criar a imagem `og:` do cobrand — horas |
-| `1.2` alertas de vulnerabilidade do GitHub desligados | ligar — minutos, e é segurança |
+| `1.1` sem imagem de compartilhamento própria | **RESOLVIDO.** A imagem existe e tem fonte versionada — ver abaixo |
+| `1.2` alertas de vulnerabilidade do GitHub desligados | **BLOQUEADO.** Depende de quem tem a conta — ver abaixo |
+
+### `1.1`, feito — e por que a imagem tem código-fonte
+
+Sem `web/cobrands/catanduva/images/fms-og_image.jpg`, o
+`header_opengraph_image.html` não quebra: ele **cai calado** para
+`cobrands/fixmystreet/`, e todo link do piloto passa a ser compartilhado com a
+prévia do FixMyStreet britânico.
+
+A imagem foi desenhada em `canvas` por `bin/catanduva/imagem-og.html`, com o
+degradê, o verde-claro de destaque e a Plus Jakarta Sans do Design System. A
+escolha do `canvas` foi de custo: não há ImageMagick nem PIL neste ambiente, e
+instalar um deles para gerar **uma** imagem seria pagar caro por pouco.
+
+O ganho de sobra é que a imagem passa a ter **fonte versionada**: mudou a
+paleta, muda a bancada e regera — em vez de um `.jpg` que ninguém sabe refazer.
+
+**A bancada não mora em `web/`.** Ali ela seria servida como arquivo estático, e
+o piloto teria uma página solta em pé — sem rota, sem cabeçalho e sem tradução —
+que qualquer um abriria. Fica em `bin/catanduva/`, e o passo a passo para regerar
+está no cabeçalho dela.
+
+Um subteste guarda o que se perde em silêncio: o arquivo existe, é JPEG e mede
+**1200×630 lidos do próprio arquivo** — que é o tamanho que as meta tags
+anunciam, e fora dele a prévia aparece cortada.
+
+**De quebra, o laço do CI precisou aprender a diferença.** O passo "Scripts do
+piloto compilam" tratava *todo* arquivo de `bin/catanduva/` como script, e
+reprovaria a bancada por não ter shebang. O filtro passou a ser a extensão — todo
+script do piloto é sem extensão — e **não** o bit de execução, que estava
+inconsistente entre o índice do git e a árvore e portanto mentia. Os sete
+scripts foram uniformizados em `100755` no índice.
+
+### `1.2`, bloqueado — precisa de quem tem a conta
+
+Ligar os alertas de vulnerabilidade é um `PUT` em
+`repos/tomxdev/fixmystreet/vulnerability-alerts`. O estado atual é
+`dependabot_security_updates: disabled`, e o endpoint de alertas responde 404.
+
+A chamada foi **recusada pelo classificador de permissão** desta sessão: é uma
+mudança de configuração do repositório remoto, e não cabe contornar. Quem tem a
+conta liga em Settings → Code security, ou roda:
+
+```
+gh api -X PUT repos/tomxdev/fixmystreet/vulnerability-alerts
+```
 
 **Pronto quando:** nenhuma cadeia em inglês no caminho do cidadão, e a lista de
 problemas conhecidos só tem coisa que ainda é problema.
@@ -560,7 +605,7 @@ em seguida. Mas não para depois — é a fase que impede o retrabalho.
 | **3** A rede de testes | **concluída** | 3.1 a 3.5 |
 | **4** O que a pessoa pede | **concluída** | `F5`, `F12`, 4.3, 4.4 |
 | **5** Telas que ficaram para trás | **concluída** | `F6`, `F10`, celular, e a 5.4 decidida |
-| **6** Vocabulário e dívida | **6.1, 6.2, 6.4 e 6.5 concluídas** | falta o catálogo (6.3) e o que vem do upstream (6.6, 6.7) |
+| **6** Vocabulário e dívida | **6.1, 6.2, 6.4, 6.5 e 6.7 concluídas** | falta o catálogo (6.3), o que vem do upstream (6.6), e a `1.2` que depende de quem tem a conta |
 | **7** Evolução | a fazer | contínua |
 
 **Os treze achados da auditoria estão fechados.** `F1` a `F13`: os críticos nas
@@ -568,7 +613,8 @@ fases 1 e 2, os de vocabulário e correção na 4, os de tela na 5, os de texto 
 6.1 e o protocolo na 6.2.
 
 O que resta da fase 6 não vem da auditoria: é trabalho contínuo (o catálogo
-pt-BR, 6.3) e coisas que são do upstream (6.6 e 6.7).
+pt-BR, 6.3) e coisas que são do upstream (6.6). Da 6.7 só ficou a `1.2`, que não
+é trabalho de código — é um botão na conta do GitHub.
 
 **6.4 saiu de ordem de propósito.** É a única da fase 6 que fica mais cara a cada
 dia: o upstream está 1574 commits à frente, e cada sincronização adiada aumenta o
