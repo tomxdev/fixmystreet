@@ -1892,4 +1892,52 @@ subtest 'the citizen path does not speak English' => sub {
     };
 };
 
+subtest 'o link compartilhado mostra a imagem do piloto, e nao a britanica' => sub {
+    # O `header_opengraph_image.html` escolhe o cobrand da imagem por
+    # `file_exists`: se `web/cobrands/catanduva/images/fms-og_image.jpg` sumir,
+    # ele nao quebra - cai calado para `cobrands/fixmystreet/`, e todo link do
+    # piloto passa a ser compartilhado com a previa do FixMyStreet britanico.
+    # E uma falha que ninguem percebe olhando o site, so quem cola o link no
+    # WhatsApp. Daí este subteste.
+
+    my $imagem = FixMyStreet->path_to('web/cobrands/catanduva/images/fms-og_image.jpg');
+    ok -e $imagem, 'a imagem de compartilhamento do cobrand existe';
+
+    # Tamanho lido do proprio arquivo, e nao confiado: as meta tags anunciam
+    # 1200x630, e uma imagem de outro tamanho apareceria cortada na previa.
+    open my $img, '<:raw', $imagem or die "$imagem: $!";
+    my $bytes = do { local $/; <$img> };
+    close $img;
+
+    is substr($bytes, 0, 2), "\xFF\xD8", 'e mesmo um JPEG';
+
+    my ($largura, $altura);
+    my $i = 2;
+    while ($i < length($bytes) - 9) {
+        last unless substr($bytes, $i, 1) eq "\xFF";
+        my $marcador = ord(substr($bytes, $i + 1, 1));
+        # SOF0..SOF15, tirando DHT (c4), JPG (c8) e DAC (cc), sao os que
+        # carregam as dimensoes.
+        if ($marcador >= 0xC0 && $marcador <= 0xCF
+            && $marcador != 0xC4 && $marcador != 0xC8 && $marcador != 0xCC) {
+            ($altura, $largura) = unpack 'nn', substr($bytes, $i + 5, 4);
+            last;
+        }
+        $i += 2 + unpack('n', substr($bytes, $i + 2, 2));
+    }
+    is $largura, 1200, 'largura igual a que a meta tag anuncia';
+    is $altura, 630, 'altura igual a que a meta tag anuncia';
+
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        $mech->get_ok('/');
+        $mech->content_contains('/cobrands/catanduva/images/fms-og_image.jpg',
+            'a home anuncia a imagem do piloto');
+        $mech->content_lacks('/cobrands/fixmystreet/images/fms-og_image.jpg',
+            'e nao a do FixMyStreet britanico');
+    };
+};
+
 done_testing();
