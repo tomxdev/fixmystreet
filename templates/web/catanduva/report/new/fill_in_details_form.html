@@ -1,9 +1,8 @@
 [%# Corpo do formulario de nova ocorrencia — Map Evolution.
 
     Copia de templates/web/base/report/new/fill_in_details_form.html com uma
-    unica diferenca: o passo de **revisao** entra entre form_report.html (que
-    emite category, subcategory, location, duplicates, extra, photo, details) e
-    form_user.html (que emite user, o ultimo antes do envio).
+    unica diferenca: o passo de **revisao** entra depois de form_user.html, que
+    e o ultimo passo do upstream.
 
     Por que aqui: e o unico lugar onde os dois blocos sao irmaos. Nao ha gancho
     entre eles, e uma .js-reporting-page nao pode nascer dentro de outra.
@@ -12,10 +11,27 @@
     pessoa vai direto para os seus dados e envia. O estado 08 da referencia pede
     um resumo antes do envio.
 
-    O que este passo **nao** faz: nao valida, nao transforma e nao envia nada. Ele
-    le os campos que ja foram preenchidos e os mostra. O envio continua sendo o
-    do passo `user`, com as validacoes do upstream intactas. Se ele fosse
-    removido amanha, o fluxo continuaria funcionando.
+    POR QUE DEPOIS DO PASSO `user`, E NAO ANTES:
+
+    A referencia desenha "Enviar ocorrencia →" como acao desta tela, e isso so
+    pode ser verdade se ela for a ultima. Enquanto a revisao vinha antes dos
+    dados pessoais, o botao dizia "Continuar" — e tinha de dizer, porque ainda
+    faltava uma tela inteira antes do envio.
+
+    A troca nao mexe em regra nenhuma: os mesmos campos sao pedidos, com as
+    mesmas validacoes, e o envio continua sendo um POST so, com o mesmo
+    `submit_problem` escondido que o upstream ja punha no formulario. O que muda
+    e a ORDEM de dois passos, e a ordem deste era escolha nossa desde o inicio —
+    a revisao nao existe no upstream.
+
+    E ela traz uma garantia de quebra: o passo `user` valida nome, e-mail e
+    senha com os campos VISIVEIS, que e a unica situacao em que o jQuery
+    Validate os enxerga (ele ignora `:hidden`). Quando a revisao vinha depois, o
+    envio partia de uma tela onde esses campos estavam escondidos — a validacao
+    de navegador nao rodava e o erro so aparecia no servidor.
+
+    O que este passo **nao** faz: nao valida, nao transforma e nao inventa. Ele
+    le os campos que ja foram preenchidos e os mostra.
 %]
 [% PROCESS 'report/new/form_heading.html' %]
 
@@ -55,27 +71,126 @@
 
     [% PROCESS 'report/new/form_report.html' %]
 
+    [%# A revisao carrega o botao de envio, entao o passo `user` fica com um
+        "Continuar". Lido por report/form/submit.html, que e o unico ponto por
+        onde passam os tres caminhos daquele passo. %]
+    [% SET revisao_leva_o_envio = 1 %]
+    [% PROCESS 'report/new/form_user.html' %]
+
     [%# ------------------------------------------------------------------
         Estado 08 — Revisar ocorrencia
 
-        O conteudo do resumo e preenchido por catanduva-map.js no momento em que
-        o passo abre, lendo os proprios campos do formulario. Nada e guardado em
-        duplicado: se a pessoa voltar e mudar algo, o resumo e remontado.
+        O esqueleto e os icones ficam aqui; os VALORES sao escritos pelo
+        catanduva-map.js no momento em que o passo abre, lendo os proprios
+        campos do formulario. Nada e guardado em duplicado: se a pessoa voltar e
+        mudar algo, o resumo e remontado.
+
+        A divisao e essa de proposito. Icone e marcacao sao coisa de template —
+        o conjunto do cobrand mora em _ui-icon.html e nao deve ser copiado
+        dentro de JavaScript. Valor e coisa de JavaScript, porque so ele sabe o
+        que o formulario tem agora.
     ------------------------------------------------------------------ %]
     <div data-page-name="review" class="js-reporting-page js-reporting-page--review">
-        <h2 class="form-section-heading">Revisar ocorrência</h2>
-        <div class="form-section-description">
-            <p>Confira as informações abaixo antes de enviar.</p>
+        <div class="map-step__head">
+            <h2 class="map-step__title form-section-heading">Revisar ocorrência</h2>
+            <p class="map-step__lead">Confira as informações abaixo antes de enviar.</p>
         </div>
 
-        <dl class="map-review js-review-list"></dl>
+        [%# UM container, e nao cinco cartoes: as cinco secoes sao o mesmo
+            assunto — "o que voce esta enviando" — e cinco molduras somariam
+            quatro bordas de ruido a uma leitura que e continua. %]
+        <div class="map-revisao js-revisao">
+
+            <section class="map-revisao__linha">
+                [%# O preview nao e um icone: e o proprio lugar. Desenhado pelo
+                    catanduva-map.js com as telas do mesmo servidor que o mapa
+                    grande ja usa — sem servico novo, sem chave, sem custo. %]
+                <div class="map-revisao__mapa" aria-hidden="true">
+                    <div class="map-revisao__telas js-revisao-telas"></div>
+                    <span class="map-revisao__mapa-pino">[% INCLUDE '_ui-icon.html' icon = 'pin-solid' %]</span>
+                </div>
+                <div class="map-revisao__corpo">
+                    <h3 class="map-revisao__rotulo">Localização</h3>
+                    <p class="map-revisao__valor js-revisao-endereco"></p>
+                    <p class="map-revisao__nota js-revisao-complemento" hidden></p>
+                </div>
+                <button type="button" class="map-revisao__alterar js-revisao-alterar"
+                        data-passo="location">Alterar<span class="screen-reader-only"> localização</span></button>
+            </section>
+
+            <section class="map-revisao__linha">
+                [%# O icone da categoria e CLONADO do rotulo escolhido no passo
+                    de tipo, que ja o recebe de `c.cobrand.category_icon`. Um
+                    mapa de categorias aqui seria um segundo lugar para
+                    discordar do primeiro quando alguem renomear uma delas na
+                    administracao. %]
+                <span class="map-revisao__disco js-revisao-tipo-icone" aria-hidden="true"></span>
+                <div class="map-revisao__corpo">
+                    <h3 class="map-revisao__rotulo">Tipo da ocorrência</h3>
+                    <p class="map-revisao__valor js-revisao-tipo"></p>
+                </div>
+                <button type="button" class="map-revisao__alterar js-revisao-alterar"
+                        data-passo="category">Alterar<span class="screen-reader-only"> tipo da ocorrência</span></button>
+            </section>
+
+            <section class="map-revisao__linha map-revisao__linha--fotos">
+                <span class="map-revisao__disco" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'camera-solid' %]</span>
+                <div class="map-revisao__corpo">
+                    <h3 class="map-revisao__rotulo">Fotos</h3>
+                    [%# No maximo tres, que e o limite do passo de fotos
+                        (data-max-photos). Nao ha "+N", carrossel nem segunda
+                        fileira: com tres, tudo cabe numa linha. %]
+                    <ul class="map-revisao__fotos js-revisao-fotos"></ul>
+                    <p class="map-revisao__valor js-revisao-sem-fotos" hidden>Nenhuma foto adicionada</p>
+                </div>
+                <button type="button" class="map-revisao__alterar js-revisao-alterar"
+                        data-passo="photo">Alterar<span class="screen-reader-only"> fotos</span></button>
+            </section>
+
+            <section class="map-revisao__linha">
+                <span class="map-revisao__disco" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'doc-solid' %]</span>
+                <div class="map-revisao__corpo">
+                    <h3 class="map-revisao__rotulo">Resumo</h3>
+                    <p class="map-revisao__valor js-revisao-resumo"></p>
+                </div>
+                [%# `data-foco` leva ao campo, e nao so a tela: resumo e descricao
+                    moram no mesmo passo, e sem isso "Alterar descricao" deixaria
+                    a pessoa procurando qual dos dois ela veio mudar. %]
+                <button type="button" class="map-revisao__alterar js-revisao-alterar"
+                        data-passo="details" data-foco="form_title">Alterar<span class="screen-reader-only"> resumo</span></button>
+            </section>
+
+            <section class="map-revisao__linha">
+                <span class="map-revisao__disco" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'lines-solid' %]</span>
+                <div class="map-revisao__corpo">
+                    <h3 class="map-revisao__rotulo">Descrição</h3>
+                    [%# Paragrafo, e nao <textarea>: esta tela e de leitura. Um
+                        campo editavel aqui criaria um segundo lugar para mudar
+                        a mesma coisa, e os dois poderiam discordar. %]
+                    <p class="map-revisao__valor map-revisao__valor--longo js-revisao-descricao"></p>
+                </div>
+                <button type="button" class="map-revisao__alterar js-revisao-alterar"
+                        data-passo="details" data-foco="form_detail">Alterar<span class="screen-reader-only"> descrição</span></button>
+            </section>
+
+        </div>
 
         <div class="map-panel__step-actions">
-            <a href="#" class="btn js-back">[% loc('Back') %]</a>
-            <button type="button" class="btn btn--primary js-reporting-page--next">[% loc('Continue') %]</button>
+            <a href="#" class="btn map-step__cancelar js-back">
+                [% INCLUDE '_ui-icon.html' icon = 'arrow-left' %]
+                <span>Voltar</span>
+            </a>
+            [%# O botao de envio de verdade, e nao um que dispara outro. O
+                `submit_problem` escondido do upstream e o que faz o servidor
+                tratar o POST como uma ocorrencia; `submit_register` diz a ele
+                que veio do caminho de quem se cadastra, que e o que o upstream
+                usa para anotar o dispositivo. %]
+            <button type="submit" name="submit_register" value="1"
+                    class="btn btn--primary map-step__proximo js-submit_register js-revisao-enviar">
+                <span class="js-revisao-enviar-texto">Enviar ocorrência</span>
+                [% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]
+            </button>
         </div>
     </div>
-
-    [% PROCESS 'report/new/form_user.html' %]
 
 </div>

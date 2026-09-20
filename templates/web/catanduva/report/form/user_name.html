@@ -31,5 +31,6 @@
 [% END %]
 <input type="text" class="form-control [% valid_class OR 'validName' %] js-form-name [% extra_class %]"
     value="[% object.name || c.user.name | html %]" name="name" id="form_name" autocomplete="name"
+    placeholder="Digite seu nome"
     aria-required="true"
     [%~ IF field_errors.name %] aria-describedby="form_name-error" aria-invalid="true"[% END %]>

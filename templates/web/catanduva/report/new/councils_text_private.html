@@ -29,5 +29,9 @@
 [% ELSE %]
     [% loc('These details will be sent to the council, but will never be shown online without your permission.') %]
 [% END %]
-(<a href="[% c.cobrand.privacy_policy_url %]">[% loc('See our privacy policy') %]</a>.)
+[%# O link em linha propria, e sem os parenteses do upstream: na referencia ele
+    e a segunda linha do aviso, sublinhado. Parenteses em volta de um link o
+    fazem parecer nota de rodape - e esta e a unica frase da tela que diz para
+    onde os dados vao. %]
+<a class="map-step__aviso-link" href="[% c.cobrand.privacy_policy_url %]">[% loc('See our privacy policy') %].</a>
 [% END -%]

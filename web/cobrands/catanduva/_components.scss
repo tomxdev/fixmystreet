@@ -149,6 +149,66 @@ hr {
 // quatro peles. A referencia mostra so duas (solida verde e clara com borda); as
 // outras derivam dela para os estados que a imagem nao cobre (Fase 9 do plano).
 
+// Campo de texto dos passos do fluxo de registro.
+//
+// Nasceu dentro do passo de detalhes e ficou so la; quando o passo de dados
+// ganhou os seus campos, os dois tinham a mesma funcao e medidas diferentes —
+// 32px contra 44px, 13px contra 16px de texto. Duas telas seguidas do mesmo
+// fluxo pedindo a mesma coisa de jeitos diferentes.
+//
+// Aqui e um lugar so. Quem muda a altura do campo muda nos dois, e nao ha como
+// um ficar para tras.
+@mixin campo-do-fluxo {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    // Sem `margin: 0`: as regras de espacamento de cada passo vem antes, com a
+    // mesma especificidade, e um atalho aqui zeraria o respiro que elas dao.
+    margin-inline: 0;
+    margin-bottom: 0;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--c-border-strong);
+    border-radius: var(--radius-md);
+    background: var(--c-surface);
+    color: var(--c-text);
+    font-family: inherit;
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+
+    &::placeholder {
+        color: var(--c-text-muted);
+    }
+
+    &:focus {
+        border-color: var(--c-primary);
+        box-shadow: var(--shadow-focus);
+        outline: none;
+    }
+
+    // Campo invalido. A regra geral do componente — `input.form-error` — tem
+    // especificidade (0,1,1) e perde para o `.form-control` destes escopos:
+    // sem esta linha o campo reprovado ficava com a borda cinza de sempre, e so
+    // a mensagem sinalizava o erro.
+    //
+    // Depois do `:focus` e de proposito. O validador leva o foco para o
+    // primeiro campo invalido, e ali as duas regras valem ao mesmo tempo: a
+    // borda continua vermelha, que e o estado, e o foco fica marcado pelo anel.
+    &.form-error {
+        border-color: var(--c-error);
+        border-width: 2px;
+    }
+}
+
+// O rotulo de um campo do fluxo.
+@mixin rotulo-do-fluxo {
+    display: block;
+    margin-bottom: 0;
+    color: var(--c-text);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+}
+
 @mixin btn-base {
     display: inline-flex;
     align-items: center;

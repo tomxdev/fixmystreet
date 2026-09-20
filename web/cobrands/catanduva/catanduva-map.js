@@ -1603,70 +1603,305 @@
     // -----------------------------------------------------------------------
     //
     // O passo não guarda estado próprio: ele lê os campos do formulário no
-    // momento em que abre. Se a pessoa voltar e mudar a categoria, a descrição ou
-    // a foto, o resumo é remontado com o que existe agora.
+    // momento em que abre. Se a pessoa voltar e mudar a categoria, a descrição
+    // ou as fotos, o resumo é remontado com o que existe agora. Não há uma
+    // segunda cópia dos dados para discordar da primeira.
     //
-    // O que não aparece não é inventado: um campo vazio simplesmente não entra na
-    // lista.
+    // O esqueleto e os ícones estão no template; aqui só entram os valores.
 
-    function linhaResumo($dl, rotulo, valor, passo) {
-        if (!valor) {
-            return;
-        }
+    // -- O preview do lugar --------------------------------------------------
+    //
+    // Sem serviço novo: as telas vêm de `tile.openstreetmap.org`, que é
+    // exatamente de onde o mapa grande desta mesma página já as busca
+    // (FixMyStreet::Map::OSM, `base_tile_url`). Nenhuma chave, nenhum
+    // faturamento, nenhuma dependência a mais — e boa parte delas já está no
+    // cache do navegador por causa do mapa.
+    //
+    // Quatro telas, e não uma: o ponto escolhido pode cair rente à borda de uma
+    // tela, e aí metade do quadro ficaria em branco. Quatro cobrem 128px em
+    // volta do ponto em qualquer direção, que é muito mais do que o quadro usa.
+    var ZOOM_DO_PREVIEW = 16;
 
-        var $dt = $("<dt></dt>").text(rotulo);
-        var $dd = $("<dd></dd>");
-        $("<span></span>").text(valor).appendTo($dd);
-
-        // "Editar" volta ao passo que produziu aquele dado. Usa o mesmo
-        // pageController do upstream, então o histórico e o hash continuam
-        // coerentes.
-        if (passo) {
-            $('<button type="button" class="map-review__edit">Editar</button>')
-                .attr("aria-label", "Editar " + rotulo.toLowerCase())
-                .on("click", function () {
-                    fixmystreet.pageController.toPage(passo);
-                })
-                .appendTo($dd);
-        }
-
-        $dl.append($dt).append($dd);
+    function telaDoPonto(lat, lon, zoom) {
+        var n = Math.pow(2, zoom);
+        var rad = lat * Math.PI / 180;
+        var fx = (lon + 180) / 360 * n;
+        var fy = (1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * n;
+        return { x: Math.floor(fx), y: Math.floor(fy), rx: fx - Math.floor(fx), ry: fy - Math.floor(fy) };
     }
 
-    function montarResumo() {
-        var $dl = $(".js-review-list");
-        if (!$dl.length) {
+    function desenharPreview($caixa, lat, lon) {
+        if (!$caixa.length || !lat || !lon) {
             return;
         }
-        $dl.empty();
 
-        var categoria = $("input[name=category]:checked").attr("data-valuealone") ||
-            $("input[name=category]:checked").val() ||
-            $("select[name=category]").val();
-        var endereco = enderecoAtual();
-        var titulo = $("#form_title").val();
-        var descricao = $("#form_detail").val();
-        var cep = $("#form_cep").val();
+        var ponto = telaDoPonto(parseFloat(lat), parseFloat(lon), ZOOM_DO_PREVIEW);
 
-        linhaResumo($dl, "Tipo de ocorrência", categoria, "category");
-        linhaResumo($dl, "Localização", endereco, "location");
-        linhaResumo($dl, "CEP", cep, "details");
-        linhaResumo($dl, "Resumo", titulo, "details");
-        linhaResumo($dl, "Descrição", descricao, "details");
+        // O bloco de 2x2 começa na tela anterior quando o ponto está na metade
+        // de cá; assim ele fica sempre a 128px ou mais de qualquer borda.
+        var x0 = ponto.rx < 0.5 ? ponto.x - 1 : ponto.x;
+        var y0 = ponto.ry < 0.5 ? ponto.y - 1 : ponto.y;
 
-        // Fotos: contamos o que o dropzone já aceitou. Sem foto, a linha não
-        // aparece — dizer "Fotos (0)" seria ruído.
-        var fotos = $("#form_photo, input[type=file][name^=photo]").length
-            ? $(".dz-preview:not(.dz-error)").length
-            : 0;
-        if (fotos) {
-            linhaResumo($dl, "Fotos", fotos === 1 ? "1 foto" : fotos + " fotos", "photo");
+        var noBloco = {
+            x: (ponto.x - x0) * 256 + ponto.rx * 256,
+            y: (ponto.y - y0) * 256 + ponto.ry * 256
+        };
+
+        var largura = $caixa.parent().width() || 50;
+        var altura = $caixa.parent().height() || 46;
+        var esq = largura / 2 - noBloco.x;
+        var topo = altura / 2 - noBloco.y;
+
+        $caixa.empty();
+
+        var servidores = ["a", "b", "c"];
+        for (var i = 0; i < 2; i++) {
+            for (var j = 0; j < 2; j++) {
+                var tx = x0 + i;
+                var ty = y0 + j;
+                var s = servidores[(tx + ty) % 3];
+                $("<img>")
+                    .attr("alt", "")
+                    .attr("loading", "lazy")
+                    .attr("src", "https://" + s + ".tile.openstreetmap.org/" +
+                          ZOOM_DO_PREVIEW + "/" + tx + "/" + ty + ".png")
+                    .css({ left: (esq + i * 256) + "px", top: (topo + j * 256) + "px" })
+                    .appendTo($caixa);
+            }
         }
+
+        // O pino já está no template, por cima destas telas: ele é do conjunto
+        // de ícones do cobrand, e desenhá-lo aqui seria copiar SVG para dentro
+        // do JavaScript.
+    }
+
+    // -- Os valores ----------------------------------------------------------
+
+    function categoriaEscolhida() {
+        var $marcada = $("input[name=category]:checked");
+        if ($marcada.length) {
+            return {
+                nome: $marcada.attr("data-valuealone") || $marcada.val(),
+                $rotulo: $("label[for='" + $marcada.attr("id") + "']")
+            };
+        }
+        var $sel = $("select[name=category]");
+        return { nome: $sel.length ? $sel.val() : "", $rotulo: $() };
+    }
+
+    function escreverValor($alvo, texto, vazio) {
+        if (!$alvo.length) {
+            return;
+        }
+        var t = $.trim(texto || "");
+        $alvo.text(t || vazio || "—");
+        $alvo.toggleClass("map-revisao__valor--vazio", !t);
+    }
+
+    function montarFotos() {
+        var $lista = $(".js-revisao-fotos");
+        var $vazio = $(".js-revisao-sem-fotos");
+        if (!$lista.length) {
+            return;
+        }
+        $lista.empty();
+
+        // As mesmas miniaturas que o passo de fotos mostra, sem as recusadas.
+        // O `slice` é cinto de segurança, não regra: a regra mora no
+        // `data-max-photos` do passo de fotos, e é lá que a quarta é impedida.
+        var $fotos = $(".js-foto-faixa .dz-preview").not(".dz-error").slice(0, limiteDeFotos());
+
+        $fotos.each(function () {
+            var src = $(this).find("img").attr("src");
+            if (!src) {
+                return;
+            }
+            $("<li></li>")
+                .addClass("map-revisao__foto")
+                .append($("<img>").attr("src", src).attr("alt", ""))
+                .appendTo($lista);
+        });
+
+        // Sem foto não sobra um quadro vazio: some a lista e entra uma linha de
+        // texto, do tamanho de qualquer outro valor.
+        if ($fotos.length) {
+            $vazio.attr("hidden", "hidden");
+        } else {
+            $vazio.removeAttr("hidden");
+        }
+    }
+
+    function montarRevisao() {
+        if (!$(".js-revisao").length) {
+            return;
+        }
+
+        // Localização.
+        desenharPreview($(".js-revisao-telas"),
+            $('input[name="latitude"]').val(), $('input[name="longitude"]').val());
+        escreverValor($(".js-revisao-endereco"), enderecoAtual(), "Localização não identificada");
+
+        // A terceira linha é o CEP quando ele existe — informação real do
+        // ponto, e a única que temos além do endereço. Sem CEP a linha não
+        // aparece: uma linha vazia diria que falta alguma coisa.
+        var cep = $.trim($("#form_cep").val() || "");
+        var $nota = $(".js-revisao-complemento");
+        if (cep) {
+            $nota.text("CEP " + cep).removeAttr("hidden");
+        } else {
+            $nota.text("").attr("hidden", "hidden");
+        }
+
+        // Tipo. O ícone é clonado do rótulo da categoria escolhida.
+        var categoria = categoriaEscolhida();
+        escreverValor($(".js-revisao-tipo"), categoria.nome, "Nenhum tipo escolhido");
+
+        var $disco = $(".js-revisao-tipo-icone");
+        $disco.addClass("map-revisao__disco").empty();
+        var $svg = categoria.$rotulo.find("svg").first();
+        if ($svg.length) {
+            $disco.append($svg.clone());
+        }
+
+        montarFotos();
+
+        escreverValor($(".js-revisao-resumo"), $("#form_title").val(), "Sem resumo");
+        escreverValor($(".js-revisao-descricao"), $("#form_detail").val(), "Sem descrição");
     }
 
     $(fixmystreet).on("report_new:page_change", function (e, $de, $para) {
         if ($para && $para.hasClass("js-reporting-page--review")) {
-            montarResumo();
+            montarRevisao();
+        }
+    });
+
+    // -- Quando o servidor recusa --------------------------------------------
+    //
+    // Uma recusa do servidor recarrega a página inteira. O upstream repõe tudo
+    // o que foi preenchido — categoria, descrição, nome, e-mail, fotos — e
+    // escreve a mensagem de erro DENTRO do passo a que ela pertence. Isso está
+    // certo.
+    //
+    // O que não está: o passo que nasce ativo é sempre o primeiro, porque a
+    // classe `js-reporting-page--active` está escrita à mão no
+    // `form_report.html`. A pessoa volta para "escolha o tipo", sem ver erro
+    // nenhum, e tem de percorrer os passos de novo até topar com a mensagem.
+    //
+    // Antes isso já era ruim; com o envio na revisão ficou pior, porque o
+    // caminho de volta até ele é mais longo.
+    //
+    // Aqui a página abre no passo que TEM o erro. Não é sempre a revisão de
+    // propósito: se o e-mail é que foi recusado, o lugar de resolver é o passo
+    // de dados, e levar a pessoa para a revisão só a faria procurar.
+    function abrirNoPassoComErro() {
+        if (!$("#problem_form").length) {
+            return;
+        }
+
+        var $passo = $(".js-reporting-page")
+            .filter(function () { return $(this).find(".form-error").length > 0; })
+            .first();
+
+        if (!$passo.length) {
+            return;
+        }
+
+        var nome = $passo.attr("data-page-name");
+        if (!nome || $passo.hasClass("js-reporting-page--active")) {
+            return;
+        }
+
+        fixmystreet.pageController.toPage(nome);
+    }
+
+    // -- O nome continua obrigatório -----------------------------------------
+    //
+    // O upstream marca `.js-form-name` como obrigatório no CLIQUE do botão de
+    // envio (`$('.js-submit_register').on('click', ...)` em fixmystreet.js).
+    // Faz sentido lá: aquele botão é o fim do passo `user`, e a regra depende
+    // de qual botão foi usado — "entrar" não exige nome, "registrar" exige.
+    //
+    // Com o envio movido para a revisão, aquele clique deixou de acontecer
+    // antes da validação, e o campo passou despercebido: dava para sair do
+    // passo com o nome vazio e só descobrir no servidor, depois do envio, com a
+    // pessoa já na tela de revisão.
+    //
+    // Aqui a mesma marca é posta no botão que hoje encerra o passo. Ligado
+    // diretamente ao elemento, e não delegado: o handler que valida é delegado
+    // em `#problem_form`, e um handler direto no botão roda antes de subir até
+    // lá — que é a ordem de que esta marca precisa.
+    $(".js-user-continuar").on("click", function () {
+        $(".js-form-name").addClass("required").attr("aria-required", true);
+    });
+
+    // -- "Alterar" -----------------------------------------------------------
+    //
+    // Volta ao passo que produziu aquele dado, pelo mesmo pageController do
+    // upstream — então o histórico e o hash continuam coerentes, e nada do que
+    // já foi preenchido é tocado.
+    //
+    // `data-foco` existe porque resumo e descrição moram no mesmo passo: sem
+    // ele, "Alterar descrição" abriria a tela e deixaria a pessoa procurando
+    // qual dos dois campos ela veio mudar.
+    $(document).on("click", ".js-revisao-alterar", function () {
+        var passo = $(this).attr("data-passo");
+        var foco = $(this).attr("data-foco");
+        if (!passo) {
+            return;
+        }
+
+        fixmystreet.pageController.toPage(passo);
+
+        if (foco) {
+            window.setTimeout(function () {
+                var campo = document.getElementById(foco);
+                if (campo) {
+                    campo.focus();
+                }
+            }, 0);
+        }
+    });
+
+    // -- O envio -------------------------------------------------------------
+    //
+    // O botão é um <button type="submit"> de verdade, dentro do formulário do
+    // upstream: o POST é o mesmo de sempre, com o mesmo `submit_problem`
+    // escondido. Aqui só se impede o segundo.
+    //
+    // O desabilitar acontece DEPOIS que o navegador serializou o formulário —
+    // um controle desabilitado não é enviado, e desligá-lo no clique tiraria o
+    // próprio `submit_register` do POST.
+    var enviando = false;
+
+    $(document).on("click", ".js-revisao-enviar", function (e) {
+        if (enviando) {
+            e.preventDefault();
+            return false;
+        }
+    });
+
+    $(document).on("submit", "form", function () {
+        var $botao = $(".js-revisao-enviar");
+        if (!$botao.length || !$botao.is(":visible")) {
+            return;
+        }
+
+        enviando = true;
+        window.setTimeout(function () {
+            $botao.prop("disabled", true);
+            $botao.find(".js-revisao-enviar-texto").text("Enviando…");
+        }, 0);
+    });
+
+    // Se a página voltar do cache do navegador — "voltar" depois de enviar — o
+    // botão precisa voltar a funcionar. Sem isto ele ficaria "Enviando…" para
+    // sempre, e a pessoa concluiria que o site travou.
+    $(window).on("pageshow", function (e) {
+        if (e.originalEvent && e.originalEvent.persisted) {
+            enviando = false;
+            var $botao = $(".js-revisao-enviar");
+            $botao.prop("disabled", false);
+            $botao.find(".js-revisao-enviar-texto").text("Enviar ocorrência");
         }
     });
 
@@ -2897,6 +3132,7 @@
         atualizarStepper();
         ajustarFaixa();
         observarAberturaDoFluxo();
+        abrirNoPassoComErro();
         atualizarContagemFaixa();
         ligarSetasDaFaixa();
         blindarMiniaturas();

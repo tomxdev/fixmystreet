@@ -27,6 +27,7 @@
 <input type="[% username_type %]" name="[% username_field %]" id="form_[% name %]"
        value="[% c.get_param(username_field) %]"
     class="form-control required"
+    placeholder="nome@email.com"
     aria-required="true"
     [%~ IF field_errors.$name %] aria-describedby="[% erro_id %]" aria-invalid="true"[% END %]
     [% IF NOT c.cobrand.sms_authentication %]

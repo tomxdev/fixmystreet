@@ -151,3 +151,73 @@ Fica registrado aqui porque é uma diferença visível em relação aos PNGs.
 | Offsets do mapa | `#map_box`/`#map_sidebar` são absolutos e partem de `--mappage-offset` | a faixa inferior entra na mesma conta, com token próprio |
 | `Este é o problema` | hoje injeta o formulário dentro do `<li>` | interceptar e renderizar no painel, preservando `id`, `token` e `/alert/subscribe` |
 | Paginação e AJAX | `/ajax` substitui `#js-reports-list` | a faixa precisa ler do mesmo contêiner |
+
+---
+
+## 7. Estado 08 — Revisar ocorrência: duas divergências registradas
+
+Referência: `reference/flows/samples/tela_revisao.png`.
+
+### 7.1 A revisão passou a ser o **último** passo
+
+A referência desenha **"Enviar ocorrência →"** como a ação desta tela. Isso só
+pode ser verdade se ela for a última — e não era: o passo de revisão vinha antes
+de `user` (nome, e-mail, senha), então o botão dizia "Continuar", porque ainda
+faltava uma tela inteira antes do envio.
+
+**A ordem dos dois foi trocada.** Não é mudança de regra de negócio: os mesmos
+campos são pedidos, com as mesmas validações, e o envio continua sendo **um
+POST**, com o mesmo `submit_problem` escondido que o upstream já punha no
+formulário. O passo de revisão não existe no upstream — a posição dele sempre
+foi escolha nossa.
+
+E a troca trouxe uma garantia de quebra: o `.js-reporting-page--next` valida o
+formulário antes de avançar, e o jQuery Validate **ignora campo escondido**. Com
+a revisão depois, o passo `user` valida nome e e-mail com os campos visíveis,
+que é a única situação em que ele os enxerga. Antes, o envio partia de uma tela
+onde esses campos estavam escondidos e o primeiro aviso vinha do servidor.
+
+**Um efeito colateral teve de ser reposto à mão.** O upstream marca o campo de
+nome como obrigatório no *clique* do botão de envio (`.js-submit_register`).
+Como aquele clique deixou de acontecer antes da validação, o nome passou a ser
+opcional sem que nada dissesse; a mesma marca foi posta no botão que hoje
+encerra o passo (`.js-user-continuar`).
+
+### 7.2 A referência está desenhada para um painel mais largo
+
+O cartão da referência mede **888px** de imagem. Pelas proporções internas — o
+botão "Alterar" de 111×50, o disco de 83, a miniatura de 154×109 — ela descreve
+um painel de cerca de **570px**. O nosso tem **400px** de conteúdo.
+
+| Mantido da referência | Não escalado junto |
+|---|---|
+| A composição: um cartão só, cinco seções, divisor entre elas | O tamanho do texto |
+| A hierarquia: disco à esquerda, rótulo em negrito, valor abaixo, ação à direita | A altura dos alvos |
+| As cores, os raios e a coluna de "Alterar" de largura idêntica | |
+| A proporção 40/60 dos dois botões do rodapé (medido: 42/58) | |
+
+A 400px, o "Alterar" da referência daria **22px** de altura e o rótulo daria
+**11px** — abaixo do que o Design System usa e abaixo do que um dedo acerta.
+Encolher a tipografia para caber num desenho seria trocar legibilidade por
+semelhança. Os valores ficaram em `--fs-xs` (13px), que é o mesmo tamanho que o
+subtítulo deste painel já usava — um degrau abaixo do rótulo, não um tamanho
+novo.
+
+### 7.3 O endereço do cabeçalho não se repete aqui
+
+A linha de endereço abaixo do indicador de etapas foi acrescentada à lista de
+passos que já a escondem (§6 do `_map.scss`). Na revisão o endereço está no
+cartão, na seção que o mostra e que tem o botão de alterá-lo — e a referência
+vai do indicador de etapas direto ao título, sem nada entre os dois.
+
+### 7.4 O preview do lugar não trouxe dependência nova
+
+A referência mostra uma miniatura de mapa ao lado do endereço. Ela é desenhada
+com telas de `tile.openstreetmap.org` — **o mesmo servidor de onde o mapa grande
+da própria página já as busca** (`FixMyStreet::Map::OSM`, `base_tile_url`). Sem
+chave, sem faturamento, sem serviço novo, e boa parte das telas já está no cache
+do navegador por causa do mapa.
+
+São quatro telas, e não uma: o ponto escolhido pode cair rente à borda de uma
+delas, e aí metade do quadro ficaria em branco. Quatro cobrem 128px em volta do
+ponto em qualquer direção — muito mais do que o quadro de 50×46 usa.

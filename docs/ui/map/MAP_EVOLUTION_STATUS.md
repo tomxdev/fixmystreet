@@ -4557,6 +4557,154 @@ vermelho é a legenda. Cor nunca é o único canal.
 **Não commitado.**
 Branch: `proposta/ui-conceito-visual`.
 
+## Estado 08 — Revisar ocorrência
+
+Referência: `reference/flows/samples/tela_revisao.png`.
+
+Antes: um `<dl>` de rótulo e valor com links "Editar" soltos à direita, e um
+botão "Continuar" — porque a revisão vinha **antes** do passo de dados pessoais
+e ainda faltava uma tela antes do envio.
+
+Agora: um cartão único com cinco seções, disco de ícone à esquerda, valor abaixo
+do rótulo, e uma coluna de botões "Alterar" de largura idêntica à direita. O
+rodapé são os dois botões do desenho — "← Voltar" e "Enviar ocorrência →" — e o
+segundo **envia de verdade**.
+
+### As duas decisões que sustentam a tela
+
+| | |
+|---|---|
+| **A revisão passou a ser o último passo** | A referência desenha "Enviar ocorrência" como ação desta tela, e isso só é verdade se ela fechar o fluxo. A ordem de `user` e `review` foi trocada; nenhuma regra mudou, e o envio continua sendo um POST só. Ver `MAP_COMPONENT_MAPPING` §7.1 |
+| **A referência é mais larga do que o painel** | O cartão dela descreve um painel de ~570px; o nosso tem 400px de conteúdo. Composição, hierarquia, cores, raios e a proporção 40/60 do rodapé vieram do desenho; o tamanho do texto e a altura dos alvos vieram do Design System. Ver §7.2 |
+
+### O endereço do cabeçalho sai desta tela
+
+Ele aparecia duas vezes: na linha abaixo do indicador de etapas e dentro do
+cartão. O da linha saiu.
+
+Não é um mecanismo novo — a lista de passos que escondem
+`.map-panel__flow-address` já existia no `_map.scss`, com o mesmo motivo escrito
+("seria dizer duas vezes a mesma coisa"), e a revisão entrou nela. Aqui o
+argumento é mais forte do que nos outros: no cartão o endereço está na seção que
+o mostra **e** que tem o botão de alterá-lo.
+
+Efeito colateral bem-vindo: a tela passou a ir do indicador de etapas direto ao
+título, que é exatamente o que a referência desenha.
+
+Medido por passo (`getComputedStyle().display`): `none` em tipo, localização,
+fotos, detalhes e revisão; `flex` no passo de dados, que é o único sem
+referência desenhada e onde ele continua sendo a única lembrança de onde o pino
+caiu.
+
+### O que foi medido
+
+| | |
+|---|---|
+| Rolagem do painel | **zero** em 1440×900, 768×1024 e 390×844 — com e sem fotos |
+| Rolagem horizontal | nenhuma nas três |
+| Botões "Alterar" | cinco, largura **58px** idêntica e a mesma borda esquerda (356px em 1440) — a coluna da referência |
+| A 390px | os "Alterar" continuam dentro do cartão, não sobrepõem texto e não cortam conteúdo; as três miniaturas encolhem para 61px e ficam **numa linha só** |
+| Rodapé | 42/58 (a referência é 40/60) |
+| Miniaturas | 72×51 no desktop, proporção 1.41 do desenho, `object-fit: cover` |
+
+### O fluxo, percorrido
+
+| Ação | Resultado |
+|---|---|
+| 0 fotos | "Nenhuma foto adicionada", sem área vazia |
+| 1 foto | uma miniatura, **sem esticar** para preencher a linha |
+| 2 e 3 fotos | duas e três miniaturas, mesmas dimensões, uma linha só |
+| Quarta foto | **impedida**, com a mensagem em pt-BR do próprio projeto ("Ops! Você alcançou o limite…"). Total permanece 3 |
+| Remover e acrescentar | volta a 2 de 3, o controle de adicionar reaparece, e a nova entra — três ids distintos |
+| Alterar Localização | novas coordenadas, novo endereço, novo preview, e `/around/nearby` refeito **com as coordenadas novas** |
+| Alterar Tipo | nova categoria e ícone reclonado; resumo, descrição, fotos e endereço intactos |
+| Alterar Fotos / Resumo / Descrição | idem, e os dois últimos abrem o passo **com o foco no campo certo** |
+| Voltar | devolve ao passo de dados |
+| Enviar | ocorrência criada e tela de confirmação |
+| **Duplo clique** | dois cliques imediatos, **uma** ocorrência (23 → 24 no banco) |
+| Erro do servidor | tudo preservado, e a página passa a abrir **no passo que tem o erro** — antes caía no passo 1, com a mensagem escondida três passos adiante |
+
+`t/cobrand/catanduva.t`: 48 subtestes passando. O novo guarda a ordem dos
+passos, o botão de envio na revisão, o "Continuar" no passo de dados, o limite
+de três fotos e as cinco seções. Conferido que ele falha quando a ordem é
+invertida e quando o limite vira cinco.
+
+As duas ocorrências criadas durante a validação foram removidas do banco; o
+estado voltou a 23, como estava.
+
+**Não commitado.**
+Branch: `proposta/ui-conceito-visual`.
+
+## Passo "Nos conte sobre você" — a identificação de quem não entrou na conta
+
+Referência: `reference/flows/samples/tela_revisao_02.png`. Continua sendo a
+**etapa 4** do indicador: não é um passo novo, é a outra metade da revisão.
+
+### O que mudou
+
+| | |
+|---|---|
+| **Cabeçalho** | Disco claro com cadeado à esquerda, título e linha de apoio à direita, e "Já tenho conta" logo abaixo delas. O cadeado que o upstream punha em imagem de fundo no título (`padlock.svg`, britânico) saiu: era o segundo cadeado da mesma linha |
+| **Endereço** | Não aparece mais aqui. Entrou na lista de passos que já o escondiam — esta tela não é sobre o lugar |
+| **Campos** | Ganharam estado inicial: "Digite seu nome" e "nome@email.com". **Nenhuma mensagem de erro em placeholder** |
+| **Cada caixa diz o que faz** | As três ganharam uma frase de apoio: onde o nome apareceria, para que serve a senha, e o que será enviado por e-mail. Um rótulo sozinho é uma escolha sem consequência declarada |
+| **CTA** | "Continuar →" ocupando a linha inteira, com a altura, o raio e os estados das ações principais dos outros passos |
+
+### As duas decisões que valem registro
+
+**Uma nota de privacidade, não duas.** A referência desenha uma no topo e outra
+antes do botão, dizendo a mesma coisa. A de baixo saiu: duas frases sobre o
+mesmo assunto na mesma tela não se reforçam — dividem a atenção, e a segunda
+parece ressalva da primeira. Os 55px que ela ocupava são a folga que o passo
+usa para caber sem rolagem **também com as mensagens de erro abertas**.
+
+**O erro divide a linha com o rótulo.** `.form-error` do projeto é um bloco com
+preenchimento: 34px por mensagem, e esta tela tem dois campos obrigatórios. Aqui
+ele virou uma linha à direita do rótulo — o custo em altura é **zero**, e a
+mensagem fica ao lado do nome do campo a que pertence. O `id`, o `role="alert"`
+e o `aria-describedby` do item 2.2 continuam.
+
+### Tipografia das opções
+
+Rótulo e frase de apoio ficaram os dois em **12px**, o mesmo tamanho do aviso de
+privacidade: abaixo disso o Design System não tem degrau, e 11px seria pequeno
+demais. Quem diz qual dos dois manda passou a ser o **peso** e a **cor** — rótulo
+semibold em `--c-text`, frase regular em `--c-text-muted`.
+
+**A caixa de seleção abrange as duas linhas do grupo.** Era ela que afastava a
+frase do rótulo: ocupando só a primeira linha da grade, aquela linha ganhava a
+altura da caixa (20px) e não a do rótulo (15px), e sobravam 7px mortos no meio
+de um par que se lê junto.
+
+### Medido
+
+| | |
+|---|---|
+| Rolagem do painel | **zero** em 1440×900, 768×1024 e 390×844 — e **zero também com as duas mensagens de erro na tela** |
+| Rolagem horizontal | nenhuma nas três |
+| Campos e botão | dentro do painel nas três larguras |
+| Única exceção | abrir a caixa "Quero criar uma senha" acrescenta um campo e o painel passa a rolar. É expansão pedida pela pessoa, e o conteúdo continua inteiro |
+
+### Cenários percorridos
+
+| | |
+|---|---|
+| Nome vazio | recusa, com a mensagem na linha do rótulo; o placeholder não vira erro |
+| E-mail vazio | idem |
+| Ambos válidos | segue para a revisão |
+| "Mostrar meu nome publicamente" | marcado → `anonymous = f` no banco; desmarcado → `anonymous = t` |
+| "Quero receber atualizações" | marcado por padrão; desmarcado → `sem_acompanhamento: 1` no `extra` |
+| "Quero criar uma senha" | abre e fecha o bloco; o campo continua no DOM, vazio, que é o que significa "sem senha" |
+| "Já tenho conta" | troca as duas caixas — **e aqui apareceu uma regressão**: a grade nova usava um seletor com `id` e vencia o `display:none` da classe `hidden-js`, deixando as duas caixas na tela ao mesmo tempo. Corrigido com `:not(.hidden-js)` |
+| Voltar da revisão | devolve ao passo com nome, e-mail, as duas caixas, título, descrição e categoria intactos |
+
+`t/cobrand/catanduva.t`: 49 subtestes. O novo guarda os nomes dos campos que o
+`New.pm` lê, os textos da referência, os estados iniciais, o "nenhum erro em
+placeholder" e o "uma nota de privacidade, não duas".
+
+**Não commitado.**
+Branch: `proposta/ui-conceito-visual`.
+
 ## Atualizado em
 
 2026-09-20
