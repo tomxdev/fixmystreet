@@ -116,3 +116,8 @@ $status-analysis: rgb(245, 166, 35);
 $status-in-progress: rgb(46, 196, 182);
 $status-resolved: rgb(55, 168, 102);
 $status-closed: rgb(135, 148, 154);
+
+// Raio dos botoes e campos. O upstream usa 4px; 8px acompanha a escala de raio
+// do design system e nao exige sobrescrever cada componente, porque o mixin de
+// botao ja le esta variavel.
+$button-border-radius: 8px;
