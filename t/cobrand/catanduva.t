@@ -3,6 +3,7 @@ use FixMyStreet::Cobrand::Catanduva;
 use FixMyStreet::Cobrand;
 use FixMyStreet::DB;
 use FixMyStreet::Script::Inactive;
+use FixMyStreet::Script::UpdateAllReports;
 use Test::MockModule;
 use DateTime;
 use JSON::MaybeXS;
@@ -1851,13 +1852,43 @@ subtest 'the citizen path does not speak English' => sub {
                 latitude => -21.1383, longitude => -48.9728,
             });
 
-        for my $pagina ('/', '/alert', '/reports', '/report/' . $ocorrencia->id) {
-            $mech->get_ok($pagina);
-            my $corpo = $mech->content;
-            for my $frase (@proibidas) {
-                unlike $corpo, qr/\Q$frase\E/i, "$pagina nao diz \"$frase\"";
+        # /reports nao monta o painel a partir do banco: ele le
+        # `data/all-reports-dashboard.json`, escrito pelo cron
+        # bin/update-all-reports. Sem o arquivo o controlador responde 500.
+        #
+        # O arquivo existe na maquina de quem desenvolve, porque alguem ja
+        # rodou o cron ali, e nao existe num runner limpo - entao este subteste
+        # passava aqui e falhava no CI, e o "500" sozinho nao dizia por que.
+        #
+        # TEST_DASHBOARD_DATA e a porta que o proprio core abre para os testes
+        # (ver t/app/controller/reports.t): o mesmo calculo, feito na hora,
+        # sem depender de um arquivo gerado fora do teste.
+        #
+        # O override aninhado repete ALLOWED_COBRANDS e MAPIT_URL de proposito:
+        # FixMyStreet::override_config nao empilha - o de dentro cai para o
+        # arquivo de configuracao, e nao para o de fora.
+        my $painel = FixMyStreet::Script::UpdateAllReports::generate_dashboard();
+
+        FixMyStreet::override_config {
+            ALLOWED_COBRANDS => ['catanduva'],
+            MAPIT_URL => 'http://mapit.uk/',
+            TEST_DASHBOARD_DATA => $painel,
+        }, sub {
+            for my $pagina ('/', '/alert', '/reports', '/report/' . $ocorrencia->id) {
+                # get_ok sozinho diz "500" e mais nada, e um 500 que so
+                # acontece num ambiente e indistinguivel de um que acontece em
+                # todos. O corpo da resposta e onde o Catalyst escreve o motivo.
+                unless ($mech->get_ok($pagina)) {
+                    diag "$pagina respondeu " . $mech->res->status_line;
+                    diag substr($mech->content, 0, 2000);
+                    next;
+                }
+                my $corpo = $mech->content;
+                for my $frase (@proibidas) {
+                    unlike $corpo, qr/\Q$frase\E/i, "$pagina nao diz \"$frase\"";
+                }
             }
-        }
+        };
     };
 };
 
