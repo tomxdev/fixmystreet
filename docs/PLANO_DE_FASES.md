@@ -413,10 +413,10 @@ confirmação renderizar inteira e sem mapa; `t/cobrand/catanduva.t` confere
 
 | Item | Recomendação |
 |---|---|
-| `2.1` `/reports` com cache sem `Vary: Cookie` | **verificar o impacto real no piloto** antes de agir; pode expor conteúdo de sessão |
+| `2.1` `/reports` com cache sem `Vary: Cookie` | **verificado, e agora guardado.** Medido: `Cache-Control: max-age=0`, sem `Vary`. Fica em 0 até haver CDN (`INF-003`), e o `checar-configuracao` avisa se alguém subir o número — ver abaixo |
 | `2.2` erros de formulário sem associação ao campo | **RESOLVIDO.** Passou despercebido na 5.1, apesar de o plano amarrar os dois; corrigido depois, em duas camadas — ver abaixo |
-| `2.3` canal de contestação por token sem produtor | decidir se o piloto o oferece |
-| `2.4` todos os pinos amarelos | cor por estado; combina com o vocabulário de 4.2 |
+| `2.3` canal de contestação por token sem produtor | **decidido: não oferece.** O `MOD-005` já cobre, e exigindo login — ver abaixo |
+| `2.4` todos os pinos amarelos | **RESOLVIDO.** Cor por estado, lida do mesmo lugar que o selo da listagem — ver abaixo |
 | `2.5` `claims.t` sai com 255 | **RESOLVIDO**, e não como recomendado: em vez de desligar do CI, foi corrigido (hora fixa). `PATCHES_DE_CORE.md` §2.5 |
 | `2.6` defasagem de 1574 commits | ver 7.4 |
 
@@ -441,6 +441,67 @@ mensagem por campo.
 `aria-describedby` apontando para uma dica, o erro entra **antes** dela, e as
 duas ficam: a propriedade aceita vários ids, e perder a dica para ganhar o erro
 seria trocar meia informação por outra meia.
+
+### `2.4`, feito — e o que ele arrumou de brinde
+
+O upstream devolve `yellow` para **todo** pino nos contextos `around`, `reports`
+e `report`. Não é defeito: é escolha dele. O efeito é que a única tela cujo
+propósito é a visão de conjunto não distingue resolvida de aberta — que é
+exatamente o que a listagem, logo abaixo, já faz bem.
+
+| Grupo | Estados | Pino |
+|---|---|---|
+| `pending` | `confirmed` | vermelho |
+| `progress` | aberta, mas já saiu de `confirmed` — em análise, em andamento, planejada, ação agendada, encaminhada internamente | âmbar |
+| `resolved` | `fixed`, `fixed - council`, `fixed - user` | verde |
+| `closed` | fechada, sem solução possível, fora da competência, duplicada, cancelada | cinza |
+
+Os quatro grupos **não** foram inventados aqui: são `$status-pending`,
+`-progress`, `-resolved` e `-closed`, que o Design System já usava nos selos.
+
+**A decisão estava escrita três vezes** — em `front/_list-entry.html`,
+`report/nearby.html` e `around/on_map_list_items.html`. O pino seria a quarta
+cópia, e a primeira a discordar das outras no dia em que um estado novo
+aparecesse: o selo diria "Em andamento" e o pino continuaria da cor de aberta.
+Os três passaram a ler de `c.cobrand.estado_visual`, que é de onde o
+`pin_colour` também lê.
+
+**Legenda: deliberadamente nenhuma.** O painel de explorar está exatamente
+cheio, e qualquer bloco novo traz a rolagem de volta. Mas já existe uma: os
+cartões da faixa inferior trazem a mesma família de cor **com o estado por
+escrito ao lado**. Quem vê um cartão vermelho escrito "Aberta" ao lado de um
+pino vermelho já leu a legenda. E cor não é o único canal em lugar nenhum — o
+estado sempre aparece por extenso.
+
+Medido em `/around`: 11 vermelhos, 7 âmbar, 3 cinza, 2 verdes — exatamente as
+contagens do banco — e o painel continua com rolagem **zero**.
+
+### `2.1`, verificado — e a decisão virou uma guarda
+
+Medido: `/reports` responde `Cache-Control: max-age=0` e **nenhum** `Vary`. O
+risco está inteiro no valor de `CACHE_TIMEOUT`, que localmente é 0.
+
+O padrão do upstream é 3600. Com ele, em cache de navegador quem entra continua
+vendo a página de deslogado e conclui que perdeu a sessão; atrás de um CDN, um
+cache compartilhado pode servir a página montada para uma pessoa a outra.
+
+A resposta do piloto enquanto não houver CDN é manter 0 — é uma instalação de
+uma cidade, e uma hora de cache nessa página não paga o risco. Para que subir
+esse número seja uma **decisão** e não um descuido, o
+`bin/catanduva/checar-configuracao` passou a avisar quando ele não é 0, dizendo
+o que acontece nos dois casos. É aviso e não falha: pode ser deliberado.
+
+### `2.3`, decidido — o piloto não oferece
+
+O `Contact.pm` consome um token de escopo `moderation` que **nada no código
+cria**: o caminho está pela metade no upstream.
+
+O piloto não vai completá-lo. O `MOD-005` já dá contestação a quem registrou,
+por um caminho que não depende desse token. Construir o produtor seria um
+segundo caminho para o mesmo fim, com a única diferença de dispensar login — e é
+justamente o login que garante que quem contesta é quem registrou.
+
+Reavaliar só se aparecer demanda de contestação por quem não tem conta.
 
 ## 6.7 · `1.1` e `1.2`
 
@@ -505,39 +566,119 @@ problemas conhecidos só tem coisa que ainda é problema.
 **Por que por último:** nada aqui está quebrado. É o que o piloto vai precisar
 quando começar a ter volume e parceria.
 
-## 7.1 · Fila de fotos aguardando aprovação
+## 7.1 · Fila de fotos aguardando aprovação — **CONCLUÍDA**
 
 | | |
 |---|---|
-| **Situação** | A foto só aparece depois de aprovada, e a aprovação acontece quando um moderador abre a ocorrência **por outro motivo**. Não há fila |
-| **Hoje** | No volume do piloto, resolve-se sozinho |
-| **Com volume** | Uma foto pode ficar meses invisível sem que ninguém saiba que existe |
-| **Fazer** | Uma lista em `/admin` com "fotos aguardando" |
-| **Custo** | Um dia |
+| **Situação** | A foto só aparecia depois de aprovada, e a aprovação acontecia quando um moderador abria a ocorrência **por outro motivo**. Não havia fila |
+| **Com volume** | Uma foto podia ficar meses invisível sem que ninguém soubesse que existia — e quem registrou concluiria que o sistema perdeu o anexo |
+| **Feito** | `c.cobrand.fotos_aguardando` + `templates/web/catanduva/admin/_index_intro.html` |
+| **Custo real** | Uma hora, não um dia — ver por quê abaixo |
 
-## 7.2 · Um teste de verdade para o expurgo LGPD
+**Por que não é uma página própria de `/admin`.** Uma aba exigiria uma ação de
+controlador, e controlador **não tem versão de cobrand**: seria um arquivo novo
+no espaço do core, mais uma entrada em `admin_pages`, uma rota, e mais uma linha
+em `PATCHES_DE_CORE.md`. Tudo isso para uma lista que, no volume do piloto, cabe
+em cinco linhas.
+
+O `admin/_index_intro.html` custa **zero** de superfície de core: é só uma
+sombra do arquivo do upstream, que a `admin/index.html` já processa — e o
+upstream nunca briga com uma sombra. O texto dele continua abaixo da fila, sem
+corte: fala do projeto e da lista de discussão, e não é nosso para apagar.
+
+E o lugar está certo por si: a fila aparece na **primeira** tela que um moderador
+vê ao entrar na administração, em vez de numa aba que ele precisaria saber que
+existe. Uma fila que só quem procura encontra é uma fila que ninguém olha.
+
+**O filtro final é feito em Perl, não em SQL.** A regra de "aprovada" mora em
+`photo_approved`; reescrevê-la como condição sobre a coluna `extra` criaria uma
+segunda definição, para discordar da primeira no dia em que a forma do metadado
+mudar — o mesmo erro que a `2.4` acabou de desfazer nos selos. O SQL faz o que
+sabe fazer barato: tirar quem não tem foto, quem não está visível e quem é de
+outro cobrand.
+
+**O limite corta a lista, não o contador.** Uma fila grande não pode virar uma
+página de administração que não carrega; mas o número tem de ser o verdadeiro, e
+abaixo da tabela aparece "mostrando N das M mais antigas".
+
+| Validado | |
+|---|---|
+| No navegador | Com três fotos por aprovar, a caixa aparece no topo de `/admin` com id, título, data por extenso e estado traduzido; com a fila vazia, **some** — sem deixar caixa vazia |
+| Subteste | Das cinco ocorrências criadas, só a que tem foto por olhar entra: a já aprovada, a sem foto, a escondida e a de outro cobrand ficam de fora. Mais o limite, e as duas telas — com fila e sem |
+| Contagem | Medida por **diferença**, não por total: os subtestes do arquivo dividem uma transação só, e um total absoluto quebraria assim que alguém acrescentasse um subteste acima |
+
+## 7.2 · Um teste de verdade para o expurgo LGPD — **CONCLUÍDA**
 
 | | |
 |---|---|
-| **Situação** | `bin/catanduva/expurgo-lgpd` roda, responde `DRY RUN` e **não encontra nada**, porque o banco não tem registro com cinco anos |
-| **Risco** | A rotina que sustenta a promessa de retenção da política de privacidade nunca foi vista fazendo o que promete |
-| **Fazer** | Um teste com data forjada que crie uma ocorrência fora do prazo, rode com `--commit` e confira a anonimização |
-| **Custo** | Meio dia |
-| **Por que importa** | "Prazo não cumprido é pior do que prazo não declarado" — está escrito no próprio script |
+| **O que o plano não sabia** | Já existia um teste com data forjada (`retention: a resolved report is anonymised once it is five years old`). Ele prova a **regra**: fora do prazo e encerrada, anonimiza; dentro do prazo, aberta, ou de outro cobrand, não toca |
+| **O que faltava** | O que está **entre a regra e o cron**: o próprio script. E a outra metade da promessa — que a ocorrência sobrevive |
+| **Feito** | Um subteste em duas partes |
+
+**Parte 1 — o script, num processo de verdade.** Duas coisas que só o processo
+exercita, e as duas estão documentadas no próprio script como armadilhas:
+
+| | O que quebraria | Como é medido |
+|---|---|---|
+| A guarda de cobrand | Sem `catanduva` em `ALLOWED_COBRANDS`, o moniker cai para `default` e a rotina anonimizaria as ocorrências **do cobrand errado** | O script sai com código ≠ 0 e a mensagem cita `ALLOWED_COBRANDS` — não morre calado |
+| A inversão do `--commit` | O script passa `'dry-run' => !$commit`. Com **underscore** em vez de hífen, o `BUILDARGS` do `Inactive` sobrescreve com `undef` e a rotina **grava sem `--commit`** | Sem `--commit` a saída diz `DRY RUN`; com `--commit`, não diz |
+
+O processo filho vê o banco **sem** as linhas deste arquivo de teste — o harness
+roda dentro de uma transação. Isso não atrapalha nenhuma das duas perguntas: a
+guarda morre antes de consultar nada, e o `DRY RUN` é impresso pelo próprio
+`Inactive` antes de procurar qualquer coisa.
+
+**Parte 2 — o que sobra depois.** Em processo, porque é onde os dados existem.
+Com os mesmos argumentos que o script passa:
+
+- o dado pessoal sai **inteiro**: vínculo, nome e a marca de anônima — e o
+  mesmo na atualização pública, que também carrega nome de gente;
+- a ocorrência **sobrevive**: título, estado e lugar continuam, e a página
+  `/report/<id>` continua de pé sem o nome de quem registrou.
+
+É a decisão 3 (retenção de dado pessoal) e a decisão 4 (a ocorrência é interesse
+público) valendo ao mesmo tempo — some quem reportou, permanece o buraco na rua.
+
+**Conferido que dispara.** Trocando `'dry-run'` por `dry_run` no script, o
+subteste do ensaio falha; tirando a guarda de cobrand, os dois primeiros falham.
 
 ## 7.3 · Os eventos que a auditoria não percorreu
 
 Da lista do fim do `CICLO_DE_VIDA_DA_OCORRENCIA.md`:
 
-| Evento | Por onde começar |
+| Evento | Situação |
 |---|---|
-| Marcar como resolvido pelo autor | é a **única** transição de estado do cidadão, e é definitiva, sem confirmação. Vale um "tem certeza?" |
+| Marcar como resolvido pelo autor | **percorrido — e a premissa do plano estava errada.** Ver abaixo |
 | Disparo dos alertas (`bin/send-alerts`) | nunca executado; o alerta é criado mas ninguém viu chegar |
 | Denúncia de abuso | não executado |
 | `/my/anonymize` e `/my/erase` | irreversíveis; precisam de conta descartável para testar |
 | Open311 | não configurado; entra se houver integração real |
 
 **Custo:** dois a três dias para percorrer e documentar como a auditoria fez.
+
+### Marcar como resolvido — percorrido
+
+O plano descrevia o evento como "definitivo, sem confirmação" e sugeria um "tem
+certeza?". **Não é definitivo.** Percorrido em `t/cobrand/catanduva.t`:
+
+| Passo | O que acontece |
+|---|---|
+| Quem registrou abre a ocorrência | vê a caixa "resolvido" **dentro do formulário de atualização** — não há botão solto: a pessoa já está escrevendo algo quando decide |
+| Marca e envia | o estado passa a `fixed - user` |
+| Volta à página | agora vê a caixa **"não foi resolvido"** |
+| Marca e envia | o estado volta a `confirmed` |
+| Quem **não** registrou | não vê caixa nenhuma de reabrir |
+
+O caminho de volta existe porque o cobrand não sobrescreve
+`reopening_disallowed` e nenhuma categoria do piloto levanta a bandeira —
+verificado nas quatro.
+
+**Por isso não foi acrescentado um "tem certeza?".** Confirmação numa ação
+reversível não protege ninguém: só cansa quem acerta, e não ajuda quem erra —
+porque quem errou pode desfazer. O que falta é diferente e mais barato: quem
+marca **não sabe** que pode voltar atrás. Uma linha ao lado da caixa resolve
+isso, e não custa um passo a mais a cada uso. Fica registrado como a próxima
+coisa a fazer aqui, e não como defeito.
 
 ## 7.4 · A defasagem com o upstream
 
@@ -605,16 +746,18 @@ em seguida. Mas não para depois — é a fase que impede o retrabalho.
 | **3** A rede de testes | **concluída** | 3.1 a 3.5 |
 | **4** O que a pessoa pede | **concluída** | `F5`, `F12`, 4.3, 4.4 |
 | **5** Telas que ficaram para trás | **concluída** | `F6`, `F10`, celular, e a 5.4 decidida |
-| **6** Vocabulário e dívida | **6.1, 6.2, 6.4, 6.5 e 6.7 concluídas** | falta o catálogo (6.3), o que vem do upstream (6.6), e a `1.2` que depende de quem tem a conta |
+| **6** Vocabulário e dívida | **6.1, 6.2, 6.4, 6.5, 6.6 e 6.7 concluídas** | falta o catálogo (6.3), que é contínuo, e a `1.2`, que depende de quem tem a conta |
 | **7** Evolução | a fazer | contínua |
 
 **Os treze achados da auditoria estão fechados.** `F1` a `F13`: os críticos nas
 fases 1 e 2, os de vocabulário e correção na 4, os de tela na 5, os de texto na
 6.1 e o protocolo na 6.2.
 
-O que resta da fase 6 não vem da auditoria: é trabalho contínuo (o catálogo
-pt-BR, 6.3) e coisas que são do upstream (6.6). Da 6.7 só ficou a `1.2`, que não
-é trabalho de código — é um botão na conta do GitHub.
+O que resta da fase 6 não vem da auditoria. A 6.6 fechou: `2.2` e `2.5`
+corrigidos, `2.1` verificado e guardado por uma checagem nova, `2.3` decidido
+(não oferecer), `2.4` resolvido, e `2.6` é a 7.4. Da 6.7 só ficou a `1.2`, que
+não é trabalho de código — é um botão na conta do GitHub. Segue aberto só o
+catálogo pt-BR (6.3), que é contínuo por natureza.
 
 **6.4 saiu de ordem de propósito.** É a única da fase 6 que fica mais cara a cada
 dia: o upstream está 1574 commits à frente, e cada sincronização adiada aumenta o

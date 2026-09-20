@@ -12,11 +12,12 @@
     seria trocar uma inconsistencia visual por uma inconsistencia de conteudo.
     Ver UI_MIGRATION_MATRIX, nota sobre UX-004.
 %]
-[%- SET state_class = 'c-badge--pending' -%]
-[%- IF problem.is_fixed; SET state_class = 'c-badge--resolved';
-    ELSIF problem.is_closed; SET state_class = 'c-badge--closed';
-    ELSIF problem.state != 'confirmed'; SET state_class = 'c-badge--progress';
-    END -%]
+[%# O grupo de estado vem do cobrand, e nao de um IF aqui. A mesma decisao
+    vestia tres templates e agora veste tambem o pino do mapa
+    (`pin_colour`): a quarta copia seria a que discorda das outras no dia em
+    que um estado novo aparecesse - o selo diria "Em andamento" e o pino
+    continuaria da cor de aberta. %]
+[%- SET state_class = 'c-badge--' _ c.cobrand.estado_visual(problem) -%]
 
 [%- SET days = problem.days_ago -%]
 

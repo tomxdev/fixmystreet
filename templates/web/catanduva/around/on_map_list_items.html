@@ -16,11 +16,10 @@
     existir no registro simplesmente nao aparece.
 %]
 [% BLOCK catanduva_map_card %]
-    [%- SET state_class = 'c-badge--pending' -%]
-    [%- IF problem.is_fixed; SET state_class = 'c-badge--resolved';
-        ELSIF problem.is_closed; SET state_class = 'c-badge--closed';
-        ELSIF problem.state != 'confirmed'; SET state_class = 'c-badge--progress';
-        END -%]
+    [%# O grupo de estado vem do cobrand - ver a nota em front/_list-entry.html.
+        Aqui ele importa duas vezes: e o selo deste cartao, e e a cor do pino
+        que o cartao representa no mapa ao lado. %]
+    [%- SET state_class = 'c-badge--' _ c.cobrand.estado_visual(problem) -%]
     [%- SET days = problem.days_ago -%]
 
     [%# `fora` marca as que vieram de around_map: elas estao proximas, mas do

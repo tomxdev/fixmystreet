@@ -130,6 +130,7 @@ componentes acima; nenhum redefine cor, tipo, espaço, raio ou sombra.
 | Tela "Problema identificado" | formulario de acompanhamento do upstream solto no painel, com o texto e o botao dele | `.map-ident__*`: disco verde com visto, titulo, texto, cartao-resumo da ocorrencia (foto 92, titulo, distintivo, endereco e data), rotulo "Seu e-mail", campo, visto "Quero receber atualizacoes", CTA de largura inteira, divisor "ou" e "Continuar sem acompanhar". Os campos e o botao sao os do molde `.js-template-get-updates`, so vestidos: quem envia continua sendo o handler do upstream, para /alert/subscribe | REPLACE | `_map.scss` §13, `catanduva-map.js`, `report/new/duplicate_suggestions.html` |
 | Icone `check` | nao existia | visto simples, para dentro do disco de confirmacao | **CREATE** | `_ui-icon.html` |
 | Distintivo de estado | rotulo em ingles vindo da tabela `state` | os doze estados traduzidos na tabela `translation`, pelo mecanismo do proprio sistema; o componente `.c-badge` nao mudou | — (dado) | `bin/catanduva/traduzir-estados` |
+| Pino do mapa | `pin-yellow.png` para toda ocorrencia, em `around`, `reports` e `report` | cor por grupo de estado: vermelho aberta, ambar em andamento, verde resolvida, cinza encerrada | RESTYLE | `Catanduva.pm` (`pin_colour`, `estado_visual`) |
 
 ---
 
