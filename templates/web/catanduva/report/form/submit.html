@@ -14,9 +14,9 @@
     proprio template a esconde quando `type != 'update'`. E o F4 de
     docs/CICLO_DE_VIDA_DA_OCORRENCIA.md.
 
-    A caixa precisa ficar junto do botao de envio - e a ultima coisa que a
-    pessoa le antes de mandar - e `report/form/submit.html` e o unico ponto por
-    onde passam os tres caminhos do passo `user`: quem tem sessao aberta
+    A caixa precisa ficar na tela em que a pessoa da o e-mail - e sobre o que
+    vai chegar nele - e `report/form/submit.html` e o unico ponto por onde
+    passam os tres caminhos do passo `user`: quem tem sessao aberta
     (form_user_loggedin.html), quem nao tem (user_loggedout_by_email.html) e
     quem acabou de entrar (login_success_form.html). Um arquivo de duas linhas
     tambem e o que menos envelhece.
@@ -49,11 +49,54 @@
         desmarcada. `acompanhar_respondido` diz se ja houve um envio; sem ele, e
         a primeira vez que a pergunta aparece, e o padrao vale. %]
     [% SET ja_respondeu = c.req.params.acompanhar_respondido %]
-    <div class="checkbox-group map-acompanhar">
-        <input type="checkbox" name="quero_acompanhar" id="form_quero_acompanhar" value="1"
+    <div class="map-opcao map-acompanhar">
+        <input class="map-opcao__caixa" type="checkbox" name="quero_acompanhar" id="form_quero_acompanhar" value="1"
+               aria-describedby="form_quero_acompanhar_apoio"
                [%~ ' checked' IF NOT ja_respondeu OR c.req.params.quero_acompanhar %]>
-        <label class="inline" for="form_quero_acompanhar">Quero receber atualizações sobre esta ocorrência.</label>
+        <label class="map-opcao__rotulo" for="form_quero_acompanhar">Quero receber atualizações sobre esta ocorrência.</label>
+        <p class="map-opcao__apoio" id="form_quero_acompanhar_apoio">Vamos te avisar sobre o andamento desta ocorrência por e-mail.</p>
     </div>
+
+    [%# NAO ha uma segunda nota de privacidade antes do botao.
+
+        A referencia desenha uma — "Seus dados de contato nao serao exibidos
+        publicamente sem sua permissao" — e ela chegou a existir aqui. Saiu: diz
+        a MESMA coisa que o aviso azul do topo desta tela, que e a frase do
+        `councils_text_private.html`, e duas frases sobre o mesmo assunto na
+        mesma tela nao reforcam uma a outra — dividem a atencao e fazem a
+        segunda parecer ressalva da primeira.
+
+        De quebra, os 55px que ela ocupava sao a folga que o passo precisa para
+        caber sem rolagem TAMBEM quando as duas mensagens de erro aparecem. %]
 [% END %]
+[%# QUEM CARREGA O BOTAO DE ENVIO.
+
+    No upstream e este arquivo: duas linhas, um <input type="submit"> para
+    desktop e outro para celular, copiadas abaixo sem mudanca.
+
+    Quando existe o passo de revisao — `revisao_leva_o_envio`, marcado em
+    report/new/fill_in_details_form.html — o envio e dele, porque ele e o
+    ultimo. Aqui fica um "Continuar", e o passo `user` passa a ser um passo como
+    os outros.
+
+    NAO E SO TROCA DE ROTULO. O `.js-reporting-page--next` do upstream valida o
+    formulario ANTES de avancar, e o jQuery Validate ignora campo escondido:
+    e a unica hora em que nome, e-mail e senha estao visiveis e, portanto,
+    validaveis no navegador. Sem este botao, o primeiro aviso de e-mail invalido
+    viria do servidor, depois do envio, com a pessoa ja na tela de revisao.
+
+    A caixa de acompanhamento continua aqui, e nao na revisao: ela e sobre
+    receber e-mail, que e o assunto desta tela. %]
+[% IF revisao_leva_o_envio %]
+[%# Largura inteira, e nao do tamanho do rotulo: e a unica acao desta tela, e a
+    referencia a desenha ocupando a linha toda. `map-step__proximo--bloco` so
+    acrescenta a largura; altura, raio, cor e estados continuam sendo os das
+    acoes principais dos outros passos. %]
+<button type="button" class="btn btn--primary map-step__proximo map-step__proximo--bloco js-reporting-page--next js-user-continuar">
+    <span>[% loc('Continue') %]</span>
+    [% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]
+</button>
+[% ELSE %]
 <input class="desk-only btn btn--primary btn--block btn--final js-submit_register" type="submit" name="submit_register" value="[% loc('Submit') %]">
 <input class="mob-only btn btn--primary btn--block btn--final js-submit_register" type="submit" name="submit_register_mobile" value="[% loc('Submit') %]">
+[% END %]

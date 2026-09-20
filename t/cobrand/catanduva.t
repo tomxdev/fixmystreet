@@ -2309,4 +2309,155 @@ subtest 'marcar como resolvido e a unica transicao de estado do cidadao - e da p
     };
 };
 
+subtest 'a revisao e o ultimo passo, e e dela o botao de enviar' => sub {
+    # O passo de revisao nao existe no upstream: e nosso, e a posicao dele e
+    # escolha nossa. Ele foi movido para DEPOIS do passo `user` porque a
+    # referencia desenha "Enviar ocorrencia" como acao desta tela — e isso so
+    # pode ser verdade se ela for a ultima.
+    #
+    # Este subteste guarda as tres coisas que a troca depende e que um teste de
+    # servidor consegue ver. O resto da tela e montado por JavaScript a partir
+    # dos proprios campos, e foi conferido no navegador.
+
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(body_id => $body->id,
+            category => 'Buraco na via', email => 'buraco@example.org');
+
+        $mech->get_ok('/report/new?latitude=-21.1383&longitude=-48.9736');
+        my $html = $mech->content;
+
+        # 1. A ORDEM. O `pageController` do upstream anda pela ordem do DOM
+        # (`nextAll`), entao a posicao do bloco e a ordem do fluxo.
+        my $pos_user = index($html, 'data-page-name="user"');
+        my $pos_revisao = index($html, 'data-page-name="review"');
+        ok $pos_user > 0, 'o passo de dados existe';
+        ok $pos_revisao > 0, 'o passo de revisao existe';
+        ok $pos_revisao > $pos_user,
+            'e a revisao vem depois dos dados - e ela que fecha o fluxo';
+
+        # 2. O BOTAO DE ENVIO E DA REVISAO, e e um envio de verdade.
+        like $html, qr/js-revisao-enviar/, 'a revisao tem o botao de envio';
+        like $html, qr/Enviar ocorrência/, 'e ele diz "Enviar ocorrência"';
+        $mech->content_contains('name="submit_register"',
+            'que e o nome que o upstream espera no POST');
+
+        # O `submit_problem` escondido e o que faz o servidor tratar o POST como
+        # uma ocorrencia. Sem ele o botao nao enviaria nada.
+        $mech->content_contains('name="submit_problem"',
+            'e o campo que marca o POST como envio de ocorrencia continua la');
+
+        # 3. O PASSO `user` DEIXOU DE TER BOTAO DE ENVIO, e ganhou um de
+        # continuar. Os dois juntos criariam dois caminhos de envio.
+        like $html, qr/js-user-continuar/, 'o passo de dados tem "Continuar"';
+        unlike $html, qr/js-submit_register[^"]*"[^>]*type="submit"/,
+            'e nenhum <input type=submit> sobrou nele';
+
+        # -- O limite de tres fotos ------------------------------------------
+        #
+        # Vale tambem sem JavaScript: sao tres campos de arquivo, que e o que o
+        # servidor le em photo1, photo2 e photo3. Com JavaScript o Dropzone le o
+        # `data-max-photos` e recusa a quarta.
+        $mech->content_contains('data-max-photos="3"',
+            'o passo de fotos declara o limite de tres');
+
+        my $campos = () = $html =~ /name="photo[123]"/g;
+        is $campos, 3, 'e o caminho sem JavaScript tem exatamente tres campos';
+        unlike $html, qr/name="photo4"/, 'nao ha um quarto';
+
+        # -- As cinco secoes da revisao ---------------------------------------
+        for my $secao ('Localização', 'Tipo da ocorrência', 'Fotos', 'Resumo', 'Descrição') {
+            $mech->content_contains($secao, "a revisao tem a secao \"$secao\"");
+        }
+
+        # Cada uma com o seu "Alterar", e todos apontando para um passo.
+        my $alterares = () = $html =~ /js-revisao-alterar/g;
+        is $alterares, 5, 'sao cinco botoes "Alterar", um por secao';
+
+        for my $passo (qw(location category photo details)) {
+            like $html, qr/data-passo="$passo"/,
+                "um deles leva ao passo \"$passo\"";
+        }
+    };
+};
+
+subtest 'o passo "Nos conte sobre voce" pede o que precisa, e diz o porque' => sub {
+    # A tela de identificacao de quem nao entrou na conta. O que um teste de
+    # servidor alcanca aqui e a marcacao: os rotulos, os textos de apoio, os
+    # nomes dos campos que o New.pm le, e as duas coisas que NAO podem estar la.
+    # A composicao foi conferida no navegador.
+
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(body_id => $body->id,
+            category => 'Buraco na via', email => 'buraco@example.org');
+
+        $mech->get_ok('/report/new?latitude=-21.1383&longitude=-48.9736');
+        my $html = $mech->content;
+
+        # -- Os campos que o servidor le continuam com os mesmos nomes --------
+        #
+        # A tela mudou de aparencia inteira; se um destes tivesse mudado de nome
+        # junto, o dado simplesmente deixaria de chegar.
+        for my $campo (qw(name username_register may_show_name quero_acompanhar password_register)) {
+            like $html, qr/name="\Q$campo\E"/, "o campo \"$campo\" continua no formulario";
+        }
+
+        # -- O texto da referencia -------------------------------------------
+        $mech->content_contains('Nos conte sobre você', 'o titulo');
+        $mech->content_contains('Já tenho conta', 'a saida de quem ja tem conta');
+        $mech->content_contains('Mostrar meu nome publicamente', 'a caixa do nome publico');
+        $mech->content_contains('Quero criar uma senha', 'a caixa da senha');
+        $mech->content_contains('Quero receber atualizações', 'a caixa do acompanhamento');
+
+        # Cada caixa diz o que acontece se for marcada. Sem isto o rotulo e uma
+        # escolha sem consequencia declarada.
+        $mech->content_contains('Seu nome pode aparecer junto com a ocorrência',
+            'o nome publico diz ONDE o nome apareceria');
+        $mech->content_contains('Com uma senha, você poderá ver o status',
+            'a senha diz para que serve');
+        $mech->content_contains('Vamos te avisar sobre o andamento',
+            'o acompanhamento diz o que sera enviado');
+
+        # -- Os avisos de estado inicial, que NAO sao mensagens de erro -------
+        like $html, qr/placeholder="Digite seu nome"/, 'o nome tem estado inicial';
+        like $html, qr/placeholder="nome\@email\.com"/, 'o e-mail tem estado inicial';
+
+        # O erro vive em elemento proprio, com o `id` que o jQuery Validate
+        # reaproveita (2.2) - nunca dentro do `placeholder`.
+        unlike $html, qr/placeholder="[^"]*[Pp]or favor/,
+            'e nenhuma mensagem de erro foi parar num placeholder';
+
+        # -- A caixa de acompanhamento nasce marcada --------------------------
+        like $html, qr/name="quero_acompanhar"[^>]*checked|checked[^>]*name="quero_acompanhar"/,
+            'o acompanhamento vem marcado, como antes desta tela mudar';
+
+        # -- Uma nota de privacidade, e nao duas ------------------------------
+        #
+        # A referencia desenha duas - uma no topo e outra antes do botao - e as
+        # duas diziam a mesma coisa. Ficou a do topo.
+        # A FRASE em si nao e afirmada aqui, e de proposito: sao DUAS, e qual
+        # delas vale depende de haver orgao para receber a ocorrencia - o
+        # `councils_text_private.html` escolhe, e as duas sao verdadeiras. Um
+        # teste que fixasse uma delas quebraria ao ligar ou desligar a caixa de
+        # demonstracao, sem nada ter piorado.
+        #
+        # O que importa e que o bloco exista, com o icone, e que o link da
+        # politica continue funcionando.
+        like $html, qr/map-step__aviso--privacidade/, 'a nota de privacidade existe';
+        like $html, qr/permissão/, 'e fala de permissao';
+        like $html, qr/map-step__aviso-link/, 'com o link da politica em linha propria';
+        $mech->content_lacks('Seus dados de contato não serão exibidos publicamente',
+            'e nao ha uma segunda dizendo o mesmo');
+    };
+};
+
 done_testing();

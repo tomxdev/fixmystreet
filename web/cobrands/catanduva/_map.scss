@@ -2153,65 +2153,247 @@ html.only-map {
 }
 
 // -- Estado 08: revisar ocorrencia -------------------------------------------
+//
+// Referencia: reference/flows/samples/tela_revisao.png.
+//
+// A referencia esta desenhada para um painel mais largo do que o nosso: o cartao
+// dela mede 888px de imagem, e as proporcoes internas — botao "Alterar" de 111
+// por 50, disco de 83, miniatura de 154 por 109 — sao de um painel de cerca de
+// 570px. O nosso tem 400px de conteudo.
+//
+// O que foi mantido da referencia: a composicao (um cartao so, cinco secoes
+// separadas por divisor), a hierarquia (disco a esquerda, rotulo em negrito,
+// valor abaixo, acao a direita), as cores, os raios, e a proporcao 40/60 dos
+// dois botoes do rodape.
+//
+// O que NAO foi escalado junto: o tamanho do texto e a altura dos alvos. A 400px
+// o "Alterar" da referencia daria 22px de altura e o rotulo daria 11px — abaixo
+// do que o Design System usa e abaixo do que um dedo acerta. Encolher a
+// tipografia para caber num desenho seria trocar legibilidade por semelhanca.
 
-.map-review {
-    margin: 0 0 var(--space-4);
+.map-revisao {
+    margin: 0;
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
 
-    dt {
-        margin: 0;
-        color: var(--c-text-muted);
-        font-size: var(--fs-xs);
-        font-weight: var(--fw-semibold);
-        line-height: var(--lh-snug);
-    }
+    // Sem preenchimento proprio: na referencia o cartao tem a mesma cor do
+    // painel e e a borda que o delimita. Um fundo aqui criaria um degrau de
+    // cinza que o desenho nao tem.
+    background: transparent;
+}
 
-    dd {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-3);
-        margin: 0 0 var(--space-3);
-        padding: 0 0 var(--space-3);
-        border-bottom: 1px solid var(--c-border);
-        color: var(--c-text);
-        font-size: var(--fs-sm);
-        line-height: var(--lh-snug);
+// Cada secao. O divisor e a borda de cima de todas menos a primeira — assim ele
+// nunca sobra depois da ultima, que e o erro classico de por a borda embaixo.
+.map-revisao__linha {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: var(--space-2) var(--space-3);
 
-        &:last-child {
-            border-bottom: 0;
-            margin-bottom: 0;
-        }
-    }
-
-    dd > span {
-        flex: 1 1 auto;
-        min-width: 0;
-        overflow-wrap: break-word;
+    & + & {
+        border-top: 1px solid var(--c-border-suave, var(--c-border));
     }
 }
 
-// "Editar" volta ao passo que produziu o dado. E acao, nao decoracao: alvo de
-// 32px e a cor da marca.
-.map-review__edit {
+// O disco claro com o icone da secao.
+.map-revisao__disco {
     flex: 0 0 auto;
-    min-height: 32px;
-    padding: 0 var(--space-2);
-    border: 0;
-    border-radius: var(--radius-sm);
-    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--c-primary-softer);
     color: var(--c-primary);
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+// O preview do lugar. Mais largo do que o disco, como na referencia: ele nao e
+// um icone, e o proprio ponto escolhido.
+.map-revisao__mapa {
+    position: relative;
+    flex: 0 0 auto;
+    width: 50px;
+    height: 46px;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+    background: var(--c-surface-alt);
+}
+
+// As telas do mapa sao postas aqui dentro pelo catanduva-map.js, em posicao
+// absoluta, com o ponto escolhido no centro.
+.map-revisao__telas {
+    position: absolute;
+    inset: 0;
+}
+
+.map-revisao__mapa img {
+    position: absolute;
+    width: 256px;
+    height: 256px;
+    max-width: none;
+}
+
+// O pino fica por cima das telas, no centro — que e onde o ponto esta, por
+// construcao do preview. Deslocado para cima pela ponta, como qualquer pino.
+.map-revisao__mapa-pino {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 18px;
+    height: 18px;
+    margin: -13px 0 0 -9px;
+    color: var(--c-primary);
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+.map-revisao__corpo {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.map-revisao__rotulo {
+    margin: 0 0 1px;
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-snug);
+}
+
+.map-revisao__valor {
+    margin: 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+    overflow-wrap: break-word;
+}
+
+// A descricao e a unica que costuma ter varias linhas. Quebra natural, sem
+// corte: esconder o fim de uma descricao na tela que existe para confirma-la
+// seria o contrario do que ela serve.
+.map-revisao__valor--longo {
+    white-space: pre-line;
+}
+
+// A terceira linha da localizacao, quando ha complemento.
+.map-revisao__nota {
+    margin: 2px 0 0;
+    color: var(--c-text-soft, var(--c-text-muted));
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+    opacity: 0.85;
+}
+
+// -- "Alterar" ---------------------------------------------------------------
+//
+// Substitui o "Editar" em link que havia aqui. A referencia o desenha como acao
+// secundaria integrada a secao: preenchimento muito claro, borda discreta,
+// texto escuro.
+//
+// LARGURA FIXA, e nao automatica: os cinco formam uma coluna a direita, e a
+// coluna so existe se todos tiverem a mesma medida. Com largura automatica cada
+// um ficaria do tamanho da propria palavra e a borda direita serrilharia.
+.map-revisao__alterar {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    width: 58px;
+    min-height: 28px;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-sm);
+    background: var(--c-surface-alt);
+    color: var(--c-text);
     font-family: var(--font-sans);
     font-size: var(--fs-xs);
     font-weight: var(--fw-semibold);
+    line-height: 1;
+    text-align: center;
     cursor: pointer;
 
     &:hover {
-        background: var(--c-surface-alt);
-        color: var(--c-primary-hover);
+        background: var(--c-border);
     }
 
     &:focus-visible {
         @include foco-visivel;
     }
+}
+
+// -- As fotos ----------------------------------------------------------------
+//
+// No maximo tres — o limite do passo de fotos. Tres cabem numa linha do painel,
+// entao nao ha "+N", carrossel, nem segunda fileira: nenhum dos tres tem o que
+// resolver aqui.
+.map-revisao__fotos {
+    display: flex;
+    gap: var(--space-1);
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+
+    &:empty {
+        display: none;
+        margin: 0;
+    }
+}
+
+.map-revisao__foto {
+    flex: 0 1 auto;
+    width: 72px;
+    max-width: calc((100% - #{2 * 4px}) / 3);
+    margin: 0;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+    background: var(--c-surface-alt);
+
+    // 1.41 e a proporcao do desenho (154 por 109). Com `cover` a foto nunca
+    // deforma: o que nao cabe e cortado igualmente dos dois lados.
+    img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 1.41;
+        height: auto;
+        object-fit: cover;
+    }
+}
+
+// -- Os dois botoes do rodape ------------------------------------------------
+//
+// Na referencia eles dividem a largura do cartao em 40/60 — 349 e 523 de 888,
+// com 15 de intervalo. A regra geral do painel deixa o primario do tamanho do
+// proprio rotulo (`.map-step__proximo` e `flex: 0 0 auto`), o que aqui daria
+// um "Enviar ocorrencia" curto e um "Voltar" comprido: o contrario do peso que
+// as duas acoes tem.
+//
+// Escopado ao passo de revisao: nos outros, a regra geral esta certa.
+.js-reporting-page--review .map-panel__step-actions {
+    .map-step__cancelar {
+        flex: 2 1 0;
+        min-width: 0;
+    }
+
+    .map-step__proximo {
+        flex: 3 1 0;
+        width: auto;
+        min-width: 0;
+    }
+}
+
+// Enquanto envia. O rotulo troca e o botao sai de alcance — dois cliques rapidos
+// nao podem virar duas ocorrencias.
+.js-revisao-enviar[disabled] {
+    opacity: 0.7;
+    cursor: progress;
 }
 
 // ---------------------------------------------------------------------------
@@ -3106,11 +3288,18 @@ html.mobile .mappage--sent {
 // passo de localizacao ele ainda teria cartao proprio logo abaixo, o que seria
 // dizer duas vezes a mesma coisa. Continua visivel nos passos que nao foram
 // desenhados, onde ele e a unica lembranca de onde o pino caiu.
+//
+// A revisao entrou na lista pelo mesmo motivo, e pelo mais forte de todos: ali
+// o endereco esta no cartao, na secao que o mostra E que tem o botao de
+// altera-lo. Repeti-lo dois centimetros acima nao acrescenta nada, e deixa dois
+// lugares para discordarem.
 #side-form:has(.js-reporting-page--category.js-reporting-page--active) .map-panel__flow-address,
 #side-form:has(.js-reporting-page--location.js-reporting-page--active) .map-panel__flow-address,
 #side-form:has([data-page-name="photo"].js-reporting-page--active) .map-panel__flow-address,
 #side-form:has([data-page-name="duplicates"].js-reporting-page--active) .map-panel__flow-address,
-#side-form:has([data-page-name="details"].js-reporting-page--active) .map-panel__flow-address {
+#side-form:has([data-page-name="details"].js-reporting-page--active) .map-panel__flow-address,
+#side-form:has([data-page-name="review"].js-reporting-page--active) .map-panel__flow-address,
+#side-form:has([data-page-name="user"].js-reporting-page--active) .map-panel__flow-address {
     display: none;
 }
 
@@ -4194,12 +4383,7 @@ html.mobile .mappage--sent {
     }
 
     label {
-        display: block;
-        margin-bottom: 0;
-        color: var(--c-text);
-        font-size: var(--fs-xs);
-        font-weight: var(--fw-semibold);
-        line-height: var(--lh-snug);
+        @include rotulo-do-fluxo;
     }
 
     .form-hint {
@@ -4210,47 +4394,7 @@ html.mobile .mappage--sent {
     }
 
     .form-control {
-        box-sizing: border-box;
-        width: 100%;
-        // O painel limita os campos a 351px; aqui eles ocupam a coluna inteira,
-        // como na referencia.
-        max-width: 100%;
-        // Sem `margin: 0` aqui: esta regra vem depois das de `>` acima, com a
-        // mesma especificidade, e zerava o respiro que elas dao.
-        margin-inline: 0;
-        margin-bottom: 0;
-        padding: 0 var(--space-3);
-        border: 1px solid var(--c-border-strong);
-        border-radius: var(--radius-md);
-        background: var(--c-surface);
-        color: var(--c-text);
-        font-family: inherit;
-        font-size: var(--fs-xs);
-        line-height: var(--lh-snug);
-
-        &::placeholder {
-            color: var(--c-text-muted);
-        }
-
-        &:focus {
-            border-color: var(--c-primary);
-            box-shadow: var(--shadow-focus);
-            outline: none;
-        }
-
-        // Campo invalido. A regra geral do componente — `input.form-error` — tem
-        // especificidade (0,1,1) e perde para o `.form-control` deste escopo
-        // (0,3,0): sem esta linha o campo reprovado ficava com a borda cinza de
-        // sempre, e so a mensagem sinalizava o erro.
-        //
-        // Depois do `:focus` e de proposito. O validador leva o foco para o
-        // primeiro campo invalido, e ali as duas regras valem ao mesmo tempo: a
-        // borda continua vermelha, que e o estado, e o foco fica marcado pelo
-        // anel.
-        &.form-error {
-            border-color: var(--c-error);
-            border-width: 2px;
-        }
+        @include campo-do-fluxo;
     }
 
     input.form-control {
@@ -5397,31 +5541,13 @@ body.map-ficha-aberta .map-panel__flow-head {
 // do fluxo.
 // ---------------------------------------------------------------------------
 
+// A caixa de acompanhamento e uma `.map-opcao` como as outras duas do passo.
+// Ela teve grade propria ate ganhar frase de apoio: o `display: flex` daqui
+// vencia o `display: grid` de `.map-opcao` por especificidade, e a frase virava
+// um terceiro item da MESMA linha, em vez de comecar embaixo do rotulo.
 .map-panel .map-acompanhar {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-3);
     box-sizing: border-box;
     width: 100%;
-    margin: var(--space-3) 0;
-
-    input[type="checkbox"] {
-        flex: 0 0 auto;
-        // 2px alinham o quadrado com a primeira linha do rotulo; sem isso ele
-        // fica preso ao topo e a linha parece torta quando o texto quebra.
-        margin: 2px 0 0;
-        width: 20px;
-        height: 20px;
-        accent-color: var(--c-primary);
-    }
-
-    label {
-        margin: 0;
-        color: var(--c-text-body);
-        font-size: var(--fs-sm);
-        line-height: var(--lh-snug);
-        cursor: pointer;
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -5549,28 +5675,25 @@ body.map-ficha-aberta .map-panel__flow-head {
 // IRMA do bloco que ela abre, senao `:checked ~` nao o alcanca. O grid poe a
 // caixa e o rotulo lado a lado sem envolve-los num elemento, e deixa o bloco
 // ocupar a linha inteira abaixo.
-.map-step__senha {
-    display: grid;
-    grid-template-columns: 20px 1fr;
-    gap: var(--space-3);
-    align-items: start;
-    margin: var(--space-3) 0;
-
-    > input[type="checkbox"].js-quero-senha {
-        // 2px alinham o quadrado com a primeira linha do rotulo.
-        margin: 2px 0 0;
-        width: 20px;
-        height: 20px;
-        accent-color: var(--c-primary);
-    }
+// A porta da senha tambem e uma `.map-opcao`: caixa, rotulo ao lado, frase
+// embaixo. O que e so dela e o bloco de campos que a caixa abre.
+.map-step__senha > input[type="checkbox"].js-quero-senha {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    // 2px alinham o quadrado com a primeira linha do rotulo.
+    margin: 2px 0 0;
+    width: 20px;
+    height: 20px;
+    accent-color: var(--c-primary);
 }
 
 .map-panel label.map-step__senha-porta {
+    grid-column: 2;
     margin: 0;
-    color: var(--c-text-body);
-    font-size: var(--fs-sm);
-    font-weight: var(--fw-regular);
-    line-height: var(--lh-snug);
+    color: var(--c-text);
+    font-size: var(--fs-2xs);
+    font-weight: var(--fw-semibold);
+    line-height: 1.25;
     cursor: pointer;
 }
 
@@ -5597,5 +5720,352 @@ body.map-ficha-aberta .map-panel__flow-head {
 
     p {
         margin: 0;
+    }
+}
+
+// -- Passo "Nos conte sobre voce" --------------------------------------------
+//
+// Referencia: reference/flows/samples/tela_revisao_02.png.
+//
+// Como na tela de revisao, o desenho esta feito para um painel mais largo do que
+// o nosso: o cartao dele mede 944px de imagem e o nosso conteudo tem 400px. O
+// que veio do desenho e a composicao — disco a esquerda do titulo, aviso azul
+// compacto, cada caixa com a sua frase de apoio, divisor e nota discreta antes
+// do botao, e o botao ocupando a linha inteira. O tamanho do texto e a altura
+// dos alvos continuam sendo os do Design System.
+
+// O cabecalho vira duas colunas: o disco e o texto.
+.map-step__head--identidade {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+}
+
+.map-step__head-texto {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+// O disco do cadeado. Mesma familia dos discos das secoes da revisao, um grau
+// maior: aqui ele abre a tela, e la acompanha uma linha.
+.map-step__disco {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--c-primary-softer);
+    color: var(--c-primary);
+
+    svg {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+// "Ja tenho conta" mora dentro do cabecalho, colado na linha de apoio.
+.map-step__head--identidade .map-step__entrar {
+    margin: var(--space-1) 0 0;
+}
+
+// O link da politica, na segunda linha do aviso e sublinhado — e a unica frase
+// da tela que diz para onde os dados vao, entao ela se mostra.
+.map-step__aviso-link {
+    display: inline-block;
+    margin-top: 2px;
+    font-weight: var(--fw-semibold);
+    text-decoration: underline;
+}
+
+// -- Uma opcao: caixa, rotulo ao lado, e a frase embaixo dos dois -------------
+//
+// Grade de duas colunas em vez de um <div> em volta da caixa: o rotulo precisa
+// ficar ao lado da caixa e a frase de apoio precisa comecar na mesma coluna do
+// rotulo, alinhada com ele. Com a caixa dentro de um invólucro isso exigiria um
+// recuo fixo, que erra assim que o tamanho da caixa mudar.
+.map-opcao {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    align-items: start;
+    gap: 2px var(--space-2);
+    margin: var(--space-2) 0 0;
+
+    // A caixa e do tamanho do alvo, nao do texto.
+    > input[type="checkbox"] {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+        margin: 2px 0 0;
+        width: 20px;
+        height: 20px;
+        accent-color: var(--c-primary);
+    }
+}
+
+// As tres opcoes do passo ficam a mesma distancia uma da outra.
+.map-panel .map-step__senha,
+.map-panel .map-acompanhar {
+    margin: var(--space-2) 0 0;
+}
+
+.map-opcao__caixa {
+    grid-column: 1;
+    margin: 1px 0 0;
+}
+
+.map-panel label.map-opcao__rotulo {
+    grid-column: 2;
+    margin: 0;
+    color: var(--c-text);
+    font-size: var(--fs-2xs);
+    font-weight: var(--fw-semibold);
+    line-height: 1.25;
+    cursor: pointer;
+}
+
+// A frase de apoio comeca na coluna do rotulo, e nao na da caixa: ela explica o
+// rotulo, e um texto que comeca debaixo da caixa parece legenda da caixa.
+.map-opcao__apoio {
+    grid-column: 2;
+    margin: 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-2xs);
+    line-height: var(--lh-snug);
+}
+
+// A porta da senha usa a mesma grade; o bloco que ela abre ocupa as duas
+// colunas.
+.map-step__senha {
+    .map-opcao__apoio {
+        grid-column: 2;
+    }
+}
+
+// -- O botao de largura inteira -----------------------------------------------
+//
+// So a largura muda. Altura, raio, cor, foco e desabilitado continuam sendo os
+// de `.map-step__proximo`, que e a acao principal dos outros passos.
+.map-panel .map-step__proximo--bloco {
+    width: 100%;
+    justify-content: center;
+}
+
+// -- O passo cabe no painel ---------------------------------------------------
+//
+// Medido em 1440x900: com o cabecalho novo, as tres frases de apoio, o divisor e
+// a nota final, o passo passou a somar 666px num espaco de 577px. O requisito e
+// nao haver rolagem interna, e nenhuma linha de conteudo pode sair para pagar
+// isso — entao o que sai e espacamento, medido item a item.
+//
+// Escopado ao passo `user` para nao mexer nos outros oito, que ja cabiam.
+.map-panel [data-page-name="user"] {
+
+    // Rotulo colado no campo que ele nomeia: eram 12px acima e 4 abaixo.
+    > #form_sign_in > #form_sign_in_no > label,
+    #form_sign_in_no > label {
+        margin: var(--space-2) 0 0;
+    }
+
+    // O mesmo campo do passo de detalhes: 32px, texto de 13px e 12px de recuo.
+    // Ver `campo-do-fluxo` em _components.scss.
+    .form-control {
+        @include campo-do-fluxo;
+    }
+
+    input.form-control {
+        min-height: 32px;
+    }
+
+    // O BOTAO PRECISA DE AR ANTES DELE.
+    //
+    // Estava a ZERO da frase de apoio da ultima caixa: a acao que envia colada
+    // no texto que explica uma caixa de selecao, como se fosse continuacao
+    // dela. E a distancia entre dois grupos de opcao ja era 12px — o fim da
+    // tela tinha menos separacao do que duas linhas vizinhas.
+    //
+    // 20px e o mesmo respiro que o passo de detalhes da antes do botao dele
+    // (`.map-step__actions`), entao nao e medida nova: e a que este fluxo ja
+    // usa para separar o conteudo da acao.
+    .map-step__proximo--bloco {
+        margin-top: var(--space-5);
+    }
+
+    // E o mesmo rotulo, que ali tem 13px e nenhuma margem embaixo.
+    #form_sign_in_no > label {
+        @include rotulo-do-fluxo;
+    }
+
+    // O RITMO DOS TRES GRUPOS.
+    //
+    // O que estava errado: a distancia DENTRO do grupo (rotulo -> frase de
+    // apoio) e a distancia ENTRE grupos eram as duas de 4px, e os tres pares se
+    // liam como um bloco unico de seis linhas. Coisas que formam um par
+    // precisam estar mais perto uma da outra do que do par seguinte.
+    .map-opcao {
+        gap: 2px var(--space-2);
+        margin-top: var(--space-3);
+    }
+
+    .map-opcao__apoio {
+        line-height: 1.35;
+    }
+
+    .map-step__head--identidade {
+        margin-bottom: var(--space-2);
+    }
+
+    .map-step__title {
+        margin-bottom: var(--space-1);
+    }
+
+    .map-step__lead {
+        line-height: 1.35;
+    }
+
+    .map-step__entrar {
+        margin-top: 2px;
+        font-size: var(--fs-xs);
+    }
+
+    .map-step__aviso {
+        margin-top: 0;
+        margin-bottom: var(--space-2);
+        padding: 9px var(--space-3);
+    }
+}
+
+// O cadeado do upstream sai do titulo.
+//
+// `form-section-heading--private` traz um `::before` com
+// `cobrands/fixmystreet/images/padlock.svg` — o cadeado britanico, em imagem de
+// fundo. Com o disco ao lado do titulo ele virou o SEGUNDO cadeado da mesma
+// linha, e o unico dos dois que nao vem do conjunto de icones do cobrand.
+//
+// A classe fica: ela e o gancho do upstream para esta secao, e tirar do template
+// significaria copiar mais um arquivo so para apagar uma linha.
+.map-step__head--identidade .form-section-heading--private::before {
+    content: none;
+}
+
+// -- O erro deste passo e uma linha, nao uma caixa ----------------------------
+//
+// `.form-error` do projeto e um bloco com preenchimento e fundo: 34px por
+// mensagem. Com dois campos obrigatorios na mesma tela, um envio vazio
+// acrescentava 84px de uma vez — e este e o passo mais cheio do fluxo.
+//
+// Aqui ela vira uma linha logo acima do campo, na cor de erro. Nao se perde
+// nada: o texto e o mesmo, o `id`, o `role="alert"` e o `aria-describedby`
+// continuam (item 2.2), e a barra vermelha do proprio campo — que o jQuery
+// Validate marca com a mesma classe — continua dizendo QUAL campo falhou.
+//
+// E o que a referencia pede: "o erro nao deve provocar grandes mudancas de
+// layout".
+.map-panel [data-page-name="user"] {
+
+    p.form-error,
+    div.form-error {
+        margin: 0 0 2px;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: none;
+        color: var(--c-error);
+        font-size: var(--fs-2xs);
+        font-weight: var(--fw-semibold);
+        line-height: 1.35;
+    }
+
+    // A borda do campo em erro continua sendo o sinal visual forte.
+    input.form-error,
+    .form-control.form-error {
+        border-color: var(--c-error);
+    }
+
+    // A ultima economia, para o passo caber TAMBEM com as duas mensagens
+    // abertas. Medido: sem isto sobravam 23px.
+
+    .form-control {
+        margin-bottom: 6px;
+    }
+
+    .map-opcao {
+        margin-top: var(--space-3);
+    }
+
+    .map-step__aviso {
+        margin-bottom: 6px;
+    }
+
+    .map-step__head--identidade {
+        margin-bottom: 6px;
+    }
+}
+
+// -- O erro divide a linha com o rotulo ---------------------------------------
+//
+// Compacta-lo de caixa para linha ja tinha cortado 18px por mensagem, mas dois
+// campos obrigatorios ainda somavam 36px de uma vez — e o requisito e que o
+// painel NAO role em momento nenhum, nem depois de um envio vazio.
+//
+// Aqui o erro nao ganha linha propria: ele ocupa a direita da linha do rotulo,
+// que ja existia e estava vazia. O custo em altura passa a ser ZERO, e a
+// mensagem fica ao lado do nome do campo a que pertence, que e onde ela e mais
+// facil de ligar.
+//
+// COMO. O bloco vira uma grade de duas colunas. Tudo o que nao for rotulo ou
+// mensagem ocupa as duas — campos, opcoes, nota e botao continuam de ponta a
+// ponta. O rotulo fica na primeira coluna, a mensagem na segunda, e como ela
+// vem logo depois dele no DOM as duas caem na MESMA linha.
+//
+// `input.form-error` fica de fora de proposito: o jQuery Validate poe a mesma
+// classe no campo invalido, e sem a excecao o campo seria puxado para a segunda
+// coluna.
+// `:not(.hidden-js)` NAO e detalhe. "Ja tenho conta" esconde esta caixa
+// acrescentando a classe `hidden-js`, que vale `display: none` — e um seletor com
+// `id`, como este, vence uma classe por especificidade. Sem a excecao, a caixa
+// de cadastro continuava na tela ao lado da de entrar, e o painel passava a
+// rolar 231px.
+.map-panel [data-page-name="user"] #form_sign_in_no:not(.hidden-js) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    column-gap: var(--space-2);
+
+    > * {
+        grid-column: 1 / -1;
+    }
+
+    > label {
+        grid-column: 1;
+    }
+
+    > div.form-error,
+    > p.form-error {
+        grid-column: 2;
+        margin: 0;
+        text-align: right;
+    }
+}
+
+// -- O bloco que a porta da senha abre ----------------------------------------
+//
+// Ele so existe depois de um clique deliberado, e acrescenta rotulo, ajuda e
+// campo — 112px. Aqui a ajuda encolhe para o tamanho das outras frases de apoio
+// do passo e perde a margem dupla; o campo continua com a mesma altura dos
+// outros dois.
+//
+// O que sobra de crescimento e o proprio campo, e esse e o preco de ter pedido
+// um campo a mais. O conteudo continua inteiro e alcancavel.
+.map-panel [data-page-name="user"] .map-step__senha-campos {
+
+    > label {
+        margin: 4px 0 2px;
+    }
+
+    #password_register_hint {
+        margin: 0 0 4px;
+        font-size: var(--fs-2xs);
+        line-height: 1.35;
     }
 }

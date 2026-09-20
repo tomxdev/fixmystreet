@@ -37,22 +37,36 @@
     navegacao normal. Manter um ramo que nao roda e guardar um texto que ninguem
     revisa.
 %]
-<div class="map-step__head">
-    <h2 class="map-step__title form-section-heading form-section-heading--private">Nos conte sobre você</h2>
-    <p class="map-step__lead">
-        Precisamos do seu nome e e-mail para confirmar a ocorrência.
-    </p>
-</div>
+[%# O disco do cadeado e o texto sao irmaos numa grade de duas colunas.
 
-[% UNLESS c.user_exists %]
-[%# As classes sao as do upstream e nao podem mudar: `js-new-report-show-sign-in`
-    e o que o fixmystreet.js escuta para trocar as duas caixas, e
-    `js-new-report-sign-in-hidden` e o que o esconde quando a de entrar aparece.
-    O que muda e o texto e o fato de o link ser o link, e nao o paragrafo. %]
-<p class="map-step__entrar hidden-nojs js-new-report-sign-in-hidden">
-    <a class="js-new-report-show-sign-in" href="#">Já tenho conta</a>
-</p>
-[% END %]
+    O cadeado nao e decoracao: esta tela pede nome e e-mail, e o simbolo diz,
+    antes de qualquer frase, de que assunto ela trata. Fica do tamanho de um
+    disco de secao — grande o bastante para ser lido de relance, pequeno o
+    bastante para nao competir com o titulo, que e quem manda aqui.
+
+    "Ja tenho conta" mora DENTRO do cabecalho, embaixo da linha de apoio, como
+    na referencia: e uma saida para quem ja tem conta, nao um passo do fluxo. %]
+<div class="map-step__head map-step__head--identidade">
+    <span class="map-step__disco" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'lock-solid' %]</span>
+
+    <div class="map-step__head-texto">
+        <h2 class="map-step__title form-section-heading form-section-heading--private">Nos conte sobre você</h2>
+        <p class="map-step__lead">
+            Precisamos do seu nome e e-mail para confirmar a ocorrência.
+        </p>
+
+        [% UNLESS c.user_exists %]
+        [%# As classes sao as do upstream e nao podem mudar:
+            `js-new-report-show-sign-in` e o que o fixmystreet.js escuta para
+            trocar as duas caixas, e `js-new-report-sign-in-hidden` e o que o
+            esconde quando a de entrar aparece. O que muda e o texto e o fato de
+            o link ser o link, e nao o paragrafo. %]
+        <p class="map-step__entrar hidden-nojs js-new-report-sign-in-hidden">
+            <a class="js-new-report-show-sign-in" href="#">Já tenho conta</a>
+        </p>
+        [% END %]
+    </div>
+</div>
 
 [% IF type == 'report' %]
 [%# O `id` esta no SPAN, e nao no `div`, e isto custou uma investigacao.

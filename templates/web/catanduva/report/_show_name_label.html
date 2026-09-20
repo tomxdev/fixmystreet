@@ -1,0 +1,28 @@
+[%# "Mostrar meu nome publicamente", com o que isso significa escrito embaixo.
+
+    Substitui templates/web/base/report/_show_name_label.html, que tem a caixa e
+    o rotulo e mais nada.
+
+    O QUE MUDA: uma linha de apoio. "Mostrar meu nome publicamente" e uma
+    escolha sobre dado pessoal, e o rotulo sozinho nao diz ONDE o nome
+    apareceria — quem marca sem saber isso nao escolheu, adivinhou. A frase diz
+    os dois lugares: o mapa e a lista publica.
+
+    O QUE NAO MUDA: `name="may_show_name"`, o `id` e o `value`, que sao o que o
+    New.pm le; e a classe `js-hide-if-private-category`, que e o que o
+    fixmystreet.js usa para esconder o grupo inteiro quando a categoria e
+    privada — sem ela, a pessoa escolheria mostrar o nome numa categoria em que
+    nada aparece.
+
+    As classes `govuk-*` do upstream saem: o estilo das caixas deste fluxo vem
+    do Design System (`map-opcao`), e mante-las significaria duas folhas
+    disputando a mesma caixa.
+%]
+<div class="map-opcao js-hide-if-private-category">
+    [%# `aria-describedby` amarra a frase de apoio a caixa, para quem usa leitor
+        de tela ouvir a consequencia junto da escolha, e nao depois dela. %]
+    <input class="map-opcao__caixa" type="checkbox" name="may_show_name" id="form_may_show_name" value="1"
+           aria-describedby="form_may_show_name_apoio"[% ' checked' IF name_public %]>
+    <label class="map-opcao__rotulo" for="form_may_show_name">[% loc('Show my name publicly') %]</label>
+    <p class="map-opcao__apoio" id="form_may_show_name_apoio">Seu nome pode aparecer junto com a ocorrência no mapa e na lista pública.</p>
+</div>

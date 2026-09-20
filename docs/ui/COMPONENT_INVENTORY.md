@@ -131,6 +131,13 @@ componentes acima; nenhum redefine cor, tipo, espaço, raio ou sombra.
 | Icone `check` | nao existia | visto simples, para dentro do disco de confirmacao | **CREATE** | `_ui-icon.html` |
 | Distintivo de estado | rotulo em ingles vindo da tabela `state` | os doze estados traduzidos na tabela `translation`, pelo mecanismo do proprio sistema; o componente `.c-badge` nao mudou | — (dado) | `bin/catanduva/traduzir-estados` |
 | Pino do mapa | `pin-yellow.png` para toda ocorrencia, em `around`, `reports` e `report` | cor por grupo de estado: vermelho aberta, ambar em andamento, verde resolvida, cinza encerrada | RESTYLE | `Catanduva.pm` (`pin_colour`, `estado_visual`) |
+| Resumo da revisao | `<dl>` de rotulo e valor, com links "Editar" soltos | um cartao so, cinco secoes com divisor, disco de icone a esquerda e botao "Alterar" de largura fixa a direita | REBUILD | `map-revisao*` em `_map.scss`, `fill_in_details_form.html` |
+| Botao "Alterar" | link de texto na cor da marca ("Editar") | botao de 58x28, preenchimento `--c-surface-alt`, borda `--c-border`, texto `--c-text`; os cinco com a MESMA largura, formando coluna a direita | REBUILD | `.map-revisao__alterar` |
+| Preview do lugar | nao existia | quadro de 50x46 com quatro telas do mesmo servidor do mapa e o pino do conjunto por cima | NEW | `.map-revisao__mapa`, `desenharPreview()` |
+| Miniatura da revisao | nao existia (a revisao dizia so "3 fotos") | ate tres miniaturas de 72px na proporcao 1.41, `object-fit: cover`, numa linha so | NEW | `.map-revisao__foto` |
+| Opcao com apoio | caixa e rotulo, sem dizer o que a escolha faz | grade de duas colunas: caixa abrangendo as duas linhas, rotulo semibold de 12px e frase de apoio em `--c-text-muted` logo abaixo | NEW | `.map-opcao*` |
+| Disco de secao | nao existia | disco claro de 42px com icone solido, a esquerda do titulo do passo | NEW | `.map-step__disco` |
+| Erro ligado ao campo | bloco de 34px acima do campo | linha de 12px a direita do rotulo, no mesmo eixo: custo zero em altura | RESTYLE | `[data-page-name="user"] .form-error` |
 
 ---
 
