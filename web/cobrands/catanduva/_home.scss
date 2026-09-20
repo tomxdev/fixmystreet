@@ -1,0 +1,732 @@
+// ---------------------------------------------------------------------------
+// Home — composicao
+// ---------------------------------------------------------------------------
+//
+// Pagina piloto da migracao: e aqui que o Design System foi calibrado contra
+// docs/ui/reference/home-layout.png. Os quatro blocos sao os da referencia —
+// hero com busca, acoes rapidas, numeros + ocorrencias recentes, faixa de
+// chamada — e as medidas sao as amostradas na imagem, convertidas da escala de
+// 1536px para a de 1440px.
+//
+// Este arquivo carrega em todas as larguras; a versao de duas colunas do hero e
+// as grades de 4 e 2 colunas entram em layout.scss.
+
+.frontpage {
+    .content {
+        padding-block: 0;
+        background: transparent;
+        margin: 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Hero
+// ---------------------------------------------------------------------------
+
+// O seletor precisa do id. O upstream escreve `#front-main { padding: 1em }` e
+// `#front-main #front-main-container { padding: 0 1em; max-width: ... }`, e uma
+// regra de classe nao alcanca nenhum dos dois. Tres tentativas desta migracao
+// morreram ai — e a mesma cascata que D-010 ja registrava.
+#front-main,
+.home-hero {
+    position: relative;
+    overflow: hidden;
+    background: var(--c-bg);
+    padding-block: var(--space-8);
+    padding-inline: 0;
+    margin: 0;
+    color: var(--c-text);
+    text-align: left;
+}
+
+.home-hero__inner {
+    position: relative;
+    z-index: 2;
+}
+
+// A largura da coluna de texto e o que faz o h1 quebrar nas tres linhas da
+// referencia. Sem vencer o #front-main-container ele ocupava os 1280px do
+// container e saia em uma linha so.
+#front-main #front-main-container.home-hero__copy,
+.home-hero__copy {
+    max-width: 34rem;
+    padding: 0;
+    margin: 0;
+}
+
+.home-hero__title {
+    margin: 0 0 var(--space-5);
+    color: var(--c-text);
+    font-size: var(--fs-display);
+    font-weight: var(--fw-black);
+    line-height: var(--lh-display);
+    letter-spacing: var(--ls-display);
+}
+
+// A palavra destacada do titulo. Fica em --c-primary-bright, o verde da
+// referencia: em 52px o criterio de contraste e 3:1, e este tom da 3.17.
+.home-hero__accent {
+    position: relative;
+    color: var(--c-primary-bright);
+    white-space: nowrap;
+}
+
+// O traco sob a palavra e desenhado, nao um sublinhado: a referencia usa um
+// risco a mao, mais largo no meio. Um SVG de fundo sustenta isso com um
+// elemento so.
+.home-hero__accent::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 14%;
+    bottom: -0.14em;
+    height: 0.14em;
+    background: url("/cobrands/catanduva/images/underline.svg") no-repeat center /
+        100% 100%;
+    pointer-events: none;
+}
+
+.home-hero__lead {
+    margin: 0 0 var(--space-5);
+    color: var(--c-text-body);
+    font-size: var(--fs-lead);
+    line-height: var(--lh-body);
+    max-width: 30rem;
+}
+
+// Caixa de busca.
+//
+// A referencia poe o botao dentro da caixa: uma superficie branca com raio 14,
+// sombra media, e o verde encaixado a direita com 6px de folga. Abaixo de 560px
+// o botao desce para uma segunda linha em vez de espremer o campo.
+.postcode-form-box.home-search,
+.home-search {
+    max-width: 34rem;
+    margin: 0 0 var(--space-2);
+    padding: 0;
+    background: transparent;
+    color: inherit;
+}
+
+// `.postcode-form-box div { width: 20em }` e `.postcode-form-box input#sub` sao
+// as duas regras do upstream que desenham a caixa de busca antiga: uma largura
+// fixa de 320px e um botao preto de largura total. As duas precisam ser
+// alcancadas pelo seletor, nao so sobrescritas por ordem.
+.postcode-form-box .home-search__box,
+.home-search__box {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+    width: 100%;
+    padding: 6px;
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    transition: border-color var(--dur) var(--ease),
+        box-shadow var(--dur) var(--ease);
+
+    &:focus-within {
+        border-color: var(--c-primary);
+        box-shadow: var(--shadow-focus);
+    }
+}
+
+.home-search__icon {
+    flex: 0 0 auto;
+    width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--c-text);
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+// O campo perde a moldura propria: a moldura e a caixa.
+.home-search__box input#pc,
+.home-search__box input[type="text"] {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    font-size: var(--fs-lead);
+    line-height: 1.4;
+    box-shadow: none;
+
+    &:hover,
+    &:focus,
+    &:focus-visible {
+        border: 0;
+        box-shadow: none;
+        outline: 0;
+    }
+}
+
+.home-search__box input#sub,
+.home-search__box input[type="submit"],
+.home-search__box .btn {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 7.5rem;
+    min-height: 44px;
+    padding: var(--space-2) var(--space-5);
+    border-radius: var(--radius-md);
+    background: var(--c-primary);
+    color: var(--c-text-inverse);
+
+    &:hover,
+    &:focus {
+        background: var(--c-primary-hover);
+        color: var(--c-text-inverse);
+    }
+}
+
+.home-search__examples {
+    margin: 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+
+    a {
+        color: inherit;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+
+        &:hover {
+            color: var(--c-primary-hover);
+        }
+    }
+}
+
+// Separador em ponto entre os exemplos.
+.home-search__examples li + li::before {
+    content: "•";
+    margin: 0 var(--space-2);
+    color: var(--c-border-strong);
+}
+
+.home-search__examples ul {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.home-search__examples li {
+    display: inline;
+}
+
+// Erro de busca: a caixa ganha borda de erro e a mensagem entra abaixo.
+.home-search--error .home-search__box {
+    border-color: var(--c-error);
+    border-width: 2px;
+}
+
+.home-search__error {
+    display: block;
+    margin-top: var(--space-2);
+    color: var(--c-error);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+}
+
+// Rascunho pendente, quando existe.
+.draft-info-box {
+    margin-bottom: var(--space-4);
+    padding: var(--space-4);
+    background: var(--c-info-bg);
+    border-radius: var(--radius-md);
+    color: var(--c-info-ink);
+    font-size: var(--fs-sm);
+
+    p {
+        margin-bottom: var(--space-2);
+    }
+}
+
+// -- Midia do hero -----------------------------------------------------------
+//
+// No celular a imagem some: 390px de largura nao comportam duas colunas, e uma
+// foto empilhada empurraria a busca para baixo da dobra, que e o oposto do que
+// esta pagina precisa fazer. Volta em layout.scss.
+
+.home-hero__media {
+    display: none;
+}
+
+// Manchas de apoio atras da imagem, no tom mint. Decorativas — e por isso
+// escondidas onde a imagem nao aparece.
+.home-hero__blob {
+    display: none;
+    position: absolute;
+    border-radius: var(--radius-pill);
+    background: var(--c-primary-soft);
+    pointer-events: none;
+    z-index: 0;
+}
+
+// ---------------------------------------------------------------------------
+// Acoes rapidas
+// ---------------------------------------------------------------------------
+
+.home-actions {
+    margin-bottom: var(--space-6);
+}
+
+.home-actions__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.action-card {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
+    transition: box-shadow var(--dur) var(--ease),
+        border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
+
+    &:hover {
+        border-color: var(--c-primary-line);
+        box-shadow: var(--shadow-md);
+    }
+
+    &:focus-within {
+        border-color: var(--c-primary);
+    }
+}
+
+.action-card__body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.action-card__title {
+    margin: 0 0 var(--space-1);
+    font-size: var(--fs-h4);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-snug);
+
+    // O link cobre o cartao inteiro sem precisar envolver o markup, para que o
+    // titulo continue sendo um titulo e o cartao continue sendo clicavel.
+    a {
+        color: var(--c-text);
+
+        &::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+        }
+
+        &:hover {
+            color: var(--c-primary-hover);
+            text-decoration: none;
+        }
+
+        &:focus-visible {
+            outline: 0;
+        }
+    }
+}
+
+// Sem recuo a direita de proposito. A referencia deixa a seta ocupar o espaco
+// vazio depois da ultima linha do texto, em vez de reservar uma faixa: com o
+// recuo, as mesmas frases quebravam em tres linhas e o cartao crescia 24px.
+.action-card__desc {
+    margin: 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-snug);
+}
+
+// Espaco reservado para a seta, no fim da ultima linha do texto.
+//
+// A seta e absoluta no canto do cartao, entao nao empurra nada — e encostava no
+// fim da frase. Um recuo a direita no paragrafo inteiro resolveria a colisao e
+// custaria uma terceira linha em todos os quatro cartoes, porque estreitaria
+// tambem as linhas de cima.
+//
+// Este pseudo-elemento flui com o texto: ocupa 2.5rem so na ultima linha, que e
+// exatamente onde a seta esta.
+.action-card__desc::after {
+    content: "";
+    display: inline-block;
+    width: 2.5rem;
+    height: 1px;
+}
+
+.action-card__arrow {
+    position: absolute;
+    right: var(--space-5);
+    bottom: var(--space-5);
+    color: var(--c-primary);
+    line-height: 0;
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Numeros e ocorrencias recentes
+// ---------------------------------------------------------------------------
+
+// `min-width: 0` nos itens nao e detalhe.
+//
+// Um item de grade tem `min-width: auto` por padrao, o que impede a trilha de
+// encolher abaixo do conteudo minimo dele. E o painel de recentes tem
+// `white-space: nowrap` no titulo e nas duas etiquetas da direita: o conteudo
+// minimo dele e o texto inteiro, sem quebra. A trilha de `1fr` resolvia em 437px
+// dentro de um container de 343 — era essa a rolagem horizontal do celular.
+.home-panels {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+    margin-bottom: var(--space-10);
+
+    > * {
+        min-width: 0;
+    }
+}
+
+// -- Painel de numeros -------------------------------------------------------
+
+.stats-panel {
+    padding: var(--space-5);
+    background: var(--c-primary-soft);
+    border: 1px solid var(--c-primary-line);
+    border-radius: var(--radius-xl);
+}
+
+// A linha do titulo precisa poder quebrar. "Catanduva em numeros" mais a
+// etiqueta de periodo, que e nowrap, somavam 437px dentro de um painel de 358 em
+// 390px de janela — e era esse o estouro horizontal da home no celular.
+.stats-panel__head {
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    margin-bottom: var(--space-5);
+
+    > div {
+        flex: 1 1 14rem;
+        min-width: 0;
+    }
+}
+
+.stats-panel__title {
+    margin: 0;
+    font-size: var(--fs-h2);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-heading);
+}
+
+.stats-panel__subtitle {
+    margin: var(--space-1) 0 0;
+    color: var(--c-text-body);
+    font-size: var(--fs-sm);
+}
+
+.stats-panel__period {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-left: auto;
+    color: var(--c-primary-ink);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    white-space: nowrap;
+
+    svg {
+        width: 15px;
+        height: 15px;
+    }
+}
+
+.stats-panel__grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.stat {
+    padding: var(--space-2);
+    text-align: center;
+
+    // As divisorias sao internas: o primeiro de cada linha nao tem.
+    border-left: 1px solid var(--c-primary-line);
+
+    &:nth-child(2n + 1) {
+        border-left: 0;
+    }
+}
+
+.stat__icon {
+    display: block;
+    margin: 0 auto var(--space-2);
+    color: var(--c-primary);
+
+    svg {
+        width: 26px;
+        height: 26px;
+    }
+}
+
+.stat__value {
+    display: block;
+    color: var(--c-text);
+    font-size: var(--fs-stat);
+    font-weight: var(--fw-black);
+    line-height: 1.1;
+    letter-spacing: var(--ls-heading);
+    font-variant-numeric: tabular-nums;
+}
+
+.stat__label {
+    display: block;
+    margin-top: var(--space-1);
+    color: var(--c-text-body);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+}
+
+// -- Painel de ocorrencias recentes -----------------------------------------
+
+.recent-panel {
+    padding: var(--space-5);
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+}
+
+.recent-panel__head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    margin-bottom: var(--space-2);
+}
+
+.recent-panel__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    font-size: var(--fs-h2);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-heading);
+}
+
+.recent-panel__more {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-left: auto;
+    color: var(--c-primary);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    white-space: nowrap;
+
+    svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+.recent-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.recent-list__item {
+    min-width: 0;
+    border-bottom: 1px solid var(--c-border);
+
+    &:last-child {
+        border-bottom: 0;
+    }
+
+    > a {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        min-width: 0;
+        padding: var(--space-2) 0;
+        color: inherit;
+        border-radius: var(--radius-sm);
+
+        &:hover {
+            text-decoration: none;
+
+            .recent-list__title {
+                color: var(--c-primary-hover);
+            }
+        }
+    }
+}
+
+.recent-list__thumb {
+    flex: 0 0 auto;
+    width: 92px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    background: var(--c-surface-alt);
+    object-fit: cover;
+    overflow: hidden;
+}
+
+// Sem foto — ou com a foto ainda em aprovacao (MOD-002) — o lugar continua
+// ocupado por uma marca da propria identidade, e nao por um vazio.
+.recent-list__thumb--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--c-primary-soft);
+    color: var(--c-primary);
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+.recent-list__body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.recent-list__title {
+    display: block;
+    margin: 0;
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.recent-list__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: var(--space-1) 0 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+
+    svg {
+        flex: 0 0 auto;
+        width: 13px;
+        height: 13px;
+        color: var(--c-primary);
+    }
+
+    span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.recent-list__state {
+    flex: 0 0 auto;
+}
+
+.recent-list__time {
+    flex: 0 0 auto;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+}
+
+// No celular a pilula e a hora descem para uma linha propria, senao o titulo
+// fica com 80px de largura util.
+.recent-list__aside {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex: 0 0 auto;
+}
+
+// ---------------------------------------------------------------------------
+// Celular estreito
+// ---------------------------------------------------------------------------
+//
+// Este bloco vive aqui, e nao em _components.scss, por ordem de importacao:
+// base.scss carrega _components antes de _home, entao uma media query escrita la
+// perde para as regras de .home-search e .recent-list escritas aqui, mesmo com a
+// especificidade igual. Foi assim que o campo de busca continuou espremido em
+// 390px depois de duas correcoes que pareciam certas.
+@media (max-width: 30em) {
+    // A caixa de busca deixa de ser uma linha so. Em 390px o campo ficava com
+    // 150px uteis — "Digite um CEP, rua, b" — porque o botao mantinha 120px.
+    //
+    // O seletor precisa repetir o par `.postcode-form-box .home-search__box`: a
+    // regra de cima esta escrita assim, e (0,2,0) vence (0,1,0) mesmo vindo
+    // antes. Escrito so como `.home-search__box`, o `flex-wrap: wrap` nao valia,
+    // e o botao com `width: 100%` seguia na mesma linha, saindo da caixa.
+    .postcode-form-box .home-search__box,
+    .home-search__box {
+        flex-wrap: wrap;
+    }
+
+    .home-search__box input#pc,
+    .home-search__box input[type="text"] {
+        flex: 1 1 auto;
+        width: auto;
+    }
+
+    .home-search__box input#sub,
+    .home-search__box input[type="submit"] {
+        flex: 1 1 100%;
+        width: 100%;
+        min-width: 0;
+    }
+
+    // Na lista de recentes, pilula e horario descem para uma linha propria,
+    // alinhados com o texto e nao com a miniatura.
+    .recent-list__item > a {
+        flex-wrap: wrap;
+    }
+
+    // Com a linha podendo quebrar, o corpo precisa de base zero: com base `auto`
+    // o titulo em nowrap definia a largura de partida e o item inteiro caia para
+    // baixo da miniatura em vez de truncar.
+    .recent-list__body {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    // Sem o recuo da miniatura: com ele, pilula e horario somavam 366px de
+    // conteudo que nao quebra dentro de 343 uteis.
+    .recent-list__aside {
+        width: 100%;
+        flex-wrap: wrap;
+        padding-left: 0;
+    }
+}

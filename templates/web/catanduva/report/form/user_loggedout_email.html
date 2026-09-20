@@ -1,0 +1,35 @@
+[%# O campo de e-mail, com o erro ligado a ele (2.2).
+
+    Copia de templates/web/base/report/form/user_loggedout_email.html, 24
+    linhas. A logica de `name`/`id` e do upstream e nao muda: este arquivo serve
+    tanto ao cadastro (`username_register`) quanto a entrada
+    (`username_sign_in`, que vira `username` no `name`), e e por isso que ha
+    duas variaveis.
+
+    A diferenca sao os tres atributos do erro - `id`, `role="alert"` e o
+    `aria-describedby` que amarra os dois. Ver a nota no `user_name.html` do
+    cobrand, que explica por que o sufixo `-error` importa.
+%]
+[% IF c.cobrand.sms_authentication %]
+    [% SET username_label = loc('Your email or mobile') %]
+    [% SET username_type = 'text' %]
+[% ELSE %]
+    [% SET username_label = loc('Your email') %]
+    [% SET username_type = 'email' %]
+[% END %]
+[% SET username_field = (name == 'username_sign_in') ? 'username' : name ~%]
+[% SET erro_id = 'form_' _ name _ '-error' ~%]
+
+<label for="form_[% name %]">[% username_label %]</label>
+[% IF field_errors.$name %]
+    <p class='form-error' id="[% erro_id %]" role="alert">[% field_errors.$name %]</p>
+[% END %]
+<input type="[% username_type %]" name="[% username_field %]" id="form_[% name %]"
+       value="[% c.get_param(username_field) %]"
+    class="form-control required"
+    aria-required="true"
+    [%~ IF field_errors.$name %] aria-describedby="[% erro_id %]" aria-invalid="true"[% END %]
+    [% IF NOT c.cobrand.sms_authentication %]
+        autocomplete="[% username_type %]"
+    [% END %]
+>

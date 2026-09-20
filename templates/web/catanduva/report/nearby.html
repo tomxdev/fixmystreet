@@ -1,0 +1,88 @@
+[%# Lista de ocorrencias proximas, devolvida por /around/nearby e por
+    /report/N/nearby.json.
+
+    O markup do upstream continua inteiro: o `duplicates.js` procura por
+    `data-report-id`, `.item-list__item--expandable__actions` e
+    `.js-toggle-expansion` dentro de cada <li>, e a pagina de inspecao usa esta
+    mesma resposta. Mexer no <li> quebraria os dois.
+
+    O que este arquivo acrescenta e um bloco de dados ao lado da lista. O passo
+    "Ja foi relatado?" desenha cartoes, e cartao precisa de coisas que o <li> do
+    upstream nao carrega em lugar legivel por maquina: o endereco curto, o
+    rotulo de estado, a foto e — sobretudo — a distancia.
+
+    Por que a distancia vem daqui e nao do <li>: o `_nearby_json` do upstream
+    consulta `problem_find_nearby`, que devolve a distancia calculada pelo
+    banco, e em seguida reduz cada linha ao problema (`map { $_->problem }`),
+    deixando a distancia pelo caminho. Em vez de alterar um controlador do core,
+    recalculamos com a mesma formula daquela funcao — ver
+    `distancia_em_metros` no cobrand. A busca, o raio e a ordenacao continuam
+    sendo os do upstream; daqui sai so o rotulo.
+
+    O ponto de origem sao os parametros da propria requisicao, que o
+    `duplicates.js` preenche com o que esta no formulario. E, portanto, a
+    localizacao que a pessoa confirmou no passo anterior — nao ha coordenada
+    escrita em lugar nenhum.
+%]
+[%~ FOREACH problem IN reports ~%]
+    [%~ INCLUDE 'report/_item_expandable.html' ~%]
+[%~ END ~%]
+
+[%~ SET origem_lat = c.get_param('latitude') ~%]
+[%~ SET origem_lon = c.get_param('longitude') ~%]
+[%~ SET dados = [] ~%]
+[%~ FOREACH problem IN reports ~%]
+    [%~ SET metros = c.cobrand.distancia_em_metros(origem_lat, origem_lon, problem.latitude, problem.longitude) ~%]
+
+    [%~ SET classe_estado = 'c-badge--pending' ~%]
+    [%~ IF problem.is_fixed; SET classe_estado = 'c-badge--resolved';
+        ELSIF problem.is_closed; SET classe_estado = 'c-badge--closed';
+        ELSIF problem.state != 'confirmed'; SET classe_estado = 'c-badge--progress';
+        END ~%]
+
+    [%~ SET dias = problem.days_ago ~%]
+    [%~ quando = BLOCK ~%]
+        [%~ IF dias == 0 ~%]Hoje
+        [%~ ELSIF dias == 1 ~%]Há 1 dia
+        [%~ ELSIF dias <= c.cobrand.display_days_ago_threshold ~%]Há [% dias %] dias
+        [%~ ELSE ~%][% prettify_dt(problem.confirmed, 1) %]
+        [%~ END ~%]
+    [%~ END ~%]
+
+    [%# A foto so aparece depois de aprovada (MOD-002), e o controlador de fotos
+        recusa servir o que o cobrand nao exibe: perguntar aqui e o que evita
+        mandar para a tela um <img> fadado a falhar. %]
+[%~ SET foto = '' ~%]
+    [%~ SET fotos = [] ~%]
+    [%~ IF problem.photo AND c.cobrand.allow_photo_display(problem, 0);
+          SET foto = problem.photos.first.url_fp;
+          FOREACH p IN problem.photos;
+              fotos.push({ mini => p.url_fp, grande => p.url });
+          END;
+        END ~%]
+
+    [%# Os quatro ultimos campos sao so do detalhe: o endereco por extenso da
+        propria ocorrencia (e nao o do ponto que a pessoa escolheu), a data de
+        registro escrita por extenso, a categoria e a galeria inteira.
+
+        O comentario fica aqui fora, e nao entre os campos: dentro da diretiva do
+        push ele abriria uma segunda diretiva e o template deixaria de compilar. %]
+    [%~ dados.push({
+        id       => problem.id,
+        titulo   => problem.title,
+        endereco => c.cobrand.short_address(problem) || problem.category,
+        quando   => quando.trim,
+        distancia => c.cobrand.distancia_escrita(metros),
+        resumo   => problem.detail,
+        foto     => foto,
+        url      => c.cobrand.relative_url_for_report(problem) _ problem.url,
+        estado   => prettify_state(problem.state),
+        classe   => classe_estado,
+
+        endereco_completo => c.cobrand.endereco_completo(problem) || c.cobrand.short_address(problem),
+        data     => c.cobrand.data_por_extenso(problem.confirmed),
+        categoria => problem.category,
+        fotos    => fotos,
+    }) ~%]
+[%~ END ~%]
+<script type="application/json" class="js-dup-dados">[% mark_safe(c.cobrand.para_json(dados)) %]</script>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 12" width="200" height="12" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+  <!-- Traco sob a palavra destacada do h1. Decorativo; nao carrega informacao. -->
+  <path d="M2 8.4C42 3.2 96 1.6 198 4.6" fill="none" stroke="#00845F" stroke-width="3.6" stroke-linecap="round"/>
+</svg>

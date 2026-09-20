@@ -1,0 +1,126 @@
+#!/usr/bin/env perl
+#
+# Confere quais arquivos fora do cobrand este fork alterou.
+#
+# Existe porque um inventario so vale enquanto estiver certo. O
+# docs/PATCHES_DE_CORE.md lista cada arquivo de core que o piloto tocou e a
+# decisao sobre ele; este script compara aquela lista com a realidade do git e
+# falha se as duas discordarem.
+#
+# Nao julga o conteudo da alteracao - julga a decisao de faze-la. Tocar num
+# arquivo de core passa a exigir uma linha no documento, que e exatamente o
+# custo que deve ter.
+#
+#   bin/catanduva/conferir-core            # relata
+#   bin/catanduva/conferir-core --quieto   # so o resultado, para o CI
+#
+# Sai com 0 se o documento e o git concordam, 1 se nao.
+
+use strict;
+use warnings;
+use v5.14;
+use utf8;
+binmode STDOUT, ":encoding(UTF-8)";
+
+use File::Basename qw(dirname);
+use File::Spec;
+use Getopt::Long;
+
+my $quieto = 0;
+GetOptions('quieto' => \$quieto) or die "uso: $0 [--quieto]\n";
+
+my $raiz = File::Spec->rel2abs(dirname($0) . '/../..');
+chdir $raiz or die "nao consegui entrar em $raiz: $!\n";
+
+my $doc = 'docs/PATCHES_DE_CORE.md';
+
+# O ponto em que este fork saiu do upstream. Le do documento em vez de repetir
+# aqui: dois lugares com o mesmo sha viram um lugar errado.
+my $texto = do {
+    open my $fh, '<:encoding(UTF-8)', $doc or die "nao achei $doc: $!\n";
+    local $/; <$fh>;
+};
+
+my ($base) = $texto =~ /\*\*Base de comparação:\*\*\s*`([0-9a-f]{7,40})`/;
+die "$doc nao declara a base de comparacao\n" unless $base;
+
+# Os diretorios que pertencem ao upstream. O que estiver fora daqui e nosso e
+# nao interessa a este script.
+my @caminhos = qw(
+    perllib web/js templates/web/base templates/email/default
+    conf/general.yml-example t/Mock t/app
+);
+
+# Arquivos NOVOS que o upstream nao tem. Um arquivo que so existe aqui nunca
+# conflita numa sincronizacao, entao nao e patch de core mesmo estando sob um
+# diretorio do upstream.
+my %nosso = map { $_ => 1 } qw(
+    perllib/FixMyStreet/Cobrand/Catanduva.pm
+);
+
+sub git {
+    my @cmd = ('git', @_);
+    open my $fh, '-|', @cmd or die "nao consegui rodar @cmd: $!\n";
+    my @linhas = <$fh>;
+    close $fh;
+    chomp @linhas;
+    return @linhas;
+}
+
+# -- o que o git diz ---------------------------------------------------------
+
+my @alterados = grep { !$nosso{$_} }
+    git('diff', '--name-only', $base, '--', @caminhos);
+
+# -- o que o documento diz ---------------------------------------------------
+#
+# Um caminho citado no documento e qualquer coisa entre crases que pareca um
+# arquivo sob um dos diretorios acima. O documento cita caminhos completos
+# (`templates/web/base/report/banner.html`) e tambem relativos, quando ja disse
+# o diretorio na linha anterior (`header_opengraph_image.html`) - por isso o
+# casamento e por sufixo, e nao por igualdade.
+
+my @citados = $texto =~ /`([\w.\/-]+\.(?:pm|pl|t|html|js|yml|yml-example))`/g;
+
+my @ausentes = grep {
+    my $arquivo = $_;
+    !grep { $arquivo eq $_ || $arquivo =~ m{(?:^|/)\Q$_\E$} } @citados;
+} @alterados;
+
+# -- relato ------------------------------------------------------------------
+
+unless ($quieto) {
+    say "Arquivos de core alterados desde $base\n";
+    if (@alterados) {
+        for my $arquivo (@alterados) {
+            my $marca = (grep { $_ eq $arquivo } @ausentes) ? 'FALTA ' : '  ok  ';
+            say "  $marca $arquivo";
+        }
+    }
+    else {
+        say '  nenhum - todo o piloto vive dentro do cobrand';
+    }
+    say '';
+}
+
+if (@ausentes) {
+    unless ($quieto) {
+        say sprintf('%d arquivo(s) de core alterado(s) sem registro em %s:', scalar @ausentes, $doc);
+        say "  $_" for @ausentes;
+        say '';
+        say 'Acrescente cada um ao documento, na secao que disser o que fazer com ele:';
+        say '  1 eliminar (ha equivalente dentro do cobrand)';
+        say '  2 propor ao upstream (generico e aditivo)';
+        say '  3 patch local (nao ha saida sem tocar no core)';
+        say '  4 fixture de teste';
+    }
+    else {
+        say "conferir-core: $_ alterado e nao registrado em $doc" for @ausentes;
+    }
+    exit 1;
+}
+
+say sprintf('Tudo registrado: %d arquivo(s) de core, %d citado(s) no documento.',
+    scalar @alterados, scalar @citados) unless $quieto;
+
+exit 0;

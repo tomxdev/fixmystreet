@@ -1,0 +1,184 @@
+[%# Pagina de mapa — Map Evolution.
+
+    Substitui templates/web/base/around/display_location.html.
+
+    O que muda e a composicao, nao a maquina de estados. O upstream ja resolve o
+    fluxo de registro dentro desta mesma pagina: #side e o estado "explorar" e
+    #side-form guarda as .js-reporting-page (category, subcategory, duplicates,
+    extra, photo, details, user), trocadas por fixmystreet.pageController. Nada
+    disso e reescrito aqui.
+
+    Tres coisas mudam de lugar:
+
+    1. #map_sidebar deixa de ser uma coluna de altura inteira e vira um painel
+       flutuante sobre o mapa — o mapa passa a ocupar a largura toda.
+    2. A lista de ocorrencias sai do painel e vai para a faixa inferior
+       (.map-strip). O contentor #js-reports-list vai junto, com o id intacto,
+       porque e ele que /ajax substitui a cada filtro, pagina ou movimento de
+       mapa.
+    3. Os filtros (reports/_list-filters.html) sobem para o painel. Os ids
+       #statuses, #filter_categories, #sort e #show_old_reports sao preservados:
+       fixmystreet.js liga os filtros por id, nao por posicao.
+
+    O que nao pode ser tocado, e por que:
+      #mapForm        envolve tudo e e o que posta para /report/new
+      map_html        abre <div id="map_box"> e nao o fecha; quem fecha e este
+                      template, logo abaixo do banner de mapa do celular
+      #map_sidebar    e destino do skiplink do mapa e base dos offsets
+      #side-form      fixmystreet.js o revela ao iniciar o fluxo
+%]
+[%
+
+    rss_alt   = loc('RSS feed');
+    rss_title = loc('RSS feed of recent local problems');
+
+    rss_url
+        = pc
+        ? c.uri_for( "/rss/pc", pc )
+        : c.uri_for( "/rss/l/$latitude,$longitude" );
+
+    email_url = c.uri_for(
+        '/alert/list',
+        {
+            lat  => latitude,
+            lon  => longitude,
+            feed => "local:$latitude:$longitude",
+        }
+    );
+
+    url_skip = c.uri_for(
+        '/report/new',
+        {
+            pc         => pc
+            latitude   => latitude,
+            longitude  => longitude,
+            skipped    => 1,
+        }
+    );
+
+    PROCESS "report/photo-js.html";
+    PROCESS "maps/${map.type}.html";
+
+    # Only used by Zurich
+    TRY; sidebar_html = PROCESS 'report/new/sidebar.html' js = 1 report.used_map = 1; CATCH file; END;
+
+    SET bodyclass = 'mappage mappage--catanduva';
+    SET rss = [ tprintf(loc('Recent local problems, %s', "%s is the site name"), site_name), rss_url ];
+
+    # extra_js e empilhado depois dos scripts do upstream (common_scripts.html),
+    # entao catanduva-map.js ve fixmystreet e jQuery ja definidos.
+    # `geolocation.js` liga o "usar minha localizacao atual". O
+    # common_scripts.html do upstream so o carrega em frontpage, alertpage,
+    # offlinepage e para quem e da equipe — a pagina de mapa cai no ramo generico
+    # e ficava sem ele. O link existia, aparecia, e nao estava ligado a nada:
+    # clicar nele so navegava para /around?geolocate=1, que nao faz nada.
+    #
+    # Com o script carregado, ele passa a pedir a posicao ao navegador. Note que
+    # o proprio upstream o esconde fora de https (`protocol === 'https:'`, uma
+    # regra mais estrita que `isSecureContext`, que aceitaria localhost): em
+    # desenvolvimento por http o botao some, o que e melhor do que um botao que
+    # nao faz nada.
+    SET extra_js = [
+        version('/js/geolocation.js'),
+        version('/cobrands/catanduva/catanduva-map.js'),
+    ];
+    INCLUDE 'header.html',
+        title  => loc('Viewing a location')
+        robots => 'noindex,nofollow';
+
+    allow_creation = !c.cobrand.only_authed_can_create || (c.user && c.user.from_body);
+%]
+
+[%# Busca por endereco.
+
+    Um <form> proprio, irmao do #mapForm e nao filho dele: o #mapForm posta para
+    /report/new, e esta busca precisa ir para /around por GET. O campo fica
+    dentro do painel e se liga aqui pelo atributo form=, que e justamente para
+    isto — formularios nao podem ser aninhados, controles podem viver fora do
+    seu formulario. Sem JS continua funcionando. %]
+<form id="mapSearchForm" action="[% c.uri_for('/around') %]" method="get" class="map-search-form"></form>
+
+[% IF allow_creation %]
+<form action="[% c.uri_for('/report/new') %]" method="post" name="mapForm" id="mapForm" enctype="multipart/form-data" class="validate" novalidate>
+    <input type="hidden" name="token" value="[% csrf_token %]">
+    <input type="hidden" name="pc" value="[% pc | html %]">
+
+    <input type="hidden" name="latitude" id="fixmystreet.latitude" value="[% latitude | html %]">
+    <input type="hidden" name="longitude" id="fixmystreet.longitude" value="[% longitude | html %]">
+
+    [% IF c.get_param('filter_group') %]
+        <input type="hidden" name="filter_group" id="filter_group" value="[% c.get_param('filter_group') | html %]">
+    [% END %]
+[% END %]
+
+        [% map_html | safe %]
+
+        <div class="mobile-map-banner">
+            <span>[% loc('Choose location, pan and zoom to adjust') %]</span>
+        </div>
+    </div>
+
+
+    <div id="map_sidebar" class="map-panel">
+
+        <div id="side" class="map-panel__state map-panel__state--explore">
+          [% INCLUDE 'around/_map_panel_explore.html' %]
+        </div>
+
+      [% IF allow_creation %]
+        <div style="display:none" id="side-form" class="map-panel__state map-panel__state--flow">
+
+            [%# O cabecalho do fluxo vive em _map-flow-head.html: ele e o mesmo
+                nas duas portas de entrada do fluxo, e aqui era a unica que o
+                tinha. %]
+            [% INCLUDE '_map-flow-head.html' %]
+
+        [% INCLUDE "report/new/fill_in_details_form.html"
+            js = 1,
+            report.used_map = 1
+            report.name = c.user.name
+        %]
+        </div>
+      [% END %]
+
+    </div>
+
+    [%# Faixa inferior.
+
+        A regiao de listagem e selecao das ocorrencias existentes. O painel nao
+        repete esta lista — e a separacao de responsabilidades que o plano define
+        na secao 8.
+
+        #js-reports-list mantem o id porque /ajax troca o conteudo dele; a
+        paginacao continua sendo a do upstream. %]
+    <section class="map-strip" aria-labelledby="map-strip-title">
+        <div class="map-strip__head">
+            <h2 class="map-strip__title" id="map-strip-title">Ocorrências próximas</h2>
+
+            [%# "Ver todas" leva a listagem completa do municipio — a mesma rota
+                que a navegacao usa. A referencia escreve "Ver todas no mapa",
+                mas o mapa ja esta aqui: o que falta e sair dele. %]
+            [% IF c.cobrand.council_area %]
+                [% SET all_uri = '/reports/' _ c.cobrand.council_area | uri %]
+            [% ELSE %]
+                [% SET all_uri = '/reports' %]
+            [% END %]
+            <a class="map-strip__all" href="[% all_uri %]">
+                Ver todas [% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]
+            </a>
+
+            <div class="js-pagination map-strip__pagination" aria-live="polite">
+                [% INCLUDE 'pagination.html' param = 'p' %]
+            </div>
+        </div>
+
+        <div id="js-reports-list" class="map-strip__list">
+            [% INCLUDE "around/on_map_list_items.html" %]
+        </div>
+    </section>
+
+[% IF allow_creation %]
+</form>
+[% END %]
+
+[% INCLUDE 'footer.html' %]

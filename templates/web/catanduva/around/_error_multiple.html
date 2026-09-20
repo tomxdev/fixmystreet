@@ -1,0 +1,116 @@
+[%# Lista de lugares que casaram com a busca.
+
+    Substitui templates/web/base/around/_error_multiple.html. A logica e a
+    mesma, inclusive os parametros carregados para o link; o que muda e a forma.
+
+    Cada resultado vira uma opcao clicavel de altura propria, e nao um item de
+    lista com marcador quadrado. O rotulo perde a cauda que o Nominatim poe em
+    todo endereco — ", Sao Paulo, Regiao Sudeste, 15800-031, Brasil" — porque ela
+    e igual em todos e e justamente o que empurra para fora da tela a parte que
+    distingue um resultado do outro: o bairro.
+
+    O que nao muda: o texto completo continua no `title`, e o CEP continua
+    visivel, porque e ele que costuma decidir a escolha.
+%]
+[%# O texto procurado pode nao ser um lugar e ainda assim ser alguma coisa: se
+    ha ocorrencias com ele, dizer apenas "nao encontramos esta localizacao" seria
+    meia verdade — a outra metade esta logo abaixo. %]
+[% SET encontradas = [] %]
+[% IF location_error AND NOT possible_location_matches %]
+    [% encontradas = c.cobrand.buscar_ocorrencias(pc) %]
+[% END %]
+
+[% IF location_error %]
+  [% IF encontradas.size %]
+    <p class="c-alert c-alert--info">Não encontramos um lugar com esse nome — mas há ocorrências com esse texto.</p>
+  [% ELSE %]
+    <p class="c-alert c-alert--error">[% location_error | safe %]</p>
+  [% END %]
+[% END %]
+
+[% IF possible_location_matches %]
+    <p class="busca__intro">[% loc('We found more than one match for that location.') %]</p>
+
+    <ul class="busca__opcoes">
+      [% FOREACH match IN possible_location_matches %]
+        [%# "Rua Sao Paulo, Higienopolis, Catanduva, Sao Paulo, Regiao Sudeste,
+            15800-031, Brasil" vira "Rua Sao Paulo, Higienopolis" mais o CEP.
+            Quando o formato do endereco nao for esse, o rotulo inteiro fica —
+            cortar pelo tamanho seria pior do que nao cortar. %]
+        [% SET partes = match.address.split(',\s*') %]
+        [% SET cep = '' %]
+        [% FOREACH p IN partes; IF p.match('^\d{5}-?\d{3}$'); SET cep = p; END; END %]
+        [% SET curto = partes.size > 2 ? partes.0 _ ', ' _ partes.1 : match.address %]
+
+        <li>
+            <a class="busca__opcao" title="[% match.address | html %]"
+               href="/around?lat=[% match.latitude | uri %]&amp;lon=[% match.longitude | uri ~%]
+             [%~ IF c.get_param('category') %]&amp;category=[% c.get_param('category') | uri %][% END ~%]
+             [%~ IF c.get_param('filter_category') %]&amp;filter_category=[% c.get_param('filter_category') | uri %][% END ~%]
+             [%~ IF c.get_param('filter_group') %]&amp;filter_group=[% c.get_param('filter_group') | uri %][% END %]">
+                <span class="busca__opcao-icone" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'pin' %]</span>
+                <span class="busca__opcao-corpo">
+                    <span class="busca__opcao-local">[% curto | html %]</span>
+                    [% IF cep %]<span class="busca__opcao-cep">CEP [% cep | html %]</span>[% END %]
+                </span>
+                [% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]
+            </a>
+        </li>
+      [% END %]
+    </ul>
+
+    <p class="busca__nota">[% loc('We show up to ten matches, please try a different search if yours is not here.') %]</p>
+[% END %]
+
+[% IF partial_token %]
+    <p class="c-alert c-alert--warning">
+        [% loc("Thanks for uploading your photo. We now need to locate your problem, so please enter a nearby street name or postcode in the box above&nbsp;:") %]
+    </p>
+[% END %]
+
+[%# Quando o geocodificador nao acha o lugar, a busca nao termina aqui.
+
+    O campo diz "CEP, rua, bairro ou o problema". As tres primeiras coisas sao
+    lugares, e o geocodificador resolve; a quarta nao e lugar nenhum, e ate aqui
+    devolvia "nao conseguimos encontrar esta localizacao" — verdade sobre o
+    geocodificador, mentira sobre a cidade, que tem buracos registrados.
+
+    Entao, quando nao ha lugar, procuramos ocorrencias com aquele texto. A lista
+    e o mesmo componente da home: mesma linha, mesmo distintivo de estado, mesmo
+    tempo relativo.
+
+    E, achando ou nao, a tela oferece as duas saidas que resolvem a falta de um
+    ponto: usar a localizacao de quem esta ali, ou abrir o mapa e marcar. Nao ha
+    um "registrar aqui" solto: sem ponto, uma ocorrencia nao tem onde nascer. %]
+[% IF location_error AND NOT possible_location_matches %]
+    [% IF encontradas.size %]
+        <h2 class="busca__achados-titulo">
+            [% encontradas.size == 1 ? 'Uma ocorrência encontrada com esse texto'
+                                     : encontradas.size _ ' ocorrências encontradas com esse texto' %]
+        </h2>
+
+        <ul class="recent-list busca__ocorrencias">
+          [% FOREACH problem IN encontradas %]
+            [% INCLUDE 'front/_list-entry.html' %]
+          [% END %]
+        </ul>
+    [% END %]
+
+    <div class="busca__saidas">
+        <p class="busca__saidas-titulo">
+            [% encontradas.size ? 'Não é uma delas? Abra o mapa e marque o lugar:'
+                                : 'Tente buscar por um lugar, ou abra o mapa e marque o ponto:' %]
+        </p>
+
+        [%# Uma saida so. "Usar minha localizacao atual" ja esta nesta pagina,
+            logo acima do aviso, posto pelo proprio formulario de busca: repetir
+            o mesmo botao a um palmo do primeiro nao da uma segunda opcao, da a
+            impressao de que sao coisas diferentes. %]
+        <div class="busca__saidas-acoes">
+            <a href="[% c.uri_for('/around', { lat = '-21.1389', lon = '-48.9728', zoom = 4 }) %]" class="btn btn--primary busca__saida">
+                [% INCLUDE '_ui-icon.html' icon = 'map' %]
+                <span>Abrir o mapa de Catanduva</span>
+            </a>
+        </div>
+    </div>
+[% END %]

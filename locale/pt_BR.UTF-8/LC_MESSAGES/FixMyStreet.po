@@ -52,7 +52,7 @@ msgstr "%d edições por %s"
 
 #: templates/web/base/pagination.html:7
 msgid "%d to %d of %d"
-msgstr "%d de %d de %d"
+msgstr "%d a %d de %d"
 
 #: templates/web/base/admin/users/import.html:42
 msgid "%d users already existed"
@@ -852,7 +852,7 @@ msgstr "Alterar"
 
 #: templates/web/base/report/inspect/information.html:82
 msgid "Change asset"
-msgstr ""
+msgstr "Trocar equipamento"
 
 #: templates/web/base/auth/change_email.html:2
 #: templates/web/base/auth/change_email.html:3
@@ -1421,7 +1421,7 @@ msgstr "Não enviar alertas de e-mail sobre comentários para o criador de probl
 #. ("%s is the site name")
 #: templates/web/base/report/form/user_loggedout.html:5
 msgid "Do you have a %s password?"
-msgstr "Você tem uma %s senha?"
+msgstr "Você já tem uma senha no %s?"
 
 #: templates/web/fixmystreet.com/contact/unsuitable-text.html:2
 msgid "Does this report break our <a href=\"/about/house-rules\">Conditions of Use</a>? Use this form to let us know."
@@ -4375,27 +4375,27 @@ msgstr "Registrado na categoria %s"
 
 #: perllib/FixMyStreet/DB/Result/Problem.pm:788
 msgid "Reported in the %s category anonymously at %s"
-msgstr "Registrado anonimamente às %s na categoria %s"
+msgstr "Registrado anonimamente às %2$s na categoria %1$s"
 
 #: perllib/FixMyStreet/DB/Result/Problem.pm:812
 msgid "Reported in the %s category by %s at %s"
-msgstr "Registrado por %s às %s na categoria %s"
+msgstr "Registrado por %2$s às %3$s na categoria %1$s"
 
 #: perllib/FixMyStreet/DB/Result/Problem.pm:785
 msgid "Reported via %s anonymously at %s"
-msgstr "Registrado anonimamente às %s via %s"
+msgstr "Registrado anonimamente às %2$s via %1$s"
 
 #: perllib/FixMyStreet/DB/Result/Problem.pm:809
 msgid "Reported via %s by %s at %s"
-msgstr "Registrado por %s às %s via %s"
+msgstr "Registrado por %2$s às %3$s via %1$s"
 
 #: perllib/FixMyStreet/DB/Result/Problem.pm:782
 msgid "Reported via %s in the %s category anonymously at %s"
-msgstr "Registrado anonimamente às %s via %s na categoria %s"
+msgstr "Registrado anonimamente às %3$s via %1$s na categoria %2$s"
 
 #: perllib/FixMyStreet/DB/Result/Problem.pm:804
 msgid "Reported via %s in the %s category by %s at %s"
-msgstr "Registrado via %s na categoria %s por %s as %s"
+msgstr "Registrado via %s na categoria %s por %s às %s"
 
 #: templates/web/fixmystreet.com/reports/summary.html:69
 #: templates/web/zurich/admin/report_edit-sdm.html:38
@@ -4711,7 +4711,7 @@ msgstr "Segurança"
 #: templates/web/base/report/form/private_details.html:14
 #: templates/web/base/report/new/councils_text_private.html:8
 msgid "See our privacy policy"
-msgstr "Veja nossa poítica de privacidade"
+msgstr "Veja nossa política de privacidade"
 
 #: perllib/FixMyStreet/Cobrand/Default.pm:794
 msgid "See user detail for reports created as the council"
@@ -6208,7 +6208,7 @@ msgstr "Atualizado!"
 #: templates/web/base/report/update.html:4
 #: templates/web/zurich/report/updates.html:2
 msgid "Updates"
-msgstr "Atualizados"
+msgstr "Atualizações"
 
 #: perllib/FixMyStreet/DB/Result/Comment.pm:205
 msgid "Updates are limited to %s characters in length. Please shorten your update"
@@ -7370,9 +7370,9 @@ msgstr[2] ""
 #, perl-format
 msgid "last updated %d day ago"
 msgid_plural "last updated %d days ago"
-msgstr[0] "atualizado pela última vez a %d dia atrás"
-msgstr[1] "atualizado pela última vez %d dias atŕas"
-msgstr[2] "atualizado pela última vez %d dias atŕas"
+msgstr[0] "atualizado pela última vez há %d dia"
+msgstr[1] "atualizado pela última vez há %d dias"
+msgstr[2] "atualizado pela última vez há %d dias"
 
 #: templates/email/default/cy/inactive-account.html:18
 #, perl-format

@@ -1,0 +1,52 @@
+[%# Painel "Catanduva em numeros" — UI Evolution V2.
+
+    Substitui templates/web/base/front/stats.html, que emite quatro <div> com
+    <big> dentro de frases traduzidas ("<big>%s</big> reports in past week").
+    Essa forma nao permite separar numero de rotulo, e e por isso que o painel
+    da referencia — numero grande, rotulo em duas linhas abaixo, icone acima —
+    nao sai de la por CSS.
+
+    Os quatro numeros vem de c.cobrand.front_stats_data, que Catanduva.pm
+    estendeu para devolve-los. Sao contagens, nao estimativas.
+%]
+[% USE Number.Format %]
+[% stats = c.cobrand.front_stats_data() %]
+
+<section class="stats-panel" aria-labelledby="stats-title">
+    <div class="stats-panel__head">
+        <div>
+            <h2 class="stats-panel__title" id="stats-title">Catanduva em números</h2>
+            <p class="stats-panel__subtitle">Transparência para uma cidade melhor.</p>
+        </div>
+        <p class="stats-panel__period">
+            [% INCLUDE '_ui-icon.html' icon = 'calendar' %]
+            Desde o início do piloto
+        </p>
+    </div>
+
+    <ul class="stats-panel__grid">
+        <li class="stat">
+            <span class="stat__icon">[% INCLUDE '_ui-icon.html' icon = 'clipboard' %]</span>
+            <span class="stat__value">[% stats.registered | format_number %]</span>
+            <span class="stat__label">ocorrências<br>registradas</span>
+        </li>
+        <li class="stat">
+            <span class="stat__icon">[% INCLUDE '_ui-icon.html' icon = 'check-circle' %]</span>
+            <span class="stat__value">[% stats.resolved | format_number %]</span>
+            <span class="stat__label">resolvidas</span>
+        </li>
+        <li class="stat">
+            <span class="stat__icon">[% INCLUDE '_ui-icon.html' icon = 'clock' %]</span>
+            <span class="stat__value">[% stats.in_progress | format_number %]</span>
+            <span class="stat__label">em andamento</span>
+        </li>
+        <li class="stat">
+            <span class="stat__icon">[% INCLUDE '_ui-icon.html' icon = 'users' %]</span>
+            <span class="stat__value">[% stats.citizens | format_number %]</span>
+            [%# Concorda com o numero: um piloto novo tem "1 cidadão", nao
+                "1 cidadãos". So aparece com a base recem-povoada, que e
+                justamente quando alguem esta olhando. %]
+            <span class="stat__label">[% stats.citizens == 1 ? 'cidadão' : 'cidadãos' %]<br>participando</span>
+        </li>
+    </ul>
+</section>

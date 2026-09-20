@@ -1,0 +1,59 @@
+[%# A caixa de acompanhamento, e os botoes de envio do upstream.
+
+    Substitui templates/web/base/report/form/submit.html, que tem duas linhas -
+    os dois <input type="submit">, um para desktop e outro para celular. Elas
+    estao copiadas aqui embaixo, sem mudanca.
+
+    POR QUE AQUI, e nao num arquivo so nosso:
+
+    O upstream inscreve quem registra em atualizacoes por e-mail sempre, sem
+    perguntar. `create_related_things` cria o alerta `new_updates` a menos que
+    `no_reporter_alert` esteja marcado - e ele so e marcado para funcionario,
+    ocorrencia anonima e afins. Para o cidadao comum nao ha caixa nenhuma: a
+    unica caixa `add_alert` do upstream esta no formulario de COMENTARIO, e o
+    proprio template a esconde quando `type != 'update'`. E o F4 de
+    docs/CICLO_DE_VIDA_DA_OCORRENCIA.md.
+
+    A caixa precisa ficar junto do botao de envio - e a ultima coisa que a
+    pessoa le antes de mandar - e `report/form/submit.html` e o unico ponto por
+    onde passam os tres caminhos do passo `user`: quem tem sessao aberta
+    (form_user_loggedin.html), quem nao tem (user_loggedout_by_email.html) e
+    quem acabou de entrar (login_success_form.html). Um arquivo de duas linhas
+    tambem e o que menos envelhece.
+
+    O `type` chega como 'report' ou 'update' de quem processa este arquivo. So
+    perguntamos no caminho da ocorrencia: o de comentario ja tem a caixa dele.
+
+    A guarda de emissao unica existe por causa do `oauth_email_form.html`, que
+    processa este arquivo DUAS vezes na mesma pagina - uma de dentro do
+    `user_loggedout_by_email.html` e outra no fim. Como PROCESS compartilha as
+    variaveis com quem chamou, a marca sobrevive da primeira para a segunda, e a
+    caixa nao aparece em dobro com o mesmo id.
+%]
+[% IF type == 'report' AND NOT caixa_de_acompanhamento_emitida %]
+[% caixa_de_acompanhamento_emitida = 1 %]
+    [%# O par de campos que o cobrand le no report_new_munge_before_insert.
+
+        O escondido vai sempre; a caixa so quando marcada, que e como o
+        navegador trata caixa de selecao. Sem o escondido, uma ocorrencia vinda
+        de qualquer outro caminho - Open311, aplicativo, um formulario futuro -
+        chegaria sem o campo, e a ausencia seria lida como recusa. Silencio nao
+        e recusa. %]
+    <input type="hidden" name="acompanhar_respondido" value="1">
+
+    [%# Marcada por padrao, e marcada de novo se a pessoa ja tinha dito que sim.
+
+        A leitura e dos parametros da requisicao, e nao de uma variavel nossa,
+        porque esta pagina volta a ser desenhada quando alguma validacao falha -
+        e nesse retorno quem desmarcou a caixa precisa continuar com ela
+        desmarcada. `acompanhar_respondido` diz se ja houve um envio; sem ele, e
+        a primeira vez que a pergunta aparece, e o padrao vale. %]
+    [% SET ja_respondeu = c.req.params.acompanhar_respondido %]
+    <div class="checkbox-group map-acompanhar">
+        <input type="checkbox" name="quero_acompanhar" id="form_quero_acompanhar" value="1"
+               [%~ ' checked' IF NOT ja_respondeu OR c.req.params.quero_acompanhar %]>
+        <label class="inline" for="form_quero_acompanhar">Quero receber atualizações sobre esta ocorrência.</label>
+    </div>
+[% END %]
+<input class="desk-only btn btn--primary btn--block btn--final js-submit_register" type="submit" name="submit_register" value="[% loc('Submit') %]">
+<input class="mob-only btn btn--primary btn--block btn--final js-submit_register" type="submit" name="submit_register_mobile" value="[% loc('Submit') %]">

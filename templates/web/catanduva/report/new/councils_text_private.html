@@ -1,0 +1,33 @@
+[%# Para onde os dados vao, dito com verdade (fase 5.1).
+
+    Substitui templates/web/base/report/new/councils_text_private.html.
+
+    POR QUE AQUI, E NAO NO PASSO. Esta frase e escrita duas vezes: uma pelo
+    servidor, ao montar o passo "Nos conte sobre voce", e outra pelo
+    `/report/new/ajax`, toda vez que a pessoa escolhe uma categoria. O
+    `fixmystreet.js` pega a segunda e faz
+    `$('#js-councils_text_private').html(...)` — substitui o bloco inteiro.
+
+    Ou seja: qualquer escolha de texto feita no template do passo dura ate o
+    primeiro clique numa categoria. Este arquivo e o unico lugar por onde as
+    duas passagens passam.
+
+    A ESCOLHA. O upstream diz "serao enviados a prefeitura" quando ha orgao para
+    receber. Enquanto a caixa de demonstracao estiver ligada,
+    `munge_sendreport_params` desvia toda mensagem para ela e nenhuma ocorrencia
+    chega a orgao nenhum — a frase seria falsa, do mesmo jeito que era falsa a da
+    tela de confirmacao antes da fase 4.3.
+
+    As duas frases sao do catalogo do upstream; o que muda e qual delas vale
+    aqui. Sem a caixa de demonstracao, a escolha volta a ser a dele.
+%]
+[% FILTER collapse %]
+[% category = mark_safe(category) %]
+[% IF c.cobrand.demonstration_recipient
+      OR unresponsive.$category OR unresponsive.ALL OR bodies_to_list.size == 0 %]
+    [% loc('These details will never be shown online without your permission.') %]
+[% ELSE %]
+    [% loc('These details will be sent to the council, but will never be shown online without your permission.') %]
+[% END %]
+(<a href="[% c.cobrand.privacy_policy_url %]">[% loc('See our privacy policy') %]</a>.)
+[% END -%]

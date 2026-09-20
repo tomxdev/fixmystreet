@@ -3,8 +3,10 @@ use FixMyStreet::Cobrand::Catanduva;
 use FixMyStreet::Cobrand;
 use FixMyStreet::DB;
 use FixMyStreet::Script::Inactive;
+use FixMyStreet::Script::UpdateAllReports;
 use Test::MockModule;
 use DateTime;
+use JSON::MaybeXS;
 
 # report_new_munge_before_insert reads a form parameter and the stash, and the
 # photo rules ask who is looking. Only these things are ever asked of it.
@@ -193,6 +195,61 @@ subtest 'the search box is only trusted when it really holds a CEP' => sub {
         'a street name in the search box is not promoted to CEP';
     is $build->(undef), '',
         'nothing anywhere leaves an empty string - honest, and satisfies NOT NULL';
+};
+
+subtest 'the reverse geocoding is kept, not thrown away' => sub {
+    # The same lookup that fills the CEP also answers "which street is this?".
+    # Upstream only fills problem.geocode when something needs it - sending the
+    # report on, an alert, a feed - which in a pilot that sends to nobody is
+    # almost never. Keeping it here costs no extra request and saves the one
+    # find_closest would make later.
+    my $resposta = {
+        display_name => 'Igreja Presbiteriana, 400, Rua Minas Gerais, Jardim Brasil, Catanduva, Brasil',
+        address => { house_number => '400', road => 'Rua Minas Gerais', postcode => '15800-210' },
+    };
+
+    my $osm = Test::MockModule->new('FixMyStreet::Geocode::OSM');
+    $osm->mock(reverse_geocode => sub { return $resposta });
+
+    my $munge = sub {
+        my $report = shift;
+        FixMyStreet::Cobrand::Catanduva->new({ c => FakeContext->new(params => {}) })
+            ->report_new_munge_before_insert($report);
+        return $report;
+    };
+    my $novo = sub {
+        return FixMyStreet::DB->resultset('Problem')->new({
+            latitude => '-21.1383', longitude => '-48.9736', postcode => '', @_,
+        });
+    };
+
+    my $report = $munge->($novo->());
+    is_deeply $report->geocode, $resposta, 'the whole answer lands in problem.geocode';
+    is $report->postcode, '15800-210', 'and the CEP still comes out of it';
+
+    # Something that already knew the address knew more than a pin does.
+    my $anterior = { address => { road => 'Rua Cuiabá' } };
+    is_deeply $munge->($novo->(geocode => $anterior))->geocode, $anterior,
+        'an existing geocode is not overwritten';
+
+    # A geocoder that is down must leave the column alone, not write undef over
+    # something, and must not take the report down with it.
+    $osm->mock(reverse_geocode => sub { die "connection timed out\n" });
+    is $munge->($novo->())->geocode, undef, 'no answer, nothing stored';
+
+    subtest 'short_address is what fits on a card' => sub {
+        my $cobrand = FixMyStreet::Cobrand::Catanduva->new;
+        my $com = sub { $novo->(geocode => { address => shift }) };
+
+        is $cobrand->short_address($com->({ road => 'Rua Minas Gerais', house_number => '400' })),
+            'Rua Minas Gerais, 400', 'street and number, not the whole display_name';
+        is $cobrand->short_address($com->({ road => 'Rua Cuiabá' })),
+            'Rua Cuiabá', 'number is optional';
+        is $cobrand->short_address($com->({ suburb => 'Centro' })), '',
+            'no street, nothing to show - a neighbourhood alone is not an address';
+        is $cobrand->short_address($novo->()), '', 'no geocode, no address';
+        is $cobrand->short_address(undef), '', 'no report, no address';
+    };
 };
 
 # --------------------------------------------------------------------- MOD-002
@@ -567,6 +624,1272 @@ subtest '2FA is demanded of staff accounts, and not of the public' => sub {
     my $super = $mech->create_user_ok('super-2fa@example.org');
     $super->update({ is_superuser => 1 });
     is $cobrand->must_have_2fa($super), 1, 'and so is a superuser';
+};
+
+subtest 'the search field answers for a problem, and not only for a place' => sub {
+    FixMyStreet::override_config { ALLOWED_COBRANDS => ['catanduva'] }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        my $user = $mech->create_user_ok('busca@example.org', name => 'Quem Busca');
+
+        my ($por_titulo) = $mech->create_problems_for_body(1, $body->id,
+            'Buraco enorme na pista', { user => $user, cobrand => 'catanduva' });
+
+        my ($por_descricao) = $mech->create_problems_for_body(1, $body->id,
+            'Calçada quebrada', {
+                user => $user, cobrand => 'catanduva',
+                detail => 'Ao lado de um buraco que ninguém tapou',
+            });
+
+        my ($escondida) = $mech->create_problems_for_body(1, $body->id,
+            'Buraco que ninguém deve ver', { user => $user, cobrand => 'catanduva' });
+        $escondida->update({ state => 'hidden' });
+
+        my %encontrados = map { $_->id => 1 } @{ $cobrand->buscar_ocorrencias('buraco') };
+
+        ok $encontrados{ $por_titulo->id },   'acha pelo titulo';
+        ok $encontrados{ $por_descricao->id }, 'acha pela descricao, e nao so pelo titulo';
+        ok !$encontrados{ $escondida->id },   'e nao mostra o que foi escondido pela moderacao';
+
+        is_deeply $cobrand->buscar_ocorrencias('bu'), [],
+            'termo curto demais nao vale uma busca - casaria com meia cidade';
+        is_deeply $cobrand->buscar_ocorrencias(''), [], 'nem termo vazio';
+        is_deeply $cobrand->buscar_ocorrencias(undef), [], 'nem termo nenhum';
+
+        is_deeply $cobrand->buscar_ocorrencias('%'), [],
+            'e o curinga do LIKE e so um caractere, nao um jeito de listar tudo';
+
+        is scalar @{ $cobrand->buscar_ocorrencias('buraco', 1) }, 1,
+            'o limite de resultados e respeitado';
+    };
+};
+
+subtest 'the "already reported?" step measures distance the way the database does' => sub {
+    # A busca por ocorrencias proximas continua sendo do upstream: raio,
+    # ordenacao e filtro de estado saem de nearby_distances e de
+    # problem_find_nearby. O que se testa aqui e so o que o cobrand acrescentou
+    # para escrever o rotulo "180 m" embaixo de cada ocorrencia.
+
+    # Dois pontos separados por um grau de latitude: 1 grau de meridiano tem
+    # 111,2km com o raio de Terra que a funcao do banco usa (R_e = 6372,8km).
+    my $um_grau = $cobrand->distancia_em_metros(0, 0, 1, 0);
+    ok abs($um_grau - 111_226) < 50,
+        'um grau de latitude da os mesmos 111,2km da funcao do banco'
+        or diag "deu $um_grau";
+
+    is $cobrand->distancia_em_metros(-21.1344, -48.97335, -21.1344, -48.97335), 0,
+        'o mesmo ponto dista zero - e nao morre no acos por arredondamento';
+
+    # As duas ocorrencias de sinalizacao do banco de exemplo, medidas contra o
+    # ponto entre elas: o banco devolve 137m para as duas.
+    my $ate_uma = $cobrand->distancia_em_metros(-21.14175, -48.97115, -21.1405, -48.9705);
+    ok $ate_uma > 100 && $ate_uma < 200,
+        'distancia a uma ocorrencia real fica na casa dos 150m'
+        or diag "deu $ate_uma";
+
+    is $cobrand->distancia_em_metros(undef, -48.97, -21.13, -48.97), undef,
+        'sem coordenada nao ha distancia - e nem um zero que pareceria exata';
+
+    # O rotulo arredonda para a dezena mais proxima abaixo de 1km: um pino posto
+    # a mao nao tem precisao de metro, e "183 m" prometeria o que o numero nao
+    # tem.
+    is $cobrand->distancia_escrita(183),  '180 m', 'arredonda para a dezena';
+    is $cobrand->distancia_escrita(137),  '140 m', 'e arredonda para cima quando e o caso';
+    is $cobrand->distancia_escrita(0),    '10 m',  'nunca escreve "0 m", que leria como erro';
+    is $cobrand->distancia_escrita(999),  '1000 m', 'ate 1km continua em metros';
+    is $cobrand->distancia_escrita(1000), '1.0 km', 'de 1km em diante, em quilometros';
+    is $cobrand->distancia_escrita(2540), '2.5 km', 'com uma casa decimal';
+    is $cobrand->distancia_escrita(undef), '', 'sem distancia, nenhum rotulo';
+};
+
+subtest 'the radius for suggesting duplicates is configurable, and defaults to upstream' => sub {
+    FixMyStreet::override_config { ALLOWED_COBRANDS => ['catanduva'] }, sub {
+        is_deeply $cobrand->nearby_distances, { inspector => 1000, suggestions => 250 },
+            'sem configuracao, os mesmos numeros do upstream';
+    };
+
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        COBRAND_FEATURES => { nearby_distances => { catanduva => { suggestions => 150 } } },
+    }, sub {
+        my $c = FixMyStreet::Cobrand::Catanduva->new;
+        is $c->nearby_distances->{suggestions}, 150, 'a configuracao manda no raio das sugestoes';
+        is $c->nearby_distances->{inspector}, 1000,
+            'e o que ela nao diz continua valendo o padrao';
+    };
+
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        COBRAND_FEATURES => { nearby_distances => { catanduva => { suggestions => 0 } } },
+    }, sub {
+        my $c = FixMyStreet::Cobrand::Catanduva->new;
+        is $c->nearby_distances->{suggestions}, 0,
+            'zero desliga a sugestao de duplicadas, como no upstream';
+    };
+};
+
+subtest 'the card data survives a title that looks like markup' => sub {
+    # O bloco de dados vai dentro de um <script type="application/json"> na
+    # resposta de /around/nearby. Um titulo com "</script>" fecharia o elemento
+    # e o resto viraria HTML na pagina.
+    my $json = $cobrand->para_json([ { titulo => 'Buraco </script><img src=x>' } ]);
+
+    unlike $json, qr{</script>}i, 'nenhum fecha-script sobrevive a serializacao';
+    unlike $json, qr{<img}i,      'nem uma etiqueta aberta';
+
+    my $de_volta = JSON::MaybeXS->new->decode($json);
+    is $de_volta->[0]{titulo}, 'Buraco </script><img src=x>',
+        'e o titulo continua inteiro para quem le o JSON';
+};
+
+subtest 'the existing-report card writes the address the way a person says it' => sub {
+    my $nominatim = {
+        display_name => 'Rua São Paulo, Centro, Catanduva, São Paulo, Região Sudeste, 15800-000, Brasil',
+        address => {
+            road => 'Rua São Paulo', suburb => 'Centro',
+            city => 'Catanduva', state => 'São Paulo',
+            postcode => '15800-000', country => 'Brasil',
+        },
+    };
+    my $falso = Test::MockModule->new('FixMyStreet::DB::Result::Problem');
+
+    my $problema = bless {}, 'FixMyStreet::DB::Result::Problem';
+    $falso->mock(geocode => sub { $nominatim });
+
+    is $cobrand->endereco_completo($problema), 'Rua São Paulo, Centro, Catanduva - SP',
+        'rua, bairro e cidade com a sigla do estado - sem CEP, sem regiao, sem pais';
+
+    # O Nominatim nomeia o bairro de tres jeitos diferentes conforme a area foi
+    # mapeada; o primeiro que existir e o que vale.
+    $falso->mock(geocode => sub { { address => {
+        road => 'Rua Pará', neighbourhood => 'Higienópolis', town => 'Catanduva', state => 'São Paulo' } } });
+    is $cobrand->endereco_completo($problema), 'Rua Pará, Higienópolis, Catanduva - SP',
+        'neighbourhood serve de bairro, e town serve de cidade';
+
+    $falso->mock(geocode => sub { { address => { city => 'Catanduva', state => 'Roraima' } } });
+    is $cobrand->endereco_completo($problema), 'Catanduva - RR',
+        'sem rua e sem bairro, sobra a cidade - e nao uma virgula solta';
+
+    $falso->mock(geocode => sub { { address => { road => 'Rua Sem Estado', city => 'Lugar Nenhum' } } });
+    is $cobrand->endereco_completo($problema), 'Rua Sem Estado, Lugar Nenhum',
+        'estado que nao esta na tabela de siglas nao vira um traco vazio';
+
+    $falso->mock(geocode => sub { undef });
+    is $cobrand->endereco_completo($problema), '',
+        'sem geocodificacao, nenhum endereco - e nao um endereco inventado';
+
+    is $cobrand->endereco_completo(undef), '', 'nem sem ocorrencia';
+};
+
+subtest 'the report date is written in Portuguese, whatever the container locale is' => sub {
+    my $data = DateTime->new(year => 2026, month => 8, day => 23);
+    is $cobrand->data_por_extenso($data), '23 de agosto de 2026',
+        'dia, mes por extenso e ano';
+
+    is $cobrand->data_por_extenso(DateTime->new(year => 2026, month => 1, day => 1)),
+        '1 de janeiro de 2026', 'o primeiro mes e o primeiro dia nao ganham zero a esquerda';
+
+    is $cobrand->data_por_extenso(DateTime->new(year => 2026, month => 12, day => 31)),
+        '31 de dezembro de 2026', 'e o ultimo mes existe';
+
+    is $cobrand->data_por_extenso(undef), '', 'sem data, nenhum texto';
+};
+
+subtest 'nobody is subscribed to updates without saying so' => sub {
+    # F4. O upstream inscreve quem registra em `new_updates` sempre: a unica
+    # caixa `add_alert` que ele tem esta no formulario de COMENTARIO, e o
+    # proprio template a esconde quando o tipo nao e `update`. Para quem
+    # registra uma ocorrencia nao havia escolha nenhuma.
+    #
+    # A caixa agora existe no ultimo passo, marcada. Os tres casos abaixo sao os
+    # tres desfechos possiveis, e o terceiro e o que impede a correcao de virar
+    # um defeito novo.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(
+            body_id => $body->id, category => 'Buraco na via', email => 'buraco@example.org');
+
+        # Sem sessao aberta: e o caminho da maioria, e o unico em que
+        # `create_related_things` roda noutra requisicao. Um subtest anterior
+        # pode ter deixado alguem autenticado.
+        $mech->log_out_ok;
+
+        my $alertas = FixMyStreet::DB->resultset('Alert');
+
+        # As coordenadas sao as que o t/Mock/MapIt.pm conhece. Com qualquer
+        # outra, `check_location_is_acceptable` nao acha orgao e o controlador
+        # devolve a pessoa ao mapa, sem dizer por que.
+        my $lat = -21.1383;
+        my $lon = -48.9736;
+
+        subtest 'a caixa esta na tela, e vem marcada' => sub {
+            $mech->get_ok("/report/new?latitude=$lat&longitude=$lon");
+            $mech->content_contains('name="quero_acompanhar"',
+                'a caixa existe no passo final');
+            $mech->content_contains('name="acompanhar_respondido"',
+                'e o campo que diz que a pergunta foi feita');
+            like $mech->content, qr/name="quero_acompanhar"[^>]*\schecked/,
+                'e ela vem marcada';
+        };
+
+        # Um envio de verdade. Nao passa por submit_form porque nesta interface a
+        # lista de categorias chega por AJAX - sem JavaScript o passo mostra
+        # "Carregando..." e nao ha radio para preencher. O POST e o mesmo que o
+        # navegador faz.
+        my $registrar = sub {
+            my (%extra) = @_;
+            my $titulo = delete $extra{titulo};
+
+            # Cada registro comeca sem sessao. O `/P/<token>` do caso anterior
+            # autentica quem clicou - e de proposito, no upstream: quem confirma
+            # pelo e-mail entra na conta. Sem este `log_out`, o segundo registro
+            # sairia pela variante de quem ja tem conta, que e outro formulario.
+            $mech->log_out_ok;
+
+            $mech->get_ok("/report/new?latitude=$lat&longitude=$lon");
+            my ($token) = $mech->content =~ /name="token" value="([^"]+)"/;
+            ok $token, 'a pagina trouxe o token de CSRF';
+
+            # Host explicito. `get_ok` aplica o `$mech->host` definido no inicio
+            # do arquivo; `post_ok` nao - o pedido sai para localhost, onde
+            # nenhum cobrand responde, e volta 400 com o corpo vazio.
+            $mech->post_ok('http://catanduva.fixmystreet.com/report/new', {
+                token             => $token,
+                submit_problem    => 1,
+                latitude          => $lat,
+                longitude         => $lon,
+                title             => $titulo,
+                detail            => 'Descricao suficiente para passar na validacao.',
+                category          => 'Buraco na via',
+                name              => 'Quem Registra',
+                may_show_name     => 1,
+                %extra,
+            });
+
+            my $ocorrencia = FixMyStreet::DB->resultset('Problem')
+                ->search({ title => $titulo }, { order_by => { -desc => 'id' }, rows => 1 })->first;
+            ok $ocorrencia, 'a ocorrencia foi criada';
+            return $ocorrencia;
+        };
+
+        # Confirma pelo link do e-mail: e quando `create_related_things` roda
+        # para quem nao tem conta - outra requisicao, sem a stash do envio.
+        my $confirmar = sub {
+            my $ocorrencia = shift;
+            my $token = FixMyStreet::DB->resultset('Token')->create({
+                scope => 'problem',
+                data  => { id => $ocorrencia->id,
+                           name => $ocorrencia->name,
+                           email => $ocorrencia->user->email },
+            });
+            $mech->get_ok('/P/' . $token->token);
+            $ocorrencia->discard_changes;
+        };
+
+        subtest 'caixa marcada: inscreve' => sub {
+            my $o = $registrar->(
+                titulo                => 'Buraco de quem quer acompanhar',
+                username_register     => 'quer@example.org',
+                acompanhar_respondido => 1,
+                quero_acompanhar      => 1,
+            );
+            ok !$o->get_extra_metadata('sem_acompanhamento'),
+                'nada foi marcado na ocorrencia';
+
+            $confirmar->($o);
+            is $alertas->search({ alert_type => 'new_updates', parameter => $o->id })->count,
+                1, 'ha uma inscricao em atualizacoes';
+            $mech->content_contains('Acompanhe por e-mail',
+                'e a confirmacao promete o e-mail');
+        };
+
+        subtest 'caixa desmarcada: nao inscreve' => sub {
+            # Caixa desmarcada nao e enviada pelo navegador - por isso
+            # `quero_acompanhar` simplesmente nao vai. O que vai e o escondido,
+            # dizendo que a pergunta foi feita.
+            my $o = $registrar->(
+                titulo                => 'Buraco de quem nao quer acompanhar',
+                username_register     => 'nao.quer@example.org',
+                acompanhar_respondido => 1,
+            );
+            ok $o->get_extra_metadata('sem_acompanhamento'),
+                'a recusa ficou gravada na ocorrencia';
+
+            $confirmar->($o);
+            is $alertas->search({ alert_type => 'new_updates', parameter => $o->id })->count,
+                0, 'nenhuma inscricao foi criada';
+            $mech->content_lacks('Acompanhe por e-mail',
+                'e a confirmacao nao promete e-mail nenhum');
+        };
+
+        subtest 'quem nao perguntou mantem o padrao do upstream' => sub {
+            # Silencio nao e recusa. Uma ocorrencia que chegue por um caminho sem
+            # a caixa - Open311, um aplicativo, um formulario futuro - nao traz o
+            # campo, e ler a ausencia como "nao quero" cancelaria em silencio a
+            # inscricao de todo mundo que nao passa por esta tela.
+            my $o = $registrar->(
+                titulo            => 'Buraco vindo de outro caminho',
+                username_register => 'outro.caminho@example.org',
+            );
+            ok !$o->get_extra_metadata('sem_acompanhamento'),
+                'nada foi marcado';
+
+            $confirmar->($o);
+            is $alertas->search({ alert_type => 'new_updates', parameter => $o->id })->count,
+                1, 'a inscricao acontece, como no upstream';
+        };
+    };
+};
+
+subtest 'confirming a report from the email link does not blow up' => sub {
+    # O caminho de quem registra SEM conta, que e o da maioria e o unico que
+    # passa pelo token do e-mail. Ele nao era coberto por teste nenhum, e por
+    # isso um erro 500 nele passou despercebido ate uma auditoria manual (F1 em
+    # docs/CICLO_DE_VIDA_DA_OCORRENCIA.md).
+    #
+    # A causa: `process_confirmation` grava `confirmed` como literal SQL, e o
+    # objeto em memoria fica com a referencia crua em vez de um DateTime. A
+    # pagina de confirmacao formata essa data e morria em `strftime`.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(
+            body_id => $body->id, category => 'Buraco na via', email => 'buraco@example.org');
+
+        my $usuario = $mech->create_user_ok('sem.conta@example.org', name => 'Sem Conta');
+
+        my ($ocorrencia) = $mech->create_problems_for_body(1, $body->id,
+            'Buraco que espera confirmacao', {
+                user => $usuario, cobrand => 'catanduva',
+                category => 'Buraco na via',
+                latitude => -21.1383, longitude => -48.9728,
+            });
+
+        # O estado em que a ocorrencia fica enquanto o e-mail nao foi clicado.
+        $ocorrencia->update({ state => 'unconfirmed', confirmed => undef });
+
+        my $token = FixMyStreet::DB->resultset('Token')->create({
+            scope => 'problem',
+            data  => { id => $ocorrencia->id, name => $usuario->name, email => $usuario->email },
+        });
+
+        $mech->get_ok('/P/' . $token->token);
+
+        $ocorrencia->discard_changes;
+        is $ocorrencia->state, 'confirmed', 'a ocorrencia foi confirmada';
+        ok $ocorrencia->confirmed, 'e ganhou data de confirmacao';
+
+        # O que o 500 impedia de acontecer: a pagina existir.
+        $mech->content_contains('Ocorrência enviada', 'a pagina de agradecimento renderiza');
+        # O protocolo, e nao mais "#<id>": desde a fase 6.2 a tela mostra
+        # CTD-<ano>-<numero>. Perguntar pelo id cru aqui deixaria de testar o
+        # que a pessoa ve.
+        $mech->content_contains(
+            FixMyStreet::Cobrand::Catanduva->new->protocolo($ocorrencia),
+            'com o protocolo');
+        $mech->content_lacks('unblessed reference', 'e sem o erro de data crua');
+
+        # O mapa desta tela nao vem de nenhuma das duas rotas que chegam a ela:
+        # quem o monta e `mapa_da_confirmacao`, chamado do proprio template. Se
+        # alguem mover essa chamada, ou esquecer o `map =` na atribuicao, a
+        # pagina continua renderizando - so que sem mapa, e em silencio.
+        $mech->content_contains('id="map_box"', 'e com o mapa montado');
+    };
+};
+
+subtest 'confirming a report while signed in does not blow up either' => sub {
+    # O outro caminho que chega a mesma tela de agradecimento: quem ja tem
+    # sessao aberta nao passa pelo e-mail - o POST redireciona direto para
+    # /report/confirmation/<id>, e `confirmation` de Report.pm escolhe
+    # tokens/confirm_problem.html.
+    #
+    # Existe pelo mesmo motivo do teste acima, e por mais um: o mapa desta tela
+    # nao vem de nenhuma das duas rotas. Quem o monta e o
+    # `confirmation_page_extra` do cobrand, chamado do proprio template. Se
+    # alguem mover essa chamada de lugar, ou a colocar depois da primeira
+    # leitura de `map`, a pagina perde o mapa em silencio. Aqui isso falha.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        my $usuario = $mech->create_user_ok('com.conta@example.org', name => 'Com Conta');
+
+        my ($ocorrencia) = $mech->create_problems_for_body(1, $body->id,
+            'Buraco registrado com sessao aberta', {
+                user => $usuario, cobrand => 'catanduva',
+                latitude => -21.1383, longitude => -48.9728,
+            });
+
+        # `confirmation` so entrega a tela de agradecimento se a ocorrencia ja
+        # estiver confirmada; caso contrario manda para "verifique seu e-mail".
+        $ocorrencia->update({ state => 'confirmed', confirmed => \'current_timestamp' });
+        $ocorrencia->discard_changes;
+
+        $mech->log_in_ok($usuario->email);
+        $mech->get_ok('/report/confirmation/' . $ocorrencia->id
+            . '?token=' . $ocorrencia->confirmation_token);
+
+        $mech->content_contains('Ocorrência enviada', 'a pagina de agradecimento renderiza');
+        # O protocolo, e nao mais "#<id>": desde a fase 6.2 a tela mostra
+        # CTD-<ano>-<numero>. Perguntar pelo id cru aqui deixaria de testar o
+        # que a pessoa ve.
+        $mech->content_contains(
+            FixMyStreet::Cobrand::Catanduva->new->protocolo($ocorrencia),
+            'com o protocolo');
+        $mech->content_lacks('unblessed reference', 'e sem o erro de data crua');
+
+        # O mapa. `map_box` so existe quando `map` chegou a stash, e so
+        # `confirmation_page_extra` o coloca la.
+        $mech->content_contains('id="map_box"', 'e com o mapa montado');
+
+        $mech->log_out_ok;
+    };
+};
+
+subtest 'the thank-you page says what actually happens next' => sub {
+    # Fase 4.3. A pagina prometia "sera encaminhada para analise" enquanto a
+    # pagina "Sobre" avisava, em destaque, que o piloto nao tem parceria com a
+    # Prefeitura e que as ocorrencias nao chegam a setor nenhum. Uma das duas
+    # estava mentindo, e era esta.
+    #
+    # O texto agora depende de um fato do sistema, e nao de um desejo: se a
+    # caixa de demonstracao esta ligada, `munge_sendreport_params` desvia toda
+    # mensagem para ela, e nao ha orgao a citar.
+    my $ver_confirmacao = sub {
+        my $ocorrencia = shift;
+        my $token = FixMyStreet::DB->resultset('Token')->create({
+            scope => 'problem',
+            data  => { id => $ocorrencia->id,
+                       name => $ocorrencia->name,
+                       email => $ocorrencia->user->email },
+        });
+        $ocorrencia->update({ state => 'unconfirmed', confirmed => undef });
+        $mech->get_ok('/P/' . $token->token);
+    };
+
+    subtest 'com a caixa de demonstracao ligada, nao promete orgao nenhum' => sub {
+        FixMyStreet::override_config {
+            ALLOWED_COBRANDS => ['catanduva'],
+            MAPIT_URL => 'http://mapit.uk/',
+            COBRAND_FEATURES => {
+                demonstration_recipient => { catanduva => 'ocorrencias@example.org' },
+            },
+        }, sub {
+            my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+                { cobrand => 'catanduva' });
+            my $usuario = $mech->create_user_ok('demo@example.org', name => 'Quem Registra');
+            my ($o) = $mech->create_problems_for_body(1, $body->id, 'Ocorrencia em demonstracao', {
+                user => $usuario, cobrand => 'catanduva',
+                latitude => -21.1383, longitude => -48.9728,
+            });
+
+            $ver_confirmacao->($o);
+            $mech->content_contains('não tem parceria com a Prefeitura',
+                'diz que a ocorrencia nao chega a setor responsavel');
+            $mech->content_lacks('será encaminhada nos próximos minutos',
+                'e nao promete encaminhamento');
+            $mech->content_lacks('será encaminhada para análise',
+                'a promessa antiga saiu de vez');
+        };
+    };
+
+    subtest 'sem a caixa, nomeia o orgao de verdade' => sub {
+        FixMyStreet::override_config {
+            ALLOWED_COBRANDS => ['catanduva'],
+            MAPIT_URL => 'http://mapit.uk/',
+        }, sub {
+            my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+                { cobrand => 'catanduva' });
+            my $usuario = $mech->create_user_ok('parceria@example.org', name => 'Quem Registra');
+            my ($o) = $mech->create_problems_for_body(1, $body->id, 'Ocorrencia com parceria', {
+                user => $usuario, cobrand => 'catanduva',
+                latitude => -21.1383, longitude => -48.9728,
+            });
+
+            $ver_confirmacao->($o);
+            $mech->content_contains('Prefeitura de Catanduva',
+                'o nome do orgao aparece');
+            $mech->content_contains('nos próximos minutos',
+                'e o quando, que e por cron e nao no ato');
+            $mech->content_lacks('não tem parceria',
+                'o aviso da demonstracao nao aparece onde nao cabe');
+        };
+    };
+};
+
+subtest 'whoever wrote the report can correct it, for a while' => sub {
+    # F5, e a metade do F12 que faltava. O upstream nao deixa o autor editar nem
+    # retirar a propria ocorrencia: o que ele tem e comentar, assinar alertas,
+    # denunciar abuso e esconder o nome. Quem erra o titulo escreve um
+    # comentario pedindo correcao - ou denuncia a propria ocorrencia por abuso.
+    #
+    # Nao ha rota nova: e o /moderate/report/<id> do upstream, liberado ao autor
+    # pelo gancho `moderate_permission`. O preco de reusar aquele controlador e
+    # que ele faz MAIS do que a janela deveria permitir - esconder, mover o
+    # pino, gravar qualquer estado - e como nao ha gancho dentro de cada acao
+    # dele, a checagem inteira mora num ponto so. Metade dos testes abaixo
+    # existe para guardar esse ponto.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(
+            body_id => $body->id, category => 'Buraco na via', email => 'buraco@example.org');
+        $mech->create_contact_ok(
+            body_id => $body->id, category => 'Lampada apagada', email => 'luz@example.org');
+
+        my $autor    = $mech->create_user_ok('autor@example.org', name => 'Quem Registrou');
+        my $estranho = $mech->create_user_ok('estranho@example.org', name => 'Quem Passava');
+
+        # `create_problems_for_body` monta o proprio titulo a partir do que
+        # recebe - "<titulo> Test 1 for <id>" - e nao carrega `created` na
+        # linha recem-inserida. O `discard_changes` resolve as duas coisas: os
+        # testes comparam com o que ficou gravado, e `created` passa a existir.
+        my $nova = sub {
+            my (%campos) = @_;
+            my ($o) = $mech->create_problems_for_body(1, $body->id,
+                $campos{titulo} || 'Ocorrencia do autor', {
+                    user => $autor, cobrand => 'catanduva',
+                    category => 'Buraco na via',
+                    latitude => -21.1383, longitude => -48.9736,
+                    %{ $campos{extra} || {} },
+                });
+            $o->discard_changes;
+            return $o;
+        };
+
+        # O POST que o painel do autor monta. Vai com host explicito: `post_ok`
+        # nao aplica o `$mech->host` como o `get_ok` faz.
+        my $moderar = sub {
+            my ($o, %params) = @_;
+            $mech->get_ok('/report/' . $o->id);
+            my ($token) = $mech->content =~ /name="token" value="([^"]+)"/;
+            $mech->post('http://catanduva.fixmystreet.com/moderate/report/' . $o->id, {
+                token => $token,
+                form_started => time(),
+                %params,
+            });
+            $o->discard_changes;
+            return $mech->res->code;
+        };
+
+        subtest 'o painel aparece para quem escreveu, e so para ele' => sub {
+            my $o = $nova->();
+
+            $mech->log_in_ok($autor->email);
+            $mech->get_ok('/report/' . $o->id);
+            $mech->content_contains('Você registrou esta ocorrência', 'o autor ve o painel');
+            $mech->content_contains('name="problem_title"', 'com o campo de titulo');
+            $mech->content_lacks('name="problem_hide"',
+                'e sem o formulario de moderacao da equipe');
+
+            $mech->log_in_ok($estranho->email);
+            $mech->get_ok('/report/' . $o->id);
+            $mech->content_lacks('Você registrou esta ocorrência',
+                'quem nao escreveu nao ve nada disso');
+
+            $mech->log_out_ok;
+            $mech->get_ok('/report/' . $o->id);
+            $mech->content_lacks('Você registrou esta ocorrência',
+                'nem quem nao tem sessao');
+        };
+
+        subtest 'a janela fecha com o tempo, e com o envio' => sub {
+            my $cobrand = FixMyStreet::Cobrand::Catanduva->new;
+
+            my $recente = $nova->();
+            ok $cobrand->autor_pode_corrigir($autor, $recente), 'recem-criada: aberta';
+
+            # Vinte minutos atras, para uma janela de quinze.
+            my $velha = $nova->();
+            $velha->update({ created => DateTime->now->subtract(minutes => 20) });
+            $velha->discard_changes;
+            ok !$cobrand->autor_pode_corrigir($autor, $velha),
+                'passados os quinze minutos: fechada';
+
+            # Enviada ao orgao: ja nao esta so aqui.
+            my $enviada = $nova->();
+            $enviada->update({ whensent => \'current_timestamp' });
+            $enviada->discard_changes;
+            ok !$cobrand->autor_pode_corrigir($autor, $enviada),
+                'depois de encaminhada: fechada';
+
+            ok !$cobrand->autor_pode_corrigir($estranho, $recente),
+                'e nunca para quem nao escreveu';
+        };
+
+        subtest 'corrigir muda o texto, e guarda o anterior' => sub {
+            my $o = $nova->(titulo => 'Titulo com erro');
+            my $antes = $o->title;
+            $mech->log_in_ok($autor->email);
+
+            $moderar->($o,
+                problem_title  => 'Titulo corrigido',
+                problem_detail => 'Descricao corrigida.',
+            );
+
+            is $o->title, 'Titulo corrigido', 'o titulo mudou';
+            is $o->detail, 'Descricao corrigida.', 'a descricao tambem';
+
+            my $anterior = $o->moderation_original_data;
+            ok $anterior, 'o texto anterior foi guardado';
+            is $anterior->title, $antes, 'e e o que estava la antes';
+        };
+
+        subtest 'a pagina nao diz que foi um administrador' => sub {
+            # `moderating_user_name` devolve o nome do orgao, ou "um
+            # administrador" para quem nao tem orgao - e o autor nao tem. Sem a
+            # diferenca no template, a pagina anunciava a todos os visitantes
+            # que a Prefeitura havia mexido no que um cidadao escreveu.
+            my $o = $nova->(titulo => 'Outro titulo com erro');
+            $mech->log_in_ok($autor->email);
+            $moderar->($o, problem_title => 'Outro titulo certo',
+                           problem_detail => $o->detail);
+            is $o->title, 'Outro titulo certo', 'a correcao valeu';
+
+            $mech->get_ok('/report/' . $o->id);
+            $mech->content_contains('Corrigida por quem registrou',
+                'a pagina diz quem corrigiu');
+            $mech->content_lacks('administrador',
+                'e nao atribui a alteracao a Prefeitura');
+        };
+
+        subtest 'retirar deixa a ocorrencia em Cancelada, com uma linha publica' => sub {
+            my $o = $nova->(titulo => 'Ocorrencia a retirar');
+            $mech->log_in_ok($autor->email);
+
+            $moderar->($o,
+                state             => 'cancelled',
+                moderation_reason => 'Retirada por quem registrou.',
+                problem_title     => $o->title,
+                problem_detail    => $o->detail,
+            );
+
+            is $o->state, 'cancelled', 'o estado e o que o vocabulario definiu';
+
+            my @comentarios = $o->comments->all;
+            is scalar @comentarios, 1, 'ha exatamente uma atualizacao publica';
+            is $comentarios[0]->text, 'Retirada por quem registrou.',
+                'dizendo o que aconteceu';
+            is $comentarios[0]->problem_state, 'cancelled',
+                'e registrando a mudanca de estado';
+
+            # Sem os dois campos de texto o `moderate_text` do upstream grava
+            # undef em `title`, que e NOT NULL, e o pedido morre com 500 - a
+            # ocorrencia fica sem ser retirada. Aconteceu de verdade.
+            ok $o->title, 'e o titulo continua la';
+        };
+
+        subtest 'o autor nao esconde, nao move e nao se declara resolvido' => sub {
+            $mech->log_in_ok($autor->email);
+
+            my $esconder = $nova->(titulo => 'Nao pode ser escondida');
+            $moderar->($esconder, problem_hide => 1,
+                problem_title => $esconder->title, problem_detail => $esconder->detail);
+            isnt $esconder->state, 'hidden', 'esconder nao e retirar';
+
+            my $mover = $nova->(titulo => 'Nao pode ser movida');
+            my $lat = $mover->latitude;
+            $moderar->($mover, latitude => -21.1290, longitude => -48.9650,
+                problem_title => $mover->title, problem_detail => $mover->detail);
+            is $mover->latitude, $lat, 'o pino nao se moveu';
+
+            my $resolver = $nova->(titulo => 'Nao pode se resolver sozinha');
+            $moderar->($resolver, state => 'fixed - council',
+                problem_title => $resolver->title, problem_detail => $resolver->detail);
+            is $resolver->state, 'confirmed',
+                'so `cancelled` passa: `moderate_state` do upstream nao valida nada';
+        };
+
+        subtest 'quem nao escreveu nao corrige, mesmo mandando o POST na mao' => sub {
+            my $o = $nova->(titulo => 'Ocorrencia de outra pessoa');
+            my $antes = $o->title;
+            $mech->log_in_ok($estranho->email);
+            $moderar->($o, problem_title => 'Titulo alheio',
+                           problem_detail => 'Texto alheio.');
+            is $o->title, $antes, 'nada mudou';
+        };
+
+        subtest 'corrigir nao aprova a propria foto' => sub {
+            # MOD-002: foto so e publicada depois de aprovada por moderacao, e
+            # `report_moderate_after` e o que aprova. Desde a janela de correcao
+            # o autor tambem passa por ali - se a passagem dele aprovasse,
+            # bastaria corrigir uma virgula para publicar a propria foto sem que
+            # ninguem a tivesse visto, e a regra inteira viraria enfeite.
+            my $o = $nova->(titulo => 'Ocorrencia com foto');
+            $o->update({ photo => '0123456789012345678901234567890123456789.jpeg' });
+            $o->discard_changes;
+
+            $mech->log_in_ok($autor->email);
+            $moderar->($o, problem_title => 'Ocorrencia com foto, titulo novo',
+                           problem_detail => $o->detail);
+
+            is $o->title, 'Ocorrencia com foto, titulo novo', 'a correcao valeu';
+            ok !$o->get_extra_metadata('publish_photo'),
+                'e a foto continua esperando aprovacao';
+        };
+
+        $mech->log_out_ok;
+    };
+};
+
+subtest 'no report is closed without a line saying why' => sub {
+    # Fase 4.4. O campo "Salvar com uma atualizacao publica" da tela de inspecao
+    # existe e e opcional. Enquanto for opcional, o vocabulario de estados e
+    # decoracao: quem registrou ve o rotulo mudar de "Aberta" para "Sem solucao
+    # possivel" e nao fica sabendo de mais nada.
+    # `skip_must_have_2fa` porque o cobrand exige segundo fator de quem tem
+    # `from_body` (SEC-003), e sem ele o `log_in_ok` para na tela do codigo.
+    # A regra em si tem subteste proprio; aqui ela so atrapalha.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+        STAGING_FLAGS => { skip_must_have_2fa => 1 },
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(
+            body_id => $body->id, category => 'Buraco na via', email => 'buraco@example.org');
+
+        my $equipe = $mech->create_user_ok('inspetor@example.org',
+            name => 'Quem Inspeciona', from_body => $body);
+        $equipe->user_body_permissions->find_or_create({
+            body => $body, permission_type => 'report_inspect' });
+        $equipe->update({ password => 'secret' });
+
+        my $cidadao = $mech->create_user_ok('registrou@example.org', name => 'Quem Registrou');
+
+        my $nova = sub {
+            my ($o) = $mech->create_problems_for_body(1, $body->id, 'Ocorrencia a fechar', {
+                user => $cidadao, cobrand => 'catanduva',
+                category => 'Buraco na via',
+                latitude => -21.1383, longitude => -48.9736,
+            });
+            $o->discard_changes;
+            return $o;
+        };
+
+        # `category` vai sempre, com o valor atual. O formulario de inspecao
+        # manda todos os campos, e `edit_category` grava o que receber - sem
+        # ele, grava NULL numa coluna NOT NULL e o pedido morre com 500. E a
+        # mesma armadilha do `moderate_text`, noutro controlador.
+        my $inspecionar = sub {
+            my ($o, %params) = @_;
+            $mech->get_ok('/report/' . $o->id);
+            my ($token) = $mech->content =~ /name="token" value="([^"]+)"/;
+            $mech->post('http://catanduva.fixmystreet.com/report/' . $o->id, {
+                token    => $token,
+                save     => 'Save changes',
+                category => $o->category,
+                %params,
+            });
+            $o->discard_changes;
+        };
+
+        $mech->log_in_ok($equipe->email);
+
+        subtest 'fechar sem explicar nao passa' => sub {
+            my $o = $nova->();
+            $inspecionar->($o, state => 'unable to fix');
+
+            is $o->state, 'confirmed', 'o estado nao mudou';
+            $mech->content_contains('Para fechar uma ocorrência',
+                'e a tela diz por que nao mudou');
+        };
+
+        subtest 'a caixa marcada com o campo vazio tambem nao' => sub {
+            # Este caso quem barra e o proprio upstream: com `include_update`
+            # marcado ele ja exige texto. Fica aqui porque a regra completa e
+            # "nao fecha sem explicar", e quem le o teste precisa ver os dois
+            # caminhos - o nosso, que cobra a caixa, e o dele, que cobra o
+            # conteudo. Medido: desligando `report_inspect_invalid`, este
+            # continua passando e o de cima falha.
+            my $o = $nova->();
+            $inspecionar->($o,
+                state => 'not responsible', include_update => 1, public_update => '   ');
+            is $o->state, 'confirmed', 'espaco em branco nao e explicacao';
+        };
+
+        subtest 'fechar com uma linha passa, e a linha vira atualizacao publica' => sub {
+            my $o = $nova->();
+            $inspecionar->($o,
+                state          => 'not responsible',
+                include_update => 1,
+                public_update  => 'O poste é da concessionária de energia, e o pedido foi repassado.',
+            );
+
+            is $o->state, 'not responsible', 'o estado mudou';
+            my ($comentario) = $o->comments->all;
+            ok $comentario, 'ha uma atualizacao publica';
+            like $comentario->text, qr/concession/, 'com o que a equipe escreveu';
+            is $comentario->problem_state, 'not responsible', 'e o estado que ela registra';
+        };
+
+        subtest 'estado aberto nao exige explicacao' => sub {
+            # "Em analise" e "Em andamento" sao passos de um trabalho em curso.
+            # Exigir um texto a cada passo transformaria a tela num formulario
+            # que ninguem preenche.
+            my $o = $nova->();
+            $inspecionar->($o, state => 'investigating');
+            is $o->state, 'investigating', 'mudou sem precisar de texto';
+        };
+
+        subtest 'ocorrencia ja fechada nao pede explicacao de novo' => sub {
+            # Salvar prioridade ou categoria numa ocorrencia ja fechada nao muda
+            # nada para quem registrou, e nao ha o que explicar.
+            my $o = $nova->();
+            $o->update({ state => 'unable to fix' });
+            $o->discard_changes;
+
+            $inspecionar->($o, state => 'unable to fix', traffic_information => 'Nenhuma');
+            is $o->state, 'unable to fix', 'continua fechada';
+            $mech->content_lacks('Para fechar uma ocorrência',
+                'e ninguem foi cobrado por uma explicacao que ja foi dada');
+        };
+
+        $mech->log_out_ok;
+    };
+};
+
+subtest 'the last step asks only what the report needs' => sub {
+    # F6, fase 5.1. Era o unico passo do fluxo que nao tinha passado pela
+    # evolucao visual, e o unico que nao cabia no painel: 251px de rolagem em
+    # 1440x900. Tres coisas responderam por essa altura, e cada uma tem um
+    # motivo que nao e "sobrou espaco".
+    my $lat = -21.1383;
+    my $lon = -48.9736;
+
+    subtest 'nao pergunta telefone' => sub {
+        # Nao e economia de espaco: hoje o numero nao serve a ninguem. Sem
+        # autenticacao por SMS, sem questionario, e com a caixa de demonstracao
+        # ligada nenhuma ocorrencia chega a orgao nenhum - o telefone iria
+        # junto para uma caixa de demonstracao. Dado pessoal coletado e usado
+        # por ninguem.
+        FixMyStreet::override_config {
+            ALLOWED_COBRANDS => ['catanduva'],
+            MAPIT_URL => 'http://mapit.uk/',
+        }, sub {
+            my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+                { cobrand => 'catanduva' });
+            $mech->create_contact_ok(body_id => $body->id,
+                category => 'Buraco na via', email => 'buraco@example.org');
+
+            $mech->log_out_ok;
+            $mech->get_ok("/report/new?latitude=$lat&longitude=$lon");
+            $mech->content_lacks('name="phone"', 'o campo de telefone nao aparece');
+            $mech->content_lacks('id="form_phone"', 'nem com o id do upstream');
+        };
+    };
+
+    subtest 'a senha fica atras de uma porta, e o campo continua no formulario' => sub {
+        # Criar uma senha nao faz parte de registrar um problema. Fechada, a
+        # oferta ocupa uma linha; o campo continua no DOM, e vazio significa
+        # "sem senha" para o New.pm - nao ha ramo novo no servidor.
+        FixMyStreet::override_config {
+            ALLOWED_COBRANDS => ['catanduva'],
+            MAPIT_URL => 'http://mapit.uk/',
+        }, sub {
+            my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+                { cobrand => 'catanduva' });
+            $mech->create_contact_ok(body_id => $body->id,
+                category => 'Buraco na via', email => 'buraco@example.org');
+
+            $mech->log_out_ok;
+            $mech->get_ok("/report/new?latitude=$lat&longitude=$lon");
+            $mech->content_contains('js-quero-senha', 'a porta existe');
+            $mech->content_contains('name="password_register"',
+                'e o campo continua sendo enviado');
+        };
+    };
+
+    subtest 'a frase de privacidade diz a verdade, inclusive pelo AJAX' => sub {
+        # Este e o caso que custou caro para achar. O `fixmystreet.js` faz
+        # `$('#js-councils_text_private').html(...)` a cada troca de categoria,
+        # com o que o /report/new/ajax devolve. Qualquer escolha de frase feita
+        # so no template do passo dura ate o primeiro clique numa categoria.
+        #
+        # Com a caixa de demonstracao ligada, dizer "serao enviados a
+        # prefeitura" e falso: `munge_sendreport_params` desvia tudo para ela.
+        FixMyStreet::override_config {
+            ALLOWED_COBRANDS => ['catanduva'],
+            MAPIT_URL => 'http://mapit.uk/',
+            COBRAND_FEATURES => {
+                demonstration_recipient => { catanduva => 'ocorrencias@example.org' },
+            },
+        }, sub {
+            my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+                { cobrand => 'catanduva' });
+            $mech->create_contact_ok(body_id => $body->id,
+                category => 'Buraco na via', email => 'buraco@example.org');
+
+            $mech->log_out_ok;
+            $mech->get_ok("/report/new?latitude=$lat&longitude=$lon");
+            $mech->content_lacks('enviados à prefeitura',
+                'a pagina nao promete envio a orgao nenhum');
+
+            my $json = $mech->get_ok_json("/report/new/ajax?latitude=$lat&longitude=$lon&w=1");
+            unlike $json->{councils_text_private}, qr/enviados à prefeitura/,
+                'e o AJAX, que e quem escreve a frase depois, tambem nao';
+        };
+    };
+
+    subtest 'sem a caixa de demonstracao, volta a frase do upstream' => sub {
+        FixMyStreet::override_config {
+            ALLOWED_COBRANDS => ['catanduva'],
+            MAPIT_URL => 'http://mapit.uk/',
+        }, sub {
+            my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+                { cobrand => 'catanduva' });
+            $mech->create_contact_ok(body_id => $body->id,
+                category => 'Buraco na via', email => 'buraco@example.org');
+
+            $mech->log_out_ok;
+            my $json = $mech->get_ok_json("/report/new/ajax?latitude=$lat&longitude=$lon&w=1");
+            like $json->{councils_text_private}, qr/enviados à prefeitura/,
+                'havendo para onde enviar, a frase do upstream e a certa';
+        };
+    };
+
+    subtest 'registrar sem senha continua funcionando' => sub {
+        # O caminho da maioria. A porta fechada nao pode ter tornado a senha
+        # obrigatoria por acidente.
+        FixMyStreet::override_config {
+            ALLOWED_COBRANDS => ['catanduva'],
+            MAPIT_URL => 'http://mapit.uk/',
+        }, sub {
+            my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+                { cobrand => 'catanduva' });
+            $mech->create_contact_ok(body_id => $body->id,
+                category => 'Buraco na via', email => 'buraco@example.org');
+
+            $mech->log_out_ok;
+            $mech->get_ok("/report/new?latitude=$lat&longitude=$lon");
+            my ($token) = $mech->content =~ /name="token" value="([^"]+)"/;
+
+            $mech->post_ok('http://catanduva.fixmystreet.com/report/new', {
+                token             => $token,
+                submit_problem    => 1,
+                latitude          => $lat,
+                longitude         => $lon,
+                title             => 'Registro sem senha nenhuma',
+                detail            => 'Descricao suficiente para passar na validacao.',
+                category          => 'Buraco na via',
+                name              => 'Quem Registra',
+                username_register => 'sem.senha@example.org',
+                may_show_name     => 1,
+                password_register => '',
+            });
+
+            my $o = FixMyStreet::DB->resultset('Problem')
+                ->search({ title => 'Registro sem senha nenhuma' })->first;
+            ok $o, 'a ocorrencia foi criada';
+            ok !$o->user->password, 'e a conta ficou sem senha, como pedido';
+        };
+    };
+};
+
+subtest 'the report metadata line puts each piece where it belongs' => sub {
+    # UI-006. O catalogo pt_BR reordenava os `%s` sem dizer ao sprintf que a
+    # ordem tinha mudado, e a linha saia assim:
+    #
+    #   "Registrado anonimamente às desktop via Buraco na via na categoria
+    #    17:27 hoje"
+    #
+    # Hora no lugar do canal, canal no lugar da categoria, categoria no lugar da
+    # hora. `%N$s` resolve - e este teste existe porque a proxima pessoa a
+    # traduzir uma dessas frases vai reordenar de novo.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(body_id => $body->id,
+            category => 'Buraco na via', email => 'buraco@example.org');
+
+        my $usuario = $mech->create_user_ok('meta@example.org', name => 'Quem Registrou');
+        my ($o) = $mech->create_problems_for_body(1, $body->id, 'Ocorrencia para a linha', {
+            user => $usuario, cobrand => 'catanduva',
+            category => 'Buraco na via', service => 'desktop',
+            latitude => -21.1383, longitude => -48.9736,
+        });
+        $o->discard_changes;
+
+        # Anonima: canal + categoria + hora.
+        $o->update({ anonymous => 1 });
+        $o->discard_changes;
+        my $linha = $o->meta_line;
+
+        like $linha, qr/via desktop/, 'o canal vem depois de "via"';
+        like $linha, qr/categoria Buraco na via/, 'a categoria vem depois de "categoria"';
+        unlike $linha, qr/às desktop/, 'e a hora nao ocupa o lugar do canal';
+        unlike $linha, qr/via \d/, 'nem o contrario';
+
+        # Com nome: a mesma frase, com quem registrou no lugar certo.
+        $o->update({ anonymous => 0 });
+        $o->discard_changes;
+        my $com_nome = $o->meta_line;
+        # A linha usa `problem.name`, e nao o nome da conta: o
+        # `create_problems_for_body` grava um proprio, e quem registra pode
+        # assinar com outro nome.
+        my $quem = $o->name;
+        like $com_nome, qr/por \Q$quem\E/, 'o nome vem depois de "por"';
+        like $com_nome, qr/categoria Buraco na via/, 'e a categoria continua no lugar';
+    };
+};
+
+subtest 'the report has a protocol of its own, and the search understands it' => sub {
+    # F11. O upstream mostrava "Protocolo FixMyStreet: 75" - a marca dele e o id
+    # da linha. Agora e CTD-2026-0075: origem, ano e numero.
+    #
+    # O que importa guardar com teste nao e o formato em si, e sim o par: o que
+    # a tela escreve tem de ser o que a busca le de volta. Um protocolo que a
+    # equipe nao acha e pior do que nenhum.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $cobrand = FixMyStreet::Cobrand::Catanduva->new;
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        my $usuario = $mech->create_user_ok('protocolo@example.org', name => 'Quem Registrou');
+
+        my ($o) = $mech->create_problems_for_body(1, $body->id, 'Ocorrencia com protocolo', {
+            user => $usuario, cobrand => 'catanduva',
+            latitude => -21.1383, longitude => -48.9736,
+        });
+        $o->discard_changes;
+
+        my $ano = $o->created->year;
+        my $esperado = sprintf('CTD-%d-%04d', $ano, $o->id);
+
+        subtest 'o formato' => sub {
+            is $cobrand->protocolo($o), $esperado, 'origem, ano e numero';
+            like $cobrand->protocolo($o), qr/^CTD-/, 'e nao a marca do upstream';
+        };
+
+        subtest 'o caminho de volta' => sub {
+            is $cobrand->id_do_protocolo($esperado), $o->id, 'o protocolo inteiro';
+            is $cobrand->id_do_protocolo(sprintf('CTD-%d', $o->id)), $o->id,
+                'sem o ano, que e como alguem abrevia';
+            is $cobrand->id_do_protocolo(lc $esperado), $o->id,
+                'em minusculas, que e como alguem digita';
+            is $cobrand->id_do_protocolo(' ' . $esperado . ' '), $o->id,
+                'com espaco em volta, que e como alguem cola';
+            is $cobrand->id_do_protocolo("" . $o->id), $o->id,
+                'so o numero, que e o que a equipe digitava antes';
+            is $cobrand->id_do_protocolo('Buraco na via'), undef,
+                'e um texto qualquer nao vira protocolo';
+        };
+
+        subtest 'a busca acha pelo protocolo' => sub {
+            my $achadas = $cobrand->buscar_ocorrencias($esperado);
+            is scalar @$achadas, 1, 'uma resposta, e exata';
+            is $achadas->[0]->id, $o->id, 'e e a ocorrencia certa';
+        };
+
+        subtest 'a pagina da ocorrencia mostra o protocolo' => sub {
+            $o->update({ whensent => \'current_timestamp' });
+            $o->discard_changes;
+            $mech->get_ok('/report/' . $o->id);
+            $mech->content_contains($esperado, 'o protocolo aparece na pagina');
+            $mech->content_lacks('Protocolo FixMyStreet',
+                'e a marca do upstream nao');
+        };
+    };
+};
+
+subtest 'a form error says which field it is about' => sub {
+    # Item 2.2. O upstream escreve os erros que vem do servidor como
+    # `<p class="form-error">` sem `id`, e sem nada no campo apontando para
+    # eles. Quem usa leitor de tela ouve "Por favor, digite seu nome" sem saber
+    # a qual dos campos da tela aquilo pertence.
+    #
+    # Sao dezenove templates. Os do caminho do cidadao foram corrigidos na
+    # marcacao, que e onde a correcao vale mesmo com JavaScript desligado; os
+    # outros quinze sao alcancados por uma passagem no catanduva.js. Este teste
+    # guarda os primeiros, que sao os que um teste de servidor consegue ver.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(body_id => $body->id,
+            category => 'Buraco na via', email => 'buraco@example.org');
+
+        $mech->log_out_ok;
+        $mech->get_ok('/report/new?latitude=-21.1383&longitude=-48.9736');
+        my ($token) = $mech->content =~ /name="token" value="([^"]+)"/;
+
+        # Envio com titulo, descricao e nome vazios: o servidor recusa e
+        # redesenha a pagina com os tres erros.
+        $mech->post_ok('http://catanduva.fixmystreet.com/report/new', {
+            token          => $token,
+            submit_problem => 1,
+            latitude       => -21.1383,
+            longitude      => -48.9736,
+            category       => 'Buraco na via',
+            title          => '',
+            detail         => '',
+            name           => '',
+            username_register => 'quem@example.org',
+        });
+
+        for my $campo (qw(form_title form_name)) {
+            $mech->content_contains(qq{id="$campo-error"},
+                "o erro de $campo tem nome");
+            like $mech->content, qr/aria-describedby="[^"]*\Q$campo\E-error/,
+                "e o campo $campo aponta para ele";
+        }
+
+        # `role="alert"` faz o leitor de tela anunciar o erro ao chegar na
+        # pagina, sem esperar o foco cair no campo.
+        like $mech->content, qr/class='form-error' id="form_title-error" role="alert"/,
+            'o erro e anunciado, e nao so descrito';
+
+        # O titulo ja tinha uma dica descrevendo-o. Ganhar o erro nao pode
+        # custar a dica: `aria-describedby` aceita varios ids.
+        like $mech->content, qr/aria-describedby="form_title-error title-hint"/,
+            'e a dica do campo nao foi trocada pelo erro';
+    };
+};
+
+subtest 'every page reached from an email link renders' => sub {
+    # Fase 3.2 do PLANO_DE_FASES.md.
+    #
+    # Estas paginas so sao exercitadas por quem clica num link de e-mail, e por
+    # isso ficaram sem teste ate o 500 do F1 aparecer numa auditoria manual. Um
+    # teste que apenas as renderize custa pouco e impede a classe inteira de
+    # erro - a de objeto que chega ao template com um campo que nao e o que o
+    # template espera.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        my $usuario = $mech->create_user_ok('token@example.org', name => 'Quem Clica');
+
+        my ($ocorrencia) = $mech->create_problems_for_body(1, $body->id,
+            'Ocorrencia de token', {
+                user => $usuario, cobrand => 'catanduva',
+                latitude => -21.1383, longitude => -48.9728,
+            });
+
+        subtest 'confirmacao de ocorrencia' => sub {
+            $ocorrencia->update({ state => 'unconfirmed', confirmed => undef });
+            my $token = FixMyStreet::DB->resultset('Token')->create({
+                scope => 'problem',
+                data  => { id => $ocorrencia->id, name => $usuario->name, email => $usuario->email },
+            });
+            $mech->get_ok('/P/' . $token->token);
+            $mech->content_lacks('unblessed reference');
+        };
+
+        subtest 'confirmacao de comentario' => sub {
+            $ocorrencia->update({ state => 'confirmed', confirmed => \'current_timestamp' });
+            my $comentario = $mech->create_comment_for_problem(
+                $ocorrencia, $usuario, 'Quem Clica', 'Comentario a confirmar', 0, 'unconfirmed', undef);
+            my $token = FixMyStreet::DB->resultset('Token')->create({
+                scope => 'comment', data => { id => $comentario->id },
+            });
+            $mech->get_ok('/C/' . $token->token);
+            $mech->content_lacks('unblessed reference');
+        };
+
+        subtest 'confirmacao de alerta' => sub {
+            my $alerta = FixMyStreet::DB->resultset('Alert')->create({
+                user => $usuario, alert_type => 'new_updates',
+                parameter => $ocorrencia->id, cobrand => 'catanduva',
+                whensubscribed => \'current_timestamp', confirmed => 0,
+            });
+            my $token = FixMyStreet::DB->resultset('Token')->create({
+                scope => 'alert', data => { id => $alerta->id, type => 'subscribe' },
+            });
+            $mech->get_ok('/A/' . $token->token);
+            $mech->content_lacks('unblessed reference');
+        };
+    };
+};
+
+subtest 'the citizen path does not speak English' => sub {
+    # Fase 3.3 do PLANO_DE_FASES.md.
+    #
+    # F2, F9 e o antigo UI-021 sao a mesma familia: cadeia sem traducao que
+    # vaza para a interface. A lista abaixo e curta e explicita de proposito -
+    # um teste que falha sozinho vira teste desligado.
+    my @proibidas = (
+        'This field is required',
+        'Please enter',
+        'Confirm your report',
+        'Report a problem',
+        'Get updates',
+        'Your report has been',
+    );
+
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        my $usuario = $mech->create_user_ok('idioma@example.org', name => 'Quem Le');
+        my ($ocorrencia) = $mech->create_problems_for_body(1, $body->id,
+            'Ocorrencia para conferir idioma', {
+                user => $usuario, cobrand => 'catanduva',
+                latitude => -21.1383, longitude => -48.9728,
+            });
+
+        # /reports nao monta o painel a partir do banco: ele le
+        # `data/all-reports-dashboard.json`, escrito pelo cron
+        # bin/update-all-reports. Sem o arquivo o controlador responde 500.
+        #
+        # O arquivo existe na maquina de quem desenvolve, porque alguem ja
+        # rodou o cron ali, e nao existe num runner limpo - entao este subteste
+        # passava aqui e falhava no CI, e o "500" sozinho nao dizia por que.
+        #
+        # TEST_DASHBOARD_DATA e a porta que o proprio core abre para os testes
+        # (ver t/app/controller/reports.t): o mesmo calculo, feito na hora,
+        # sem depender de um arquivo gerado fora do teste.
+        #
+        # O override aninhado repete ALLOWED_COBRANDS e MAPIT_URL de proposito:
+        # FixMyStreet::override_config nao empilha - o de dentro cai para o
+        # arquivo de configuracao, e nao para o de fora.
+        my $painel = FixMyStreet::Script::UpdateAllReports::generate_dashboard();
+
+        FixMyStreet::override_config {
+            ALLOWED_COBRANDS => ['catanduva'],
+            MAPIT_URL => 'http://mapit.uk/',
+            TEST_DASHBOARD_DATA => $painel,
+        }, sub {
+            for my $pagina ('/', '/alert', '/reports', '/report/' . $ocorrencia->id) {
+                # get_ok sozinho diz "500" e mais nada, e um 500 que so
+                # acontece num ambiente e indistinguivel de um que acontece em
+                # todos. O corpo da resposta e onde o Catalyst escreve o motivo.
+                unless ($mech->get_ok($pagina)) {
+                    diag "$pagina respondeu " . $mech->res->status_line;
+                    diag substr($mech->content, 0, 2000);
+                    next;
+                }
+                my $corpo = $mech->content;
+                for my $frase (@proibidas) {
+                    unlike $corpo, qr/\Q$frase\E/i, "$pagina nao diz \"$frase\"";
+                }
+            }
+        };
+    };
 };
 
 done_testing();

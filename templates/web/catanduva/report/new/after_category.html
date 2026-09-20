@@ -1,0 +1,29 @@
+[%# Rodape do passo "tipo de ocorrencia": aviso e acoes.
+
+    O upstream processa este arquivo dentro de um TRY, depois do bloco de
+    categorias e antes do botao "Continuar" dele — o ponto de extensao certo
+    para o que a referencia mostra no fim do passo
+    (reference/flows/samples/tela_tipo_ocorrencia.png).
+
+    Sobre o botao "Proximo": ele carrega `js-reporting-page--next`, que e a
+    classe pela qual o `fixmystreet.pageController` avanca de passo. Nao ha
+    logica nova aqui — e o mesmo gatilho do botao do upstream, que o CSS esconde
+    (ver `_map.scss`, secao do passo de tipo) para nao haver dois.
+
+    "Cancelar" usa `js-back`, que e como o upstream recua um passo; do primeiro
+    passo, recuar e voltar ao mapa.
+%]
+<div class="map-step__aviso">
+    <span class="map-step__aviso-icone" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'info' %]</span>
+    <span class="map-step__aviso-texto">
+        <strong>Não encontrou a categoria?</strong>
+        <span>Selecione a que mais se aproxima para continuar.</span>
+    </span>
+</div>
+
+<div class="map-step__actions">
+    <a href="#" class="btn js-back map-step__cancelar">Cancelar</a>
+    <button type="button" class="btn btn--primary js-reporting-page--next map-step__proximo">
+        Próximo [% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]
+    </button>
+</div>

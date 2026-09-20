@@ -1,0 +1,89 @@
+[%# Formulario de nova ocorrencia em pagina propria — Map Evolution.
+
+    Substitui templates/web/base/report/new/fill_in_details.html.
+
+    Esta pagina e o mesmo fluxo de /around, so que carregado direto: acontece
+    quando alguem usa "pular o mapa", quando chega por um link com coordenadas,
+    ou quando o navegador nao tem JS e o clique no mapa vira submissao de
+    formulario. Os passos sao os mesmos .js-reporting-page; o que faltava era a
+    moldura ser a mesma.
+
+    Uma diferenca real em relacao a /around: aqui **nao ha faixa inferior**. A
+    faixa lista ocorrencias proximas, e essa lista vem do stash de /around
+    (on_map e around_map), que esta pagina nao tem. Renderizar uma faixa vazia
+    seria pior que nao ter faixa — e as ocorrencias similares, que sao o que
+    interessa durante o fluxo, continuam chegando pelo duplicates.js.
+%]
+[%
+    # Only used by Zurich
+    TRY; sidebar_html = PROCESS 'report/new/sidebar.html'; CATCH file; END;
+
+    SET bodyclass = 'mappage mappage--catanduva mappage--form';
+    SET bodyclass = bodyclass _ " with-notes" IF sidebar_html;
+    SET extra_js = [ version('/cobrands/catanduva/catanduva-map.js') ];
+    PROCESS "report/photo-js.html";
+    PROCESS "maps/${map.type}.html" IF report.used_map;
+    INCLUDE 'header.html', title => loc('Reporting a problem');
+%]
+
+[% IF report.used_map %]
+
+<form action="[% c.uri_for('/report/new') %]" method="post" name="mapForm" id="mapForm"[% IF c.cobrand.allow_photo_upload %] enctype="multipart/form-data"[% END %] class="validate">
+
+[% ELSE %]
+
+<form action="[% c.uri_for('/report/new') %]" method="post" name="mapSkippedForm"[% IF c.cobrand.allow_photo_upload %] enctype="multipart/form-data"[% END %] class="validate">
+    <input type="hidden" name="skipped" value="1">
+
+[% END %]
+
+    <input type="hidden" name="token" value="[% csrf_token %]">
+    <input type="hidden" name="pc" value="[% pc | html %]">
+    <input type="hidden" name="latitude" id="fixmystreet.latitude" value="[% latitude | html %]">
+    <input type="hidden" name="longitude" id="fixmystreet.longitude" value="[% longitude | html %]">
+
+  [% IF report.used_map %]
+    [% map_html | safe %]
+
+        <div class="mobile-map-banner">
+            <span>[% loc('Reposition if needed, then hit Continue') %]</span>
+        </div>
+    </div>
+    <div id="map_sidebar" class="map-panel">
+        <div id="side-form" class="map-panel__state map-panel__state--flow">
+  [% ELSE %]
+    <div id="map_sidebar" class="map-panel map-panel--standalone">
+        <div id="skipped-map" class="map-panel__state map-panel__state--flow">
+  [% END %]
+
+            <div id="report-a-problem-main">
+
+                [%# O mesmo cabecalho de /around, vindo do mesmo arquivo.
+
+                    Antes esta pagina tinha uma copia antiga dele — seta de
+                    voltar, "Nova ocorrencia" e o contador "Passo 2 de 6" —, e
+                    como e esta pagina que responde ao F5, dar refresh no meio do
+                    fluxo trocava o cabecalho novo pelo velho. %]
+                [% INCLUDE '_map-flow-head.html' %]
+
+              [% IF login_success %]
+                [% PROCESS 'report/new/login_success_form.html' %]
+              [% ELSIF oauth_need_email %]
+                [% PROCESS 'report/new/oauth_email_form.html' %]
+              [% ELSE %]
+                [%# Tentei trocar o rotulo deste passo por "Qual e o tipo de
+                    problema?", como na referencia, passando form_category_label
+                    tanto por SET quanto por parametro de PROCESS. Nenhum dos dois
+                    chegou ao <legend> de category.html, que continua caindo no
+                    loc("Category"). Nao investiguei ate o fim: "Categoria" esta
+                    correto e claro, e o custo de descobrir por que a variavel nao
+                    propaga nao se paga por uma palavra. Registrado no status. %]
+                [% PROCESS "report/new/fill_in_details_form.html" %]
+              [% END %]
+            </div>
+
+        </div>
+    </div>
+</form>
+
+[% INCLUDE 'footer.html' %]

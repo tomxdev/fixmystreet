@@ -258,3 +258,112 @@ ruído e o olho perde a capacidade de percorrer rapidamente.
 
 **Consequência.** Quando a Fase 7 tratar painel e listagem, a densidade é o
 critério — separação por linha ou por espaçamento, não por elevação.
+
+---
+
+## `D-018` · Referência externa entra como composição, nunca como identidade
+
+**Decisão.** O **colab.com.br** é referência de composição e hierarquia para esta
+evolução. Dele se tomam padrões genéricos — CTA separado do menu, hero com regra
+decorativa, respiro vertical, conteúdo sobre fundo neutro. Não se tomam cores,
+marca, tipografia nem arranjo específico de tela.
+
+**Porquê.** §13.1 proíbe "copiar diretamente a identidade visual de outra
+plataforma", e §13.2 diz que referências externas servem para melhorar UX,
+composição e hierarquia — não para reproduzir identidade. O Colab é, além disso,
+uma plataforma do mesmo domínio no mesmo país: imitar sua identidade seria ruim
+por mais de um motivo.
+
+**Consequência.** Toda regra desta fase se justifica por um princípio de
+composição, não por "assim está no Colab".
+
+---
+
+## `D-019` · Seletor amplo se verifica na tela, não só na medição
+
+**Decisão.** Regra escrita sobre classe genérica (`.container`, `.tablewrapper`,
+`.content`) exige captura de tela antes de ser dada por boa, e de preferência
+filho direto em vez de descendente.
+
+**Porquê.** Três erros de escopo nesta fase, nenhum apanhado pela varredura
+numérica:
+
+| Seletor | Efeito não previsto |
+|---|---|
+| `.frontpage .container` | pegou o `.container` do cabeçalho: +64px de altura no celular |
+| `.frontpage .tablewrapper` | pegou o `.tablewrapper` do rodapé: parágrafos em duas colunas |
+| `padding` no `.container` | caixa é `content-box`: alargou em vez de empurrar |
+
+Contraste, overflow e alvos de toque seguiam em zero falhas nos três casos.
+
+**Consequência.** A varredura mede o que é mensurável. Layout quebrado continua
+sendo assunto de olho humano — ou, aqui, de captura comparada. É a segunda vez
+nesta iniciativa (a primeira foi `display: flex` na Fase 3).
+
+---
+
+## `D-020` · O verde da referência escurece um degrau quando carrega texto
+
+**Decisão.** `--c-primary` é `#00845F`, e não o `#00A481` amostrado nos botões da
+referência. O tom da imagem fica em `--c-primary-bright`, usado onde o critério de
+contraste é o de texto grande ou onde não há texto nenhum.
+
+**Porquê.** Branco sobre `#00A481` dá **3.17** pela fórmula WCAG 2.1. Texto normal
+exige 4.5. `#00845F` dá **4.53** e é o mesmo esmeralda, um degrau mais fundo — a
+menor correção que cruza o limiar, exatamente como `D-003` fez com o texto
+secundário e `D-004` com o botão primário.
+
+O que não se fez: pintar o texto do botão de escuro. Sobre o verde da referência,
+texto escuro passaria, mas um botão primário de texto escuro sobre verde claro lê
+como aviso, não como ação — e a referência é explícita nesse ponto.
+
+**Consequência.** A palavra destacada do `h1`, em 54px, continua no verde da
+imagem: ali o critério é 3:1 e 3.17 passa.
+
+---
+
+## `D-021` · A barra utilitária não aparece nas páginas de mapa
+
+**Decisão.** `.mappage .utility-bar { display: none }`.
+
+**Porquê.** Nas páginas de mapa o upstream posiciona `#site-header`, `#map_box` e
+`#map_sidebar` em absoluto, a partir de offsets fixos, em quatro lugares
+diferentes. Somar 38px a essa conta já produziu bug de sobreposição duas vezes
+nesta iniciativa — `D-011` e `D-015` são as duas —, e a barra é um serviço de
+leitura, não de navegação: quem está com o mapa aberto não está lendo texto.
+
+**Consequência.** Contraste e tamanho de texto continuam valendo nas páginas de
+mapa, porque a preferência é aplicada no `<html>` pelo script carregado no
+`<head>`. O que some é o controle, não o efeito.
+
+---
+
+## `D-022` · Nome de estado vem da aplicação, não da imagem
+
+**Decisão.** As pílulas de estado exibem `prettify_state(problem.state)`, e não
+"Pendente / Em andamento / Resolvida" como a referência mostra.
+
+**Porquê.** §10 do plano: a imagem é referência de composição e hierarquia, não
+fonte de dados. Nome de estado é dado — o mesmo que aparece no banner da
+ocorrência, na listagem e nos e-mails. Fazer a home falar diferente do resto
+trocaria uma inconsistência visual, que ninguém percebe entre duas páginas, por
+uma de conteúdo, que qualquer pessoa percebe ao clicar.
+
+**Consequência.** "Abrir" continua sendo um nome ruim para o estado `confirmed`.
+Está registrado como `UI-021`, para a unidade de vocabulário, e não como parte
+desta migração.
+
+---
+
+## `D-023` · A imagem do hero é ilustração, com o lugar da fotografia pronto
+
+**Decisão.** `images/hero-catanduva.svg` é uma ilustração da praça central nas
+cores da identidade. Não é uma fotografia.
+
+**Porquê.** A referência usa uma foto da cidade. Não há fotografia licenciada
+disponível para este piloto, e gerar uma imagem que se passe por fotografia de um
+lugar real é pior que ilustrar: quem olha acredita no que vê.
+
+**Consequência.** Trocar por uma foto real é uma linha: o `src` em
+`around/postcode_form.html`. O recorte, a proporção e a forma orgânica vêm do CSS
+(`object-fit: cover` + raio percentual), então qualquer imagem serve sem ajuste.

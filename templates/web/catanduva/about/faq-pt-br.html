@@ -1,0 +1,138 @@
+[%# Pagina "Sobre" — UI Evolution V2.
+
+    Ate aqui /faq devolvia 404. O controlador procura about/faq-<lang>.html ou
+    about/faq.html na pasta do cobrand e depois na base; a base so tem
+    faq-en-gb.html, e o lang_code deste cobrand e pt-br (Catanduva.pm,
+    language_override). Nenhuma pagina existia, e a navegacao ja apontava para
+    ela — o item "Ajuda" levava a um 404 desde o inicio.
+
+    O conteudo nao e traducao do FAQ britanico. E o que vale aqui, e cada
+    afirmacao tem origem em decisao registrada no proprio codigo:
+      - ausencia de parceria com a prefeitura e caixa postal de demonstracao:
+        Cobrand/Catanduva.pm, demonstration_recipient e send_questionnaires
+      - aprovacao previa de fotografia: MOD-002, allow_photo_display
+      - exclusao a pedido: LGPD-004, allow_self_service_erasure
+      - ocorrencia oculta continua visivel para quem a escreveu: MOD-005
+
+    Nada aqui promete prazo, atendimento ou resposta da prefeitura. Durante o
+    piloto ninguem esta comprometido com isso, e a pagina precisa dizer o que e
+    verdade.
+
+    As ancoras #acessibilidade e #participar sao destino de links do cabecalho e
+    da faixa de chamada. Renomear qualquer uma delas quebra os dois.
+%]
+[% INCLUDE 'header.html', title = 'Sobre o FixMyStreet Catanduva' %]
+
+<div class="prose">
+
+<h1>Sobre o FixMyStreet Catanduva</h1>
+
+<p class="prose__lead">
+    Este site serve para registrar, acompanhar e discutir problemas da cidade —
+    um buraco na via, um poste apagado, lixo acumulado, uma calçada quebrada —
+    marcando no mapa onde eles estão.
+</p>
+
+<h2>O que é este site</h2>
+
+<p>
+    O [% site_name %] é um piloto: uma demonstração aberta de como um canal de
+    registro de problemas urbanos pode funcionar em Catanduva. Ele roda sobre a
+    plataforma FixMyStreet, de código aberto, usada por prefeituras e
+    organizações em vários países.
+</p>
+
+<div class="c-alert c-alert--warning">
+    <p>
+        <strong>O piloto não tem parceria com a Prefeitura de Catanduva.</strong>
+        As ocorrências registradas aqui não chegam a um setor responsável e
+        ninguém está comprometido em resolvê-las. Para pedir um serviço de fato,
+        procure os canais oficiais do município.
+    </p>
+</div>
+
+<h2 id="participar">Como participar</h2>
+
+<ol class="prose__steps">
+    <li>Busque um CEP, uma rua ou um bairro na página inicial, ou abra o mapa da cidade.</li>
+    <li>Marque no mapa o ponto exato do problema.</li>
+    <li>Descreva o que está acontecendo e, se puder, anexe uma fotografia.</li>
+    <li>Confirme o seu e-mail. A ocorrência passa a aparecer na listagem pública.</li>
+</ol>
+
+<p>
+    Você também pode acompanhar o que os outros registraram: a
+    <a href="/reports">listagem de ocorrências</a> mostra tudo o que já foi
+    aberto, e os <a href="/alert">alertas locais</a> avisam por e-mail quando
+    algo novo aparece perto de um endereço que você escolher.
+</p>
+
+<h2>O que acontece com a minha fotografia</h2>
+
+<p>
+    Ela não é publicada automaticamente. Durante o piloto, toda fotografia passa
+    por conferência antes de aparecer para o público. Uma foto de um buraco pode
+    trazer, sem nenhuma intenção, um rosto, uma placa de carro ou o interior da
+    casa de alguém — e isso não tem como ser desfeito depois de publicado.
+</p>
+
+<h2>Os meus dados</h2>
+
+<p>
+    O texto e a localização da ocorrência são públicos: é disso que se trata um
+    registro de problema urbano. A sua identidade não precisa ser. Você pode
+    pedir a exclusão dos seus dados a qualquer momento, sozinho, pela
+    <a href="[% c.cobrand.privacy_policy_url %]">página de privacidade</a>. O que
+    acontece é uma anonimização: a ocorrência continua na listagem, sem o seu
+    nome e sem o seu contato.
+</p>
+
+<p>
+    Se uma ocorrência sua for ocultada por moderação, você continua podendo
+    lê-la — não dá para contestar a remoção de um texto que não se pode ver.
+</p>
+
+<h2 id="acessibilidade">Acessibilidade</h2>
+
+<p>
+    Este site é construído para funcionar com teclado, com leitor de tela e com
+    zoom de até 200% sem perder conteúdo. Na barra do topo há dois controles:
+</p>
+
+<dl class="prose__list">
+    <dt>Contraste</dt>
+    <dd>
+        Aumenta o contraste entre texto e fundo em toda a interface. A
+        preferência fica guardada no seu navegador e continua valendo nas
+        próximas visitas.
+    </dd>
+
+    <dt>Tamanho do texto (A- A A+)</dt>
+    <dd>
+        Amplia o texto em três degraus, até 125%. Acima disso, use o zoom do
+        próprio navegador — a página foi testada até 200%.
+    </dd>
+</dl>
+
+<p>
+    As cores da interface foram medidas pela fórmula de contraste da WCAG 2.1 e
+    atendem ao nível AA. Se você encontrar alguma parte do site que não funcione
+    com a sua forma de navegar, <a href="/contact">conte para nós</a>: é um
+    defeito, e queremos saber.
+</p>
+
+<h2>Quem faz</h2>
+
+<p>
+    [% loc('Would you like to contribute to FixMyStreet? Our code is open source and <a href="https://fixmystreet.org">available at fixmystreet.org</a>.') %]
+    [% loc('Powered by <a class="platform-logo" href="https://fixmystreet.org/">FixMyStreet Platform</a>') %]
+</p>
+
+<p>
+    Dúvidas, sugestões ou problemas com o próprio site:
+    <a href="/contact">fale conosco</a>.
+</p>
+
+</div>
+
+[% INCLUDE 'footer.html' pagefooter = 'yes' %]

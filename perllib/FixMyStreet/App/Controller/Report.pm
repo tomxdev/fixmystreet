@@ -587,6 +587,16 @@ sub inspect : Private {
 
         $c->cobrand->call_hook(report_inspect_update_extra => $problem);
 
+        # Lets a cobrand refuse an inspection save. Returns an error message to
+        # show, or nothing to allow the save. The report has already been
+        # changed in memory at this point, so the hook sees what is about to be
+        # written; get_from_storage gives it what is there now.
+        if (my $error = $c->cobrand->call_hook(report_inspect_invalid => $problem)) {
+            $valid = 0;
+            $c->stash->{errors} ||= [];
+            push @{ $c->stash->{errors} }, $error;
+        }
+
         $c->forward('/photo/process_photo');
         if ( my $photo_error  = delete $c->stash->{photo_error} ) {
             $valid = 0;

@@ -1,0 +1,45 @@
+[%# Cabecalho do passo "Detalhes publicos" e o cartao do endereco.
+
+    Substitui templates/web/base/report/new/form_public_councils_text.html, que
+    define o BLOCK `public_councils_text` — e e por ele que o titulo e o texto
+    sobre publicacao entram na pagina de detalhes. Sobrescrever este arquivo e o
+    que permite pôr o cartao do endereco no lugar certo, entre o texto e os
+    campos, sem copiar o form_report.html inteiro.
+
+    O texto sobre o envio a prefeitura e a publicacao online continua sendo o do
+    upstream, vindo dos mesmos `councils_text_all.html` / `councils_text.html`:
+    e conteudo informativo e juridico, e nao ha razao para reescrever.
+%]
+[% BLOCK public_councils_text %]
+<h2 class="map-step__title js-hide-if-private-category">[% loc( 'Public details' ) %]</h2>
+<h2 class="map-step__title form-section-heading--private js-hide-if-public-category hidden-js">[% loc( 'Report details' ) %]</h2>
+
+<div class="map-detalhe__texto form-section-description" id="js-councils_text">
+  [% IF js %]
+    [% PROCESS 'report/new/councils_text_all.html' list_of_names = [ loc('the local council') ] %]
+  [% ELSE %]
+    [% PROCESS 'report/new/councils_text.html' %]
+  [% END %]
+</div>
+
+[%# Cartao do endereco.
+
+    Nao ha campo para digitar nada aqui: a localizacao ja foi escolhida no passo
+    dois, e este cartao so a mostra. O conteudo e escrito pelo catanduva-map.js a
+    partir do mesmo `/ajax/closest` que alimenta o passo de localizacao — uma
+    fonte de verdade so, sem um segundo estado para desencontrar.
+
+    A linha de cima so aparece quando o geocodificador devolve um nome de lugar
+    ("Serviço de Proteção ao Crédito"). Quando devolve so o logradouro, ela fica
+    vazia e escondida: inventar um nome seria pior do que nao ter. %]
+<div class="map-endereco">
+    <span class="map-endereco__icone" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'pin-solid' %]</span>
+    <span class="map-endereco__corpo">
+        <span class="map-endereco__rotulo">Endereço da ocorrência</span>
+        <strong class="map-endereco__nome js-endereco-nome" hidden></strong>
+        <span class="map-endereco__linha js-endereco-linha" aria-live="polite">
+            [% latitude | html %], [% longitude | html %]
+        </span>
+    </span>
+</div>
+[% END %]

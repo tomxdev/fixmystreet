@@ -1,0 +1,294 @@
+[%# Estado 09 — Ocorrencia enviada.
+
+    Substitui templates/web/base/tokens/confirm_problem.html.
+
+    Esta e a unica tela do fluxo de registro que nao vive dentro da pagina de
+    mapa. O envio e um POST de verdade: a pessoa sai do /around e o servidor
+    decide para onde ela vai. Sao dois caminhos, e os dois terminam aqui:
+
+      ja autenticada  POST /report/new -> redirect /report/confirmation/<id>
+                      (Report.pm, sub confirmation) -> created_report = loggedin
+      nao autenticada POST /report/new -> email_sent.html ("verifique seu
+                      e-mail") -> link do e-mail /P/<token> ->
+                      New.pm, sub process_confirmation -> created_report =
+                      fromemail
+
+    O mapa nao vem de graca nessas rotas — nenhuma das duas monta `map`. Quem
+    monta e o `mapa_da_confirmacao` do cobrand, chamado logo abaixo, deste
+    proprio arquivo. Se um dia ele nao rodar, `map.type` fica vazio e esta
+    pagina cai num cartao centrado, sem mapa, em vez de quebrar.
+
+    O que a referencia mostra e nao esta aqui, com o motivo:
+
+      "Passo 9 de 9"  o fluxo real nao tem nove passos — tem os que a categoria
+                      escolhida exigir, e o contador do painel conta isso. Nesta
+                      tela nao ha mais passo nenhum: a ocorrencia foi enviada.
+                      Escrever 9 de 9 seria decoracao com cara de informacao.
+
+      "#CTD-12345"    nao existe numeracao CTD. O identificador que o sistema
+                      devolve, e que o proprio upstream manda citar em qualquer
+                      contato, e o id da ocorrencia. E ele que aparece.
+%]
+[%
+    # O mapa e montado aqui, e nao por um gancho no controlador.
+    #
+    # Nenhuma das duas rotas que chegam a esta pagina monta `map`, e a versao
+    # anterior resolvia isso com um `call_hook('confirmation_page_extra')`
+    # acrescentado ao Report.pm e ao Report/New.pm do upstream - duas alteracoes
+    # no core para uma necessidade que e so nossa.
+    #
+    # `map =` e obrigatorio, nao estilo. Catalyst::View::TT copia a stash para
+    # as variaveis do template antes de renderizar; uma chave que o metodo
+    # escreva na stash agora ja nao alcanca esta pagina. Por isso o metodo
+    # devolve o mapa e ele e atribuido aqui.
+    #
+    # A ordem tambem importa: o metodo recarrega a ocorrencia do banco (ver F1),
+    # e isso precisa acontecer antes de o template formatar qualquer data dela.
+    # Por isso a chamada esta antes de qualquer leitura de `map` ou de `report`.
+    map = c.cobrand.mapa_da_confirmacao;
+
+    PROCESS "maps/${map.type}.html" IF map.type;
+
+    SET bodyclass = 'mappage mappage--catanduva mappage--sent' IF map.type;
+    SET extra_js = [ version('/cobrands/catanduva/catanduva-map.js') ];
+
+    INCLUDE 'header.html',
+        title  => loc('Confirmation'),
+        robots => 'noindex,nofollow';
+%]
+
+[% IF map.type %]
+    [%# map_html abre <div id="map_box"> e nao fecha; quem fecha e este arquivo. %]
+    [% map_html | safe %]
+    </div>
+[% END %]
+
+<div id="map_sidebar" class="map-panel map-panel--sent">
+
+    <div class="map-panel__flow-head">
+        [%# Volta para o mapa no ponto da ocorrencia, e nao para a home: e de la
+            que a pessoa veio e e la que ela ve o que acabou de registrar. %]
+        <a href="[% c.uri_for('/around', { lat = report.latitude, lon = report.longitude }) %]" class="map-panel__back">
+            [% INCLUDE '_ui-icon.html' icon = 'arrow-left' %]
+            <span>Voltar para o mapa</span>
+        </a>
+    </div>
+
+    <div class="map-sent">
+
+        <p class="map-sent__mark" aria-hidden="true">
+            [% INCLUDE '_ui-icon.html' icon = 'check-badge' %]
+        </p>
+
+        <h1 class="map-sent__title">Ocorrência enviada!</h1>
+
+        [%# "sera encaminhada para analise" saiu daqui.
+
+            Era a unica frase do site que contradizia o proprio site: a pagina
+            "Sobre" diz, em destaque, que o piloto nao tem parceria com a
+            Prefeitura e que as ocorrencias nao chegam a um setor responsavel.
+            Quem lia as duas ficava sem saber qual valia.
+
+            O que a pessoa precisa saber esta no bloco "O que acontece agora",
+            abaixo do protocolo, e vem do que o sistema de fato faz. %]
+        <p class="map-sent__lead">
+            Obrigado por contribuir para uma cidade melhor.
+            Sua ocorrência já está pública, no mapa e na lista de ocorrências.
+        </p>
+
+        [%# ---- Protocolo ----
+            `CTD-2026-0075`, derivado do id e do ano de criacao - ver o POD de
+            `protocolo`, em Catanduva.pm. E o mesmo numero que a pagina da
+            ocorrencia mostra e que a busca do site entende de volta: quem copia
+            daqui acha a ocorrencia digitando isto.
+
+            A data e a de confirmacao quando ha, porque e o momento em que a
+            ocorrencia passou a existir publicamente; antes disso ela estava so
+            esperando o clique no e-mail. prettify_dt formata no fuso e no
+            idioma configurados. %]
+        <div class="map-sent__protocol">
+            <span class="map-sent__protocol-icon" aria-hidden="true">
+                [% INCLUDE '_ui-icon.html' icon = 'clipboard' %]
+            </span>
+            <span class="map-sent__protocol-body">
+                <span class="map-sent__protocol-label">Protocolo da ocorrência</span>
+                <span class="map-sent__protocol-value" id="js-protocol">[% c.cobrand.protocolo(report) %]</span>
+[%# O IF nao e por causa do operador `OR`, como este comentario ja
+                    afirmou por engano. A referencia crua que fazia prettify_dt
+                    morrer vinha do literal SQL que `process_confirmation` grava
+                    em `confirmed`; quem a resolve e o `discard_changes` do
+                    `mapa_da_confirmacao`, no cobrand.
+
+                    O IF fica porque continua sendo verdade que a ocorrencia
+                    pode nao ter data de confirmacao - e ai a de criacao e a
+                    unica que existe. Ver F1 em
+                    docs/CICLO_DE_VIDA_DA_OCORRENCIA.md. %]
+                <span class="map-sent__protocol-date">
+                    [% IF report.confirmed %]
+                        Registrada em [% prettify_dt( report.confirmed ) %]
+                    [% ELSE %]
+                        Registrada em [% prettify_dt( report.created ) %]
+                    [% END %]
+                </span>
+            </span>
+            [%# Escondido ate catanduva-map.js confirmar que ha area de
+                transferencia — um botao de copiar que nao copia e pior do que
+                nenhum. %]
+            <button type="button" class="map-sent__copy js-copy-protocol hidden"
+                    data-copy-target="js-protocol"
+                    data-copy-done="Copiado"
+                    aria-label="Copiar o protocolo da ocorrência">
+                [% INCLUDE '_ui-icon.html' icon = 'copy' %]
+            </button>
+        </div>
+
+        [%# ---- O que acontece agora ----
+
+            Tres fatos, nesta ordem, e cada um verificavel no codigo:
+
+            1. A ocorrencia ja e publica. `process_confirmation` a poe em
+               `confirmed`, e dai ela aparece no mapa e na listagem. Nao ha
+               espera, e dizer isso evita a pergunta "e agora?".
+
+            2. Para onde ela vai. Sao dois mundos, e a diferenca importa:
+
+               COM demonstration_recipient  `munge_sendreport_params` desvia
+                   TODA mensagem para a caixa de demonstracao. A ocorrencia nao
+                   chega a orgao nenhum, e prometer que chega seria mentira.
+                   E o estado do piloto hoje.
+
+               SEM  o envio segue para o e-mail da categoria, pelo cron
+                    `send-reports`. Ai o nome do orgao e verdadeiro e aparece.
+
+            3. Quanto tempo. O envio e por cron, nao no ato do registro - por
+               isso "nos proximos minutos" e nao "agora".
+
+            Nao repete a promessa de e-mail: quem cuida disso e o bloco de
+            acompanhamento logo abaixo, que so aparece quando ha inscricao. %]
+        [% IF c.cobrand.demonstration_recipient %]
+        <p class="map-sent__next map-sent__next--aviso">
+            <span class="map-sent__next-icon" aria-hidden="true">
+                [% INCLUDE '_ui-icon.html' icon = 'info' %]
+            </span>
+            <span>
+                Este piloto <strong>não tem parceria com a Prefeitura</strong>, então
+                a ocorrência não é encaminhada a um setor responsável.
+                <a href="[% c.uri_for('/about') %]">Entenda o piloto</a>.
+            </span>
+        </p>
+        [% ELSIF report.bodies_str %]
+        <p class="map-sent__next">
+            <span class="map-sent__next-icon" aria-hidden="true">
+                [% INCLUDE '_ui-icon.html' icon = 'mail' %]
+            </span>
+            <span>
+                Ela será encaminhada nos próximos minutos para
+                <strong>[% report.body_names.join(' e ') | html %]</strong>.
+            </span>
+        </p>
+        [% END %]
+
+        [%# ---- Acompanhamento ----
+            So aparece quando ha de fato uma assinatura de atualizacoes por
+            e-mail, porque e uma promessa e nao um enfeite.
+
+            Sao tres condicoes, e cada uma corresponde a um jeito de nao haver
+            inscricao:
+
+              report.user.email         sem endereco nao ha para onde escrever;
+              NOT no_reporter_alert     funcionario, ocorrencia anonima e afins,
+                                        que o upstream ja nao inscreve;
+              NOT sem_acompanhamento    quem desmarcou a caixa do ultimo passo.
+                                        E a marca que o cobrand grava e que o
+                                        `suppress_reporter_alerts` le (F4).
+
+            A terceira e lida da ocorrencia, e nao da stash, pelo mesmo motivo
+            que la: para quem registra sem conta esta pagina e outra requisicao,
+            e a stash da anterior nao chega aqui. %]
+        [% IF report.user.email AND NOT no_reporter_alert
+              AND NOT report.get_extra_metadata('sem_acompanhamento') %]
+        <div class="map-sent__follow">
+            <span class="map-sent__follow-icon" aria-hidden="true">
+                [% INCLUDE '_ui-icon.html' icon = 'mail' %]
+            </span>
+            <div class="map-sent__follow-body">
+                <h2 class="map-sent__follow-title">Acompanhe por e-mail</h2>
+                <p>Vamos enviar as atualizações desta ocorrência para
+                   <strong>[% report.user.email | html %]</strong>.</p>
+                [% IF c.user_exists AND c.user.id == report.user.id %]
+                <p class="map-sent__follow-action">
+                    <a href="[% c.uri_for('/auth/change_email') %]">
+                        Editar e-mail cadastrado
+                        [% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]
+                    </a>
+                </p>
+                [% END %]
+            </div>
+        </div>
+        [% END %]
+
+        [%# ---- Acoes ----
+            Ver no mapa vai para a pagina da ocorrencia — relative_url_for_report
+            porque uma ocorrencia pode pertencer a outro cobrand e o link
+            precisaria sair daqui. Registrar outra volta ao formulario no mesmo
+            ponto, que e o que o upstream ja oferecia nesta tela. %]
+        <div class="map-sent__actions">
+            <a href="[% c.cobrand.relative_url_for_report( report ) %][% report.url %]" class="btn btn--primary btn--block">
+                [% INCLUDE '_ui-icon.html' icon = 'map' %]
+                <span>Ver ocorrência no mapa</span>
+            </a>
+            <a href="[% c.uri_for('/report/new', { latitude = report.latitude, longitude = report.longitude }) %]" class="btn btn--block">
+                [% INCLUDE '_ui-icon.html' icon = 'plus-circle' %]
+                <span>Registrar outra ocorrência</span>
+            </a>
+        </div>
+
+        [%# A nota "Juntos por uma Catanduva melhor!" saiu daqui, e a decisao foi
+            medida e nao estetica.
+
+            Esta tela tem altura fixa: o painel nao rola de proposito. O bloco
+            que diz para onde a ocorrencia vai custa 74px, e sem pagar por eles
+            o painel passava a rolar 88px - numa pagina que cabia inteira.
+
+            O que havia de mais barato para pagar era esta nota: era o SEGUNDO
+            agradecimento da mesma tela. O primeiro esta no `map-sent__lead`,
+            logo abaixo do titulo, e agora carrega tambem o fato de a ocorrencia
+            ja ser publica.
+
+            Entre dizer obrigado duas vezes e dizer uma vez a verdade sobre o
+            que acontece com a ocorrencia, a segunda ganha.
+
+            Divergencia deliberada em relacao ao estado 09 da referencia,
+            registrada em docs/ui/map/MAP_EVOLUTION_STATUS.md. %]
+
+        [% TRY %][% INCLUDE 'tokens/_extras_confirm.html' %][% CATCH file %][% END %]
+
+    </div>
+</div>
+
+[%# Faixa inferior — as ocorrencias proximas a que acabou de ser registrada.
+
+    Fica vazia no HTML de proposito: quem a preenche e catanduva-map.js, com o
+    que /around/nearby responder para estas coordenadas. E o mesmo endpoint que
+    o passo de similares usa. Sem JS, ou se a resposta vier vazia, a faixa nao
+    aparece — e uma comodidade, nao parte da confirmacao. %]
+[% IF map.type %]
+<section class="map-strip map-strip--nearby js-nearby-strip hidden"
+         data-lat="[% report.latitude %]" data-lon="[% report.longitude %]"
+         aria-labelledby="map-strip-title">
+    <div class="map-strip__head">
+        <h2 class="map-strip__title" id="map-strip-title">Ocorrências próximas</h2>
+        [% IF c.cobrand.council_area %]
+            [% SET all_uri = '/reports/' _ c.cobrand.council_area | uri %]
+        [% ELSE %]
+            [% SET all_uri = '/reports' %]
+        [% END %]
+        <a class="map-strip__all" href="[% all_uri %]">
+            Ver todas [% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]
+        </a>
+    </div>
+    <div class="map-strip__list js-nearby-list"></div>
+</section>
+[% END %]
+
+[% INCLUDE 'footer.html' %]

@@ -1,0 +1,60 @@
+[%# Cabecalho do fluxo de registro: atalho de volta ao mapa e indicador de
+    quatro etapas.
+
+    Vive num arquivo proprio porque o fluxo tem **duas portas de entrada** e as
+    duas precisam da mesma moldura:
+
+      - around/display_location.html, quando o fluxo abre por cima do mapa;
+      - report/new/fill_in_details.html, quando a pagina e carregada direto —
+        que e o que acontece ao apertar F5, ao chegar por um link com
+        coordenadas, ao usar "pular o mapa" ou sem JS.
+
+    Enquanto isto estava escrito so na primeira, dar refresh trocava o
+    cabecalho novo pelo antigo no meio do fluxo.
+
+    As quatro etapas nao sao as nove `.js-reporting-page` do upstream — sao
+    agrupamentos delas. O catanduva-map.js faz o de-para e marca a etapa
+    corrente; escrever aqui qual esta ativa seria mentira, porque o passo muda
+    sem recarregar a pagina. %]
+<div class="map-panel__flow-head">
+    <a href="#" class="js-back map-step__voltar">
+        [% INCLUDE '_ui-icon.html' icon = 'arrow-left' %]
+        <span>Voltar ao mapa</span>
+    </a>
+
+    <ol class="map-stepper js-map-stepper">
+        <li class="map-stepper__item" data-etapa="tipo">
+            <span class="map-stepper__marca">1</span>
+            <span class="map-stepper__rotulo">Tipo</span>
+        </li>
+        <li class="map-stepper__item" data-etapa="localizacao">
+            <span class="map-stepper__marca">2</span>
+            <span class="map-stepper__rotulo">Localização</span>
+        </li>
+        <li class="map-stepper__item" data-etapa="detalhes">
+            <span class="map-stepper__marca">3</span>
+            <span class="map-stepper__rotulo">Detalhes</span>
+        </li>
+        <li class="map-stepper__item" data-etapa="revisao">
+            <span class="map-stepper__marca">4</span>
+            <span class="map-stepper__rotulo">Revisão</span>
+        </li>
+    </ol>
+
+    <p class="map-panel__step js-map-step screen-reader-only" aria-live="polite"></p>
+
+    [%# Endereco do ponto escolhido, visivel em todos os passos.
+
+        O passo "Confirme a localizacao" ja mostra este endereco, mas ele e o
+        terceiro passo: entre escolher o ponto e chegar la a pessoa passa por
+        categoria e subcategoria sem ver onde e que o pino caiu. Repetir aqui
+        nao duplica logica — e o mesmo `.js-map-address` que o catanduva-map.js
+        preenche a partir de /ajax/closest, num seletor so.
+
+        Comeca vazio e o CSS o esconde enquanto estiver vazio: nada de caixa
+        reservada para um endereco que ainda nao existe. %]
+    <p class="map-panel__flow-address" hidden>
+        [% INCLUDE '_ui-icon.html' icon = 'pin' %]
+        <span class="js-map-address"></span>
+    </p>
+</div>

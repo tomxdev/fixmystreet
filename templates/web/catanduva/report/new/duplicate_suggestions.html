@@ -1,0 +1,251 @@
+[%# Dois passos do fluxo moram aqui: "confirme a localizacao", que e proprio do
+    cobrand, e o de ocorrencias similares, que e o do upstream com outra
+    composicao. O upstream junta os dois neste arquivo, e separar exigiria mais
+    um ponto de extensao no form_report.html. %]
+
+<div data-page-name="location" class="js-reporting-page js-reporting-page--location">
+    <h2 class="map-step__title">Confirme a localização</h2>
+    <p class="map-step__lead">Verifique se o ponto no mapa está correto. Você pode
+    ajustar o marcador arrastando-o, se necessário.</p>
+
+    [%# Texto em portugues, e nao `loc('Click the map or drag the pin...')`: o
+        catalogo pt_BR nao traduz essa chave e a instrucao saia em ingles. %]
+    <p class="map-step__dica">
+        [% INCLUDE '_ui-icon.html' icon = 'pin' %]
+        <span>Clique no mapa ou arraste o pino para ajustar a localização</span>
+    </p>
+
+    [%# O endereco e preenchido por catanduva-map.js a partir de /ajax/closest,
+        que e reverse geocoding de verdade — o mesmo endpoint que o upstream ja
+        expoe. Enquanto a resposta nao chega, mostra as coordenadas, que e o dado
+        que temos com certeza. Nada aqui e inventado. %]
+    <div class="map-local">
+        <span class="map-local__icone" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'pin-solid' %]</span>
+        <span class="map-local__corpo">
+            <span class="map-local__rotulo">Endereço selecionado</span>
+            <span class="map-local__valor js-map-address" aria-live="polite">
+                [% latitude | html %], [% longitude | html %]
+            </span>
+        </span>
+    </div>
+
+    [%# Busca por outro endereco, sem sair do passo.
+
+        O campo **nao** tem `name` e o botao e `type="button"`: ele vive dentro
+        do #mapForm, que posta para /report/new, e um campo com nome entraria no
+        envio. Quem faz a busca e o catanduva-map.js, contra
+        /ajax/lookup_location — o geocoder que o proprio projeto ja expoe — e o
+        resultado entra pelo mesmo caminho do clique no mapa
+        (`fixmystreet.display.begin_report`), que move o pino, escreve as
+        coordenadas no formulario e dispara o reverse geocoding que atualiza o
+        cartao acima. Nao ha um segundo estado de localizacao. %]
+    <p class="map-step__ou">Ou buscar por uma localização diferente</p>
+
+    <div class="map-step__busca">
+        <div class="home-search__box">
+            <span class="home-search__icon" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'search' %]</span>
+            <label for="busca_local" class="screen-reader-only">Buscar por uma localização diferente</label>
+            <input type="text" id="busca_local" class="js-busca-local" maxlength="200"
+                   autocomplete="off" placeholder="Ex.: Rua São Paulo, Centro...">
+            <button type="button" class="btn btn--primary js-busca-local-enviar">Buscar</button>
+        </div>
+
+        <p class="map-step__busca-status js-busca-local-status" role="status" aria-live="polite" hidden></p>
+        <ul class="map-step__busca-opcoes js-busca-local-opcoes" hidden></ul>
+    </div>
+
+    [%# Vista da rua: confirmacao visual do ponto, nunca requisito para seguir.
+
+        O provider vem de `c.cobrand.street_imagery_provider`, que le a feature
+        `street_imagery` de COBRAND_FEATURES; vazio nao imprime nada. O padrao e
+        o KartaView, que responde sem credencial e cuja licenca permite a foto ao
+        lado de um mapa que nao e dele. Google Street View esta descartado por
+        licenca, e nao por preco: os termos da Google proibem exibir Street View
+        e um mapa nao-Google na mesma tela. A investigacao inteira esta em
+        docs/ui/map/MAP_EVOLUTION_STATUS.md, secao STREET_VIEW_INVESTIGATION.
+
+        Nada aqui carrega junto com a pagina: quem busca e o catanduva-map.js,
+        so nesta etapa e so depois de haver uma localizacao. %]
+    [% provedor_rua = c.cobrand.street_imagery_provider %]
+    [% IF provedor_rua %]
+    <figure class="map-street js-map-street" data-provedor="[% provedor_rua | html %]" data-estado="vazio">
+        <div class="map-street__quadro">
+            <img class="map-street__foto js-map-street-foto" alt="" hidden>
+
+            <figcaption class="map-street__legenda js-map-street-legenda" hidden>
+                <span class="map-street__local">
+                    <strong class="js-map-street-rua"></strong>
+                    <span class="js-map-street-area"></span>
+                </span>
+                [%# Credito exigido pela CC BY-SA: quem fotografou e de onde vem. %]
+                <span class="map-street__fonte js-map-street-fonte"></span>
+            </figcaption>
+        </div>
+
+        [%# Carregando, sem cobertura ou falha do provedor: uma faixa fina, que
+            informa e sai da frente. A ausencia de foto nao impede continuar. %]
+        <p class="map-street__estado js-map-street-estado" role="status" aria-live="polite">
+            <span class="map-street__estado-icone" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'image' %]</span>
+            <span class="js-map-street-estado-texto"></span>
+
+            [%# Quando o acervo aberto nao tem foto do ponto, resta o Street View
+                da Google — mas como *link*, que abre noutra aba, e nao como
+                imagem embutida. A diferenca importa: exibir a imagem deles na
+                mesma tela que um mapa nao-Google e proibido pelos termos
+                (ToS 3.2.3(e)), enquanto o formato de URL usado aqui e o
+                documentado por eles e dispensa chave e faturamento
+                ("You don't need a Google API key to use Maps URLs"). %]
+            <a class="map-street__alternativa js-map-street-alternativa"
+               target="_blank" rel="noopener noreferrer" hidden>Ver no Google Street View</a>
+        </p>
+    </figure>
+    [% END %]
+
+    <div class="map-step__actions map-step__actions--navegacao">
+        <a href="#" class="btn js-back map-step__cancelar">
+            [% INCLUDE '_ui-icon.html' icon = 'arrow-left' %]
+            <span>[% loc('Back') %]</span>
+        </a>
+        <button type="button" class="btn btn--primary js-reporting-page--next map-step__proximo">
+            <span>[% loc('Continue') %]</span>
+            [% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]
+        </button>
+    </div>
+</div>
+
+[%# A partir daqui e o passo de ocorrencias similares. A condicao, os ids, as
+    classes e o <div class="js-template-get-updates"> sao os do upstream: e o
+    duplicates.js que os procura. O que muda e a composicao — a lista vira um
+    carrossel de uma ocorrencia por vez, e o formulario de acompanhamento sai de
+    dentro do <li> e vira uma vista propria do passo. %]
+[% IF c.cobrand.suggest_duplicates AND NOT login_success AND NOT oauth_need_email %]
+[% extra_js.push(
+    version('/js/duplicates.js'),
+) -%]
+<div data-page-name="duplicates" id="js-duplicate-reports" class="js-reporting-page js-reporting-page--duplicates js-reporting-page--skip duplicate-report-suggestions hidden">
+
+    [%# A vista principal do passo: pergunta, contagem, cartoes, saida.
+
+        Os cartoes sao escritos pelo catanduva-map.js a partir do bloco de dados
+        que /around/nearby devolve junto com a lista do upstream. Nao ha nada
+        escrito aqui sobre as ocorrencias — nem quantas, nem quais. %]
+    [%# A ficha da ocorrencia e montada pelo catanduva-map.js, entao os icones
+        dela nao podem ser escritos no lugar em que aparecem. Ficam aqui,
+        escondidos, e o JS os clona: assim o desenho continua vindo do conjunto
+        do cobrand, e nao de SVG copiado dentro do JavaScript. %]
+    <div class="map-dup__icones" hidden>
+        <span id="js-icone-seta-esquerda">[% INCLUDE '_ui-icon.html' icon = 'arrow-left' %]</span>
+        <span id="js-icone-seta-direita">[% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]</span>
+        <span id="js-icone-pin">[% INCLUDE '_ui-icon.html' icon = 'pin-solid' %]</span>
+        <span id="js-icone-calendario">[% INCLUDE '_ui-icon.html' icon = 'calendar' %]</span>
+        <span id="js-icone-clipboard">[% INCLUDE '_ui-icon.html' icon = 'clipboard' %]</span>
+        <span id="js-icone-check">[% INCLUDE '_ui-icon.html' icon = 'check' %]</span>
+    </div>
+
+    <div class="js-dup-intro map-dup">
+        <h2 class="map-step__title">Já foi relatado?</h2>
+
+        [%# A contagem e dinamica e muda com a localizacao; `aria-live` faz o
+            leitor de tela anunciar a troca sem que a pessoa precise procurar. %]
+        <p class="map-step__lead js-dup-count" aria-live="polite"></p>
+
+        [%# O carrossel. Uma ocorrencia de cada vez: a pergunta deste passo e
+            "esta e a mesma que eu ia registrar?", e quem responde precisa olhar
+            uma por vez. Uma lista de quatro cartoes obriga a rolar o painel e a
+            comparar de memoria.
+
+            Os controles ficam escondidos quando ha uma so — nao ha para onde
+            ir, e tres controles dizendo isso seriam ruido. Quem os mostra e o
+            catanduva-map.js, que tambem escreve o cartao. %]
+        [%# A posicao a esquerda e as duas setas juntas a direita: setas separadas
+            pela largura do painel viram dois controles que nao parecem o mesmo
+            par, e a mao tem de atravessar a tela para ir de uma a outra. %]
+        <div class="map-dup__nav js-dup-nav" hidden>
+            <span class="map-dup__pos js-dup-pos" aria-live="polite"></span>
+            <button type="button" class="map-dup__seta js-dup-antes" aria-label="Ocorrência anterior">
+                [% INCLUDE '_ui-icon.html' icon = 'arrow-left' %]
+            </button>
+            <button type="button" class="map-dup__seta js-dup-depois" aria-label="Próxima ocorrência">
+                [% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]
+            </button>
+        </div>
+
+        <div class="map-dup__palco js-dup-palco js-dup-cards" tabindex="0"
+             role="group" aria-label="Ocorrências próximas"></div>
+
+        <div class="map-dup__pontos js-dup-pontos"></div>
+
+        [%# Bloco informativo. E informacao, nao erro: icone de informacao e a
+            superficie neutra do sistema — nunca a de erro. %]
+        <div class="map-dup__saida">
+            <span class="map-dup__saida-icone" aria-hidden="true">
+                [% INCLUDE '_ui-icon.html' icon = 'info' %]
+            </span>
+            <span class="map-dup__saida-corpo">
+                <strong class="map-dup__saida-titulo">Não encontrou o problema?</strong>
+                <span class="map-dup__saida-texto">Se não for o mesmo problema, você
+                pode continuar e registrar uma nova ocorrência neste local.</span>
+            </span>
+        </div>
+
+        <div class="map-step__actions map-step__actions--navegacao">
+            <button type="button" class="btn map-step__cancelar js-dup-voltar">
+                [% INCLUDE '_ui-icon.html' icon = 'arrow-left' %]
+                <span>[% loc('Back') %]</span>
+            </button>
+            <button type="button" class="btn btn--primary map-step__proximo js-reporting-page--next">
+                <span>Registrar novo problema</span>
+                [% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]
+            </button>
+        </div>
+    </div>
+    [%# Onde o duplicates.js escreve a lista do upstream, e onde o servidor
+        deixa o bloco de dados dos cartoes. Fica escondida: quem aparece sao os
+        cartoes montados a partir dela. %]
+    <ul class="item-list js-dup-source" hidden></ul>
+
+    [%# Detalhe da ocorrencia escolhida num cartao. %]
+    <div class="js-dup-detail" hidden></div>
+
+    [%# Formulario de acompanhamento, movido para fora do <li> do upstream. %]
+    <div class="js-dup-follow" hidden></div>
+</div>
+[%# O molde do formulario de acompanhamento.
+
+    A condicao, a classe `js-template-get-updates`, os campos e o id
+    `alert_email_button` sao os do upstream, e e de proposito: o handler que faz
+    o acompanhamento funcionar vive no fixmystreet.js e procura exatamente por
+    eles. Ele valida o e-mail, monta um POST para /alert/subscribe com o que
+    estiver dentro do `.js-alert-list` mais proximo, e envia. Nao ha aqui um
+    segundo mecanismo de notificacao — ha a mesma inscricao de sempre, com outra
+    roupa.
+
+    Duas diferencas em relacao ao upstream:
+
+    1. O campo de e-mail existe sempre, inclusive para quem tem sessao aberta.
+       O upstream esconde o campo nesse caso e usa o e-mail da conta; a
+       referencia mostra o campo em todos os casos, e mostra-lo preenchido e
+       mais honesto do que nao dizer para onde o aviso vai. O `subscribe_email`
+       aceita `rznvy` tanto de quem esta logado quanto de quem nao esta.
+
+    2. O `rznvy_hint` do upstream nao entra: o texto dele ("Would you like us to
+       notify you...") faz a pergunta que o titulo desta tela ja faz.
+
+    Para quem tem sessao aberta o campo e `readonly`, e isso nao e capricho: o
+    `process_user` do Alert.pm ignora o `rznvy` quando ha usuario logado e o tipo
+    e `updates` — o alerta vai para o e-mail da conta, aconteca o que acontecer
+    no campo. Deixa-lo editavel seria prometer uma escolha que o sistema nao
+    cumpre. %]
+<div class="js-template-get-updates hidden">
+    <div class="get-updates js-alert-list">
+        <input type="hidden" name="id" disabled>
+        <input type="hidden" name="token" value="[% csrf_token %]" disabled>
+        <input type="hidden" name="type" value="updates" disabled>
+        <input type="email" class="form-control" name="rznvy" id="rznvy_input"
+               autocomplete="email" placeholder="nome@email.com"
+               value="[% c.user_exists ? c.user.email : '' | html %]"
+               [% IF c.user_exists %]readonly data-conta="1"[% END %] disabled>
+        <input type="submit" value="Receber atualizações" class="btn btn--primary" id="alert_email_button">
+    </div>
+</div>
+[% END %]

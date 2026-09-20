@@ -1,0 +1,35 @@
+[%# O campo "Nome", com o erro ligado a ele (2.2).
+
+    Copia de templates/web/base/report/form/user_name.html, 13 linhas. A
+    diferenca sao tres atributos:
+
+      id="form_name-error"    dá nome ao erro. O sufixo `-error` nao e escolha
+                              nossa: e o que o jQuery Validate gera para o campo
+                              `form_name`. Usando o mesmo, o `showLabel` dele
+                              REAPROVEITA este paragrafo em vez de criar um
+                              segundo - senao a pessoa veria a mensagem do
+                              servidor e a do navegador, uma embaixo da outra.
+
+      role="alert"            faz o leitor de tela anunciar o erro ao chegar na
+                              pagina, sem esperar o foco cair no campo.
+
+      aria-describedby        e o que amarra os dois. Sem ele o erro e lido
+                              solto, e quem o ouve nao sabe a qual campo
+                              pertence - era o item 2.2 dos PROBLEMAS_CONHECIDOS.
+
+    `aria-invalid` diz ao leitor de tela que o campo esta em erro, que e o outro
+    metade da mesma informacao.
+%]
+<label for="form_name">[% loc('Name') %]
+[% TRY %]
+    [% INCLUDE 'report/form/after_name.html' %]
+    [% CATCH file %]
+[% END %]
+</label>
+[% IF field_errors.name %]
+    <p class='form-error' id="form_name-error" role="alert">[% field_errors.name %]</p>
+[% END %]
+<input type="text" class="form-control [% valid_class OR 'validName' %] js-form-name [% extra_class %]"
+    value="[% object.name || c.user.name | html %]" name="name" id="form_name" autocomplete="name"
+    aria-required="true"
+    [%~ IF field_errors.name %] aria-describedby="form_name-error" aria-invalid="true"[% END %]>

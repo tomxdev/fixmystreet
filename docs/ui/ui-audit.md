@@ -518,3 +518,69 @@ O tratamento de cartão foi aplicado a `.item-list--front-page`, a lista da Home
 As listas do painel e da barra lateral do mapa **não** receberam superfície: são
 listas densas, onde sombra por item pesa mais do que ajuda. Entram na Fase 7,
 quando essas páginas forem tratadas por inteiro.
+
+---
+
+# Situação após a Fase 5 — Composição
+
+> Revalidado com Playwright MCP em 390 / 768 / 1024 / 1440, nas rotas `/`,
+> `/report/:id` e `/reports`.
+
+## Referência externa, e o que dela foi tomado
+
+O responsável indicou o **colab.com.br** como referência de conceito. As seções
+13.1 e 13.2 do plano proíbem reproduzir a identidade visual de outra plataforma,
+então o que se tomou emprestado foram **padrões genéricos de composição**:
+
+- CTA destacado no cabeçalho, separado do menu
+- hero com título expressivo, regra decorativa e subtítulo subordinado
+- respiro vertical generoso entre blocos
+- conteúdo sobre fundo neutro, com superfícies brancas por cima
+- container centrado, não full-bleed
+
+Paleta, tipografia, marca e vocabulário continuam sendo os de §13.1.
+
+## Resolvidos
+
+| Item | Antes | Depois |
+|---|---|---|
+| Fundo do conteúdo | um bloco branco único; cartões brancos invisíveis sobre ele | `$content-background-desktop` no tom da página; cartões passam a ter contra o que contrastar |
+| Colunas da Home | células de tabela com altura igualada — 337px de conteúdo esticados a 614px | flex com `align-items: flex-start`, cada coluna no seu tamanho |
+| Hero | título direto no subtítulo | regra decorativa em Secondary entre os dois |
+| CTA no desktop | inexistente | coral com texto escuro (`D-004`), fora da Home |
+
+## `UI-003` continua parcialmente aberto, e por um motivo concreto
+
+O CTA `#report-cta` **já existia no HTML** e estava apenas escondido no desktop,
+então trazê-lo de volta não exigiu template. Mas o seu `href` é `/`:
+
+```
+rota atual: /        href do CTA: /        apontaParaPaginaAtual: true
+```
+
+**Na Home ele aponta para a própria Home.** Um botão de destaque que não leva a
+lugar nenhum é pior que nenhum botão, então ele fica oculto ali — e aparece nas
+demais páginas, onde `/` é de fato a entrada do fluxo de registro.
+
+Dar à Home um CTA de verdade exige um `href` diferente, e `href` é template.
+Fica para uma unidade que combine essa mudança.
+
+## Três erros de escopo de seletor, todos apanhados pela captura
+
+**`.frontpage .container`** — `.container` é classe genérica, e o cabeçalho também
+a usa. A regra de respiro engordou o cabeçalho em 64px no celular e abriu um vazio
+branco antes do hero. Corrigido mirando `.content`.
+
+**`.frontpage .tablewrapper`** — o rodapé carrega um segundo `.tablewrapper`
+(`.footer-marketing`). A regra transformou os dois parágrafos do rodapé em colunas
+lado a lado. Corrigido com filho direto: `.content > .tablewrapper`.
+
+**`padding` no `.container` para reservar a faixa do CTA** — o container é
+`content-box`, então o padding alargou a caixa em vez de empurrar o menu, e o CTA
+continuou por cima de "Alertas locais" e "Ajuda". Corrigido com `margin` no
+`#main-nav`.
+
+Nenhum dos três apareceu na varredura numérica: contraste, overflow e alvos de
+toque seguiam limpos enquanto o rodapé estava em duas colunas e o cabeçalho tinha
+o dobro da altura. Segunda vez nesta iniciativa que a captura pega o que a
+medição não pega.

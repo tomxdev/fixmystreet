@@ -1,0 +1,2084 @@
+// ---------------------------------------------------------------------------
+// Componentes compartilhados — UI Evolution V2
+// ---------------------------------------------------------------------------
+//
+// Tudo aqui vale em todas as larguras. O que depende de viewport esta em
+// layout.scss, que so carrega a partir de 768px (templates/web/base/header/css.html).
+//
+// Este arquivo e a implementacao de docs/ui/DESIGN_SYSTEM.md. Nenhuma pagina
+// deve reinterpretar um componente daqui: se uma pagina precisa de algo
+// diferente, a variante entra neste arquivo com nome proprio.
+
+// Anel de foco.
+//
+// Duas camadas: um halo claro por dentro e o contorno escuro por fora. Uma cor
+// so nao sobrevive aos dois extremos de fundo que a interface tem — a faixa
+// escura do topo e a superficie branca dos cartoes.
+@mixin foco-visivel {
+    outline: 3px solid var(--c-focus);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px var(--c-surface);
+}
+
+@mixin foco-visivel-escuro {
+    outline: 3px solid var(--c-text-inverse);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+// ---------------------------------------------------------------------------
+// 1. Fundacao
+// ---------------------------------------------------------------------------
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    background: var(--c-bg);
+    color: var(--c-text-body);
+    font-family: var(--font-sans);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: var(--c-text);
+    font-family: var(--font-sans);
+    letter-spacing: var(--ls-heading);
+}
+
+h1 {
+    font-size: var(--fs-h1);
+    font-weight: var(--fw-black);
+    line-height: var(--lh-heading);
+    margin: 0 0 var(--space-4);
+}
+
+h2 {
+    font-size: var(--fs-h2);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-heading);
+    margin: 0 0 var(--space-4);
+}
+
+h3 {
+    font-size: var(--fs-h3);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-snug);
+    margin: 0 0 var(--space-3);
+}
+
+h4 {
+    font-size: var(--fs-h4);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-snug);
+    margin: 0 0 var(--space-2);
+}
+
+p {
+    margin: 0 0 var(--space-4);
+}
+
+a {
+    color: var(--c-primary);
+    text-decoration: none;
+
+    &:visited {
+        color: var(--c-primary);
+    }
+
+    &:hover {
+        color: var(--c-primary-hover);
+        text-decoration: underline;
+    }
+
+    &:focus-visible {
+        @include foco-visivel;
+        border-radius: var(--radius-sm);
+    }
+}
+
+// Texto de apoio, em qualquer superficie clara.
+small,
+.form-hint,
+.item-list__update-text,
+.u-muted {
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-snug);
+}
+
+hr {
+    border: 0;
+    border-top: 1px solid var(--c-border);
+    margin: var(--space-8) 0;
+}
+
+// ---------------------------------------------------------------------------
+// 2. Container
+// ---------------------------------------------------------------------------
+
+.container {
+    max-width: var(--container-max);
+    padding-left: var(--container-gutter);
+    padding-right: var(--container-gutter);
+    margin-left: auto;
+    margin-right: auto;
+}
+
+// O upstream usa .full-width para sangrar um bloco ate a borda do container. Com
+// a gutter agora vindo de token, a margem negativa tem que vir do mesmo lugar.
+.full-width {
+    margin-left: calc(-1 * var(--container-gutter));
+    margin-right: calc(-1 * var(--container-gutter));
+}
+
+// ---------------------------------------------------------------------------
+// 3. Botoes
+// ---------------------------------------------------------------------------
+//
+// Um unico corpo geometrico — 44px de alvo, raio 10, peso 600, sem sombra — e
+// quatro peles. A referencia mostra so duas (solida verde e clara com borda); as
+// outras derivam dela para os estados que a imagem nao cobre (Fase 9 do plano).
+
+@mixin btn-base {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 44px;
+    padding: var(--space-2) var(--space-5);
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    font-family: var(--font-sans);
+    font-size: var(--fs-body);
+    font-weight: var(--fw-semibold);
+    line-height: 1.25;
+    letter-spacing: 0;
+    text-align: center;
+    text-decoration: none;
+    text-shadow: none;
+    white-space: nowrap;
+    background-image: none;
+    box-shadow: none;
+    cursor: pointer;
+    transition: background-color var(--dur) var(--ease),
+        border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+
+    &:hover {
+        text-decoration: none;
+    }
+
+    &:focus-visible {
+        @include foco-visivel;
+    }
+
+    &[disabled],
+    &[aria-disabled="true"],
+    &.btn--disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    // Sem medida propria, um <svg> em linha assume os 300x150 do padrao de
+    // substituicao. Aparecia como uma seta gigante dentro do botao da faixa.
+    svg {
+        flex: 0 0 auto;
+        width: 18px;
+        height: 18px;
+    }
+}
+
+.btn,
+button.btn,
+a.btn,
+input.btn,
+input[type="submit"]:not(.fake-link),
+button[type="submit"]:not(.fake-link),
+.btn-primary,
+.green-btn {
+    @include btn-base;
+}
+
+// Neutro: a pele padrao. Superficie clara com borda discreta — e o "Entrar" da
+// referencia.
+.btn,
+button.btn,
+a.btn,
+input.btn {
+    background-color: var(--c-surface-alt);
+    border-color: var(--c-border);
+    color: var(--c-text);
+
+    &:visited {
+        color: var(--c-text);
+    }
+
+    &:hover {
+        background-color: var(--c-surface);
+        border-color: var(--c-border-strong);
+        color: var(--c-text);
+    }
+
+    &:active {
+        background-color: var(--c-border);
+    }
+}
+
+// Primario: verde solido, texto branco.
+//
+// Os seletores qualificados por elemento nao sao enfeite. A pele neutra acima
+// precisa casar com `a.btn` e `input.btn`, porque o upstream estiliza botoes por
+// elemento; isso da a ela especificidade (0,1,1), e uma variante escrita so como
+// `.btn--primary` — (0,1,0) — perde a disputa. O botao "Registrar ocorrencia"
+// saiu cinza com texto branco por exatamente isso. Toda variante abaixo repete a
+// forma pela mesma razao.
+//
+// Ha uma armadilha pior do que especificidade neste componente: o upstream
+// escreve `.btn, .skiplink { color: inherit !important }`. Nenhuma regra de cor
+// de texto nossa vence isso — nem por id. O unico jeito de um botao ter texto
+// proprio e ele carregar `.btn--primary`, que o proprio upstream marca com
+// `!important`. Quando um botao aparecer com a cor do texto do contexto em vez
+// da sua, e esta a causa; a correcao e a classe, nao mais especificidade.
+.btn--primary,
+a.btn--primary,
+button.btn--primary,
+input.btn--primary,
+.btn-primary,
+.green-btn,
+input[type="submit"]:not(.fake-link),
+button[type="submit"]:not(.fake-link) {
+    background-color: var(--c-primary);
+    border-color: var(--c-primary);
+    color: var(--c-text-inverse);
+
+    &:visited {
+        color: var(--c-text-inverse);
+    }
+
+    &:hover {
+        background-color: var(--c-primary-hover);
+        border-color: var(--c-primary-hover);
+        color: var(--c-text-inverse);
+    }
+
+    &:active {
+        background-color: var(--c-primary-active);
+        border-color: var(--c-primary-active);
+    }
+}
+
+// Contorno: mesma geometria, sem preenchimento. Usado onde um segundo botao
+// precisa competir menos com o primario.
+.btn--outline,
+a.btn--outline,
+button.btn--outline,
+input.btn--outline {
+    background-color: transparent;
+    border-color: var(--c-primary);
+    color: var(--c-primary);
+
+    &:visited {
+        color: var(--c-primary);
+    }
+
+    &:hover {
+        background-color: var(--c-primary-soft);
+        border-color: var(--c-primary-hover);
+        color: var(--c-primary-hover);
+    }
+}
+
+// Fantasma: so texto. Acoes terciarias e barras densas.
+.btn--ghost,
+a.btn--ghost,
+button.btn--ghost,
+input.btn--ghost {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--c-text);
+
+    &:hover {
+        background-color: var(--c-surface-alt);
+        color: var(--c-text);
+    }
+}
+
+// Sobre a faixa escura: contorno claro, como o "Saiba como participar" da
+// referencia.
+.btn--on-night,
+a.btn--on-night,
+button.btn--on-night,
+input.btn--on-night {
+    background-color: transparent;
+    border-color: #{rgba($white, 0.6)};
+    color: var(--c-text-inverse);
+
+    &:visited {
+        color: var(--c-text-inverse);
+    }
+
+    &:hover {
+        background-color: #{rgba($white, 0.12)};
+        border-color: var(--c-text-inverse);
+        color: var(--c-text-inverse);
+    }
+
+    &:focus-visible {
+        @include foco-visivel-escuro;
+    }
+}
+
+.btn--sm {
+    min-height: 36px;
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--fs-sm);
+}
+
+.btn--lg {
+    min-height: 52px;
+    padding: var(--space-3) var(--space-8);
+    font-size: var(--fs-lead);
+}
+
+.btn--block {
+    display: flex;
+    width: 100%;
+}
+
+.btn--pill {
+    border-radius: var(--radius-pill);
+}
+
+// Botao so de icone. 44x44 mesmo sem rotulo visivel.
+.btn--icon {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+// O upstream marca como .btn--danger o que apaga coisas.
+.btn--danger,
+a.btn--danger,
+button.btn--danger,
+input.btn--danger {
+    background-color: var(--c-error);
+    border-color: var(--c-error);
+    color: var(--c-text-inverse);
+
+    &:hover {
+        background-color: #{darken($error_color, 8%)};
+        border-color: #{darken($error_color, 8%)};
+        color: var(--c-text-inverse);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 4. Campos de formulario
+// ---------------------------------------------------------------------------
+
+label,
+.label {
+    display: block;
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+    margin-bottom: var(--space-2);
+}
+
+.form-control,
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+select,
+textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: var(--space-3) var(--space-4);
+    background-color: var(--c-surface);
+    border: 1px solid var(--c-border-strong);
+    border-radius: var(--radius-md);
+    color: var(--c-text);
+    font-family: var(--font-sans);
+    font-size: var(--fs-body);
+    line-height: var(--lh-snug);
+    box-shadow: none;
+    transition: border-color var(--dur) var(--ease),
+        box-shadow var(--dur) var(--ease);
+
+    &::placeholder {
+        color: var(--c-text-muted);
+        opacity: 1;
+    }
+
+    &:hover {
+        border-color: var(--c-text-muted);
+    }
+
+    &:focus,
+    &:focus-visible {
+        border-color: var(--c-primary);
+        outline: 2px solid transparent;
+        outline-offset: 2px;
+        box-shadow: var(--shadow-focus);
+    }
+}
+
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+select {
+    min-height: 44px;
+}
+
+textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+// Caixas e radios ficam com 20px visuais e 44px de area clicavel via o rotulo.
+input[type="checkbox"],
+input[type="radio"] {
+    width: 20px;
+    height: 20px;
+    min-height: 0;
+    accent-color: var(--c-primary);
+}
+
+// Erro de campo: a cor vive na borda e numa mensagem, nunca so na cor.
+.form-error,
+.error {
+    input,
+    select,
+    textarea {
+        border-color: var(--c-error);
+        border-width: 2px;
+    }
+}
+
+// O proprio campo invalido. O jQuery Validate poe a mesma `form-error` no campo
+// e na mensagem (`errorClass`, em fixmystreet.js), entao os dois casos precisam
+// ser escritos separados, por elemento.
+//
+// O upstream deixa o campo com cantos assimetricos — `border-radius: 0 .25em
+// .25em .25em` — porque desenha a mensagem como uma aba colada em cima dele.
+// Aqui a mensagem e um bloco proprio, e o campo mantem o raio de sempre.
+input.form-error,
+select.form-error,
+textarea.form-error {
+    border-color: var(--c-error);
+    border-width: 2px;
+    border-radius: var(--radius-md);
+}
+
+// A mensagem de erro.
+//
+// O upstream a desenha como etiqueta solida: `background: $error_color; color:
+// #fff`. A regra que estava aqui trocava so a cor do texto para vermelho e
+// deixava o fundo do upstream de pe — vermelho sobre vermelho, contraste 1:1. A
+// mensagem continuava no DOM e continuava sendo lida por leitor de tela, mas
+// para quem enxerga era uma barra vermelha sem texto nenhum. Era o que aparecia
+// ao tentar avancar de "Detalhes publicos" com os campos vazios.
+//
+// Agora ela e redesenhada inteira, no mesmo vocabulario de `.c-alert--error`:
+// fundo claro, barra na borda esquerda e texto na cor de erro. Assim a cor
+// deixa de ser o unico sinal — quem nao a distingue ainda ve a barra e o bloco
+// destacado, e o markup do upstream ja traz um "Erro:" para leitor de tela.
+//
+// Por elemento (`div`/`p`), nunca por classe solta: um `.form-error` sozinho
+// tambem casaria com o campo invalido e pintaria o fundo dele.
+div.form-error,
+p.form-error {
+    display: block;
+    width: auto;
+    box-sizing: border-box;
+    margin: 0 0 var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-left: 3px solid var(--c-error);
+    border-radius: var(--radius-md);
+    background: var(--c-error-bg);
+    color: var(--c-error);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+
+    a {
+        color: var(--c-error);
+        text-decoration: underline;
+
+        &:hover,
+        &:focus-visible {
+            text-decoration: none;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 5. Superficies
+// ---------------------------------------------------------------------------
+
+.c-card {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.c-panel {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+    padding: var(--space-5);
+}
+
+.c-panel--mint {
+    background: var(--c-primary-soft);
+    border-color: var(--c-primary-line);
+}
+
+// Circulo de icone. A referencia usa um disco mint com o glifo verde em traco.
+.c-icon-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+    border-radius: var(--radius-pill);
+    background: var(--c-primary-soft);
+    color: var(--c-primary);
+
+    svg {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+.c-icon-circle--sm {
+    width: 40px;
+    height: 40px;
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 6. Pilulas de estado
+// ---------------------------------------------------------------------------
+//
+// Preenchimento claro e texto da mesma familia de cor. Nenhuma variante usa
+// texto branco: medido, nenhuma das cores de estado da referencia sustenta 4.5
+// contra branco. Cada par abaixo foi medido contra o proprio preenchimento.
+
+.c-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-pill);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    line-height: 1.4;
+    white-space: nowrap;
+    background: var(--c-closed-bg);
+    color: var(--c-closed-ink);
+}
+
+.c-badge--pending {
+    background: var(--c-pending-bg);
+    color: var(--c-pending-ink);
+}
+
+.c-badge--progress {
+    background: var(--c-progress-bg);
+    color: var(--c-progress-ink);
+}
+
+.c-badge--resolved {
+    background: var(--c-resolved-bg);
+    color: var(--c-resolved-ink);
+}
+
+.c-badge--closed {
+    background: var(--c-closed-bg);
+    color: var(--c-closed-ink);
+}
+
+.c-badge--info {
+    background: var(--c-info-bg);
+    color: var(--c-info-ink);
+}
+
+// ---------------------------------------------------------------------------
+// 7. Barra utilitaria
+// ---------------------------------------------------------------------------
+
+.utility-bar {
+    background: var(--grad-night);
+    color: var(--c-text-inverse);
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+}
+
+// Sem recuo vertical: a altura da barra e a altura declarada no token, e nada
+// mais. As paginas de mapa somam esse numero aos seus offsets absolutos
+// (--mappage-offset), e 8px de recuo aqui viravam 4px de cabecalho por cima da
+// barra la.
+.utility-bar__inner {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+    min-height: var(--utility-bar-height);
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.utility-bar__place {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-weight: var(--fw-semibold);
+
+    svg {
+        width: 14px;
+        height: 14px;
+        color: var(--c-primary-bright);
+    }
+}
+
+.utility-bar__tagline {
+    margin: 0;
+    padding-left: var(--space-4);
+    border-left: 1px solid #{rgba($white, 0.25)};
+    color: var(--c-text-inverse-muted);
+}
+
+.utility-bar__tools {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-left: auto;
+}
+
+.utility-bar__link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 32px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--c-text-inverse);
+    font-family: var(--font-sans);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-medium);
+    cursor: pointer;
+
+    &:visited {
+        color: var(--c-text-inverse);
+    }
+
+    &:hover {
+        background: #{rgba($white, 0.12)};
+        color: var(--c-text-inverse);
+        text-decoration: none;
+    }
+
+    &:focus-visible {
+        @include foco-visivel-escuro;
+    }
+
+    svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+// Os tres degraus de tamanho de texto formam um grupo, entao encostam um no
+// outro e recebem um contorno comum.
+.text-size {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #{rgba($white, 0.28)};
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.text-size__btn {
+    min-width: 32px;
+    min-height: 30px;
+    padding: 0 var(--space-2);
+    border: 0;
+    background: transparent;
+    color: var(--c-text-inverse);
+    font-family: var(--font-sans);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    line-height: 1;
+    cursor: pointer;
+
+    & + & {
+        border-left: 1px solid #{rgba($white, 0.2)};
+    }
+
+    &:hover {
+        background: #{rgba($white, 0.14)};
+    }
+
+    &[aria-pressed="true"] {
+        background: #{rgba($white, 0.2)};
+    }
+
+    &:focus-visible {
+        @include foco-visivel-escuro;
+        outline-offset: -3px;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 8. Cabecalho
+// ---------------------------------------------------------------------------
+
+#site-header {
+    background: var(--c-surface);
+    border-bottom: 1px solid var(--c-border);
+    color: var(--c-text);
+    position: relative;
+    z-index: 4;
+}
+
+.site-header__inner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    min-height: var(--header-height);
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+// O logotipo e um bloco de imagem: o texto dentro dele e o nome acessivel.
+#site-logo {
+    display: block;
+    flex: 0 0 auto;
+    width: 196px;
+    height: 48px;
+    background-position: 0 50%;
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-image: url("/cobrands/catanduva/images/site-logo.svg");
+    text-indent: -999999px;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+}
+
+.site-header__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-left: auto;
+}
+
+// No celular so a lupa e o menu cabem. Os dois botoes de texto voltam em
+// layout.scss.
+//
+// Os seletores levam o `a.` pelo mesmo motivo das peles de botao: `a.btn` tem
+// especificidade (0,1,1) e um `.site-header__cta` simples perde para ele. Sem
+// isso os dois botoes apareciam no celular e o cabecalho estourava a janela em
+// 264px.
+.site-header__signin,
+.site-header__cta,
+a.site-header__signin,
+a.site-header__cta {
+    display: none;
+}
+
+.site-header__search {
+    @include btn-base;
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    background: transparent;
+    border-color: transparent;
+    color: var(--c-text);
+
+    &:hover {
+        background: var(--c-surface-alt);
+        color: var(--c-text);
+    }
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+// Botao de menu.
+//
+// O upstream esconde o texto do rotulo com a combinacao height: 0 +
+// padding-top + overflow: hidden, e poe o icone como imagem de fundo. A
+// primeira versao desta regra trocou isso por um flex de 44x44 e o texto
+// "Navegacao principal" reapareceu, estourando o cabecalho no tablet. A tecnica
+// de esconder fica; so as medidas e o estado de repouso mudam.
+#nav-link {
+    position: static;
+    transform: none;
+    display: block;
+    width: 44px;
+    height: 0;
+    padding: 44px 0 0;
+    margin: 0;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background-color: transparent;
+    background-position: center center;
+    background-size: 20px 16px;
+    cursor: pointer;
+    background-image: url("/cobrands/catanduva/images/menu.svg");
+    background-repeat: no-repeat;
+
+    &:hover {
+        background-color: var(--c-surface-alt);
+    }
+}
+
+// Estado aberto. O upstream troca a imagem pela classe no <html>.
+html.js-nav-open #nav-link {
+    background-image: url("/cobrands/catanduva/images/menu-close.svg");
+}
+
+// O #report-cta do upstream some: o CTA desta interface e .site-header__cta, e
+// dois botoes para a mesma acao enfraquecem os dois.
+#report-cta {
+    display: none;
+}
+
+// Navegacao.
+//
+// No celular o menu abre como painel abaixo do cabecalho. Em desktop ele vira
+// uma linha dentro do proprio cabecalho — ver layout.scss.
+.nav-wrapper {
+    position: static;
+}
+
+#main-nav {
+    top: 100%;
+    background: var(--c-surface);
+    border-top: 1px solid var(--c-border);
+    box-shadow: var(--shadow-lg);
+}
+
+.nav-menu {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    a,
+    span {
+        display: block;
+        padding: var(--space-3) var(--container-gutter);
+        background-color: transparent;
+        border-bottom: 1px solid var(--c-border);
+        color: var(--c-text);
+        font-size: var(--fs-body);
+        font-weight: var(--fw-semibold);
+        line-height: 1.4;
+    }
+
+    a:visited {
+        color: var(--c-text);
+    }
+
+    a:hover {
+        background-color: var(--c-surface-alt);
+        color: var(--c-primary-hover);
+        text-decoration: none;
+    }
+
+    // O item da pagina atual e um <span>, nao um link.
+    span {
+        background-color: var(--c-primary-soft);
+        color: var(--c-primary-ink);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 9. Faixa de chamada e rodape
+// ---------------------------------------------------------------------------
+
+.band-cta {
+    position: relative;
+    overflow: hidden;
+    background: var(--grad-night);
+    color: var(--c-text-inverse);
+}
+
+// A silhueta da cidade e decorativa: vai como fundo, atras do conteudo, e sai
+// do fluxo de leitura.
+.band-cta__skyline {
+    position: absolute;
+    inset: 0;
+    background-image: url("/cobrands/catanduva/images/skyline.svg");
+    background-repeat: repeat-x;
+    background-position: center bottom;
+    background-size: auto 100%;
+    opacity: 0.28;
+    pointer-events: none;
+}
+
+.band-cta__inner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    padding-top: var(--space-6);
+    padding-bottom: var(--space-6);
+}
+
+.band-cta__mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-pill);
+    background: #{rgba($white, 0.12)};
+    color: var(--c-primary-bright);
+
+    svg {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+.band-cta__text {
+    min-width: 0;
+}
+
+.band-cta__title {
+    margin: 0;
+    color: var(--c-text-inverse);
+    font-size: var(--fs-h2);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-heading);
+}
+
+.band-cta__sub {
+    margin: var(--space-1) 0 0;
+    color: var(--c-text-inverse-muted);
+    font-size: var(--fs-sm);
+}
+
+.band-cta__action {
+    margin-left: auto;
+}
+
+.site-footer {
+    background: var(--c-surface);
+    border-top: 1px solid var(--c-border);
+    color: var(--c-text-muted);
+}
+
+.site-footer__inner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4) var(--space-8);
+    padding-top: var(--space-8);
+    padding-bottom: var(--space-8);
+    font-size: var(--fs-sm);
+}
+
+.site-footer__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.site-footer__note {
+    margin: 0;
+    max-width: 42rem;
+}
+
+// O logotipo da plataforma vinha com text-indent negativo e um wordmark branco
+// que sobre fundo claro nao se le. Devolver o texto resolve nas duas larguras.
+a.platform-logo {
+    text-indent: 0;
+    background-image: none;
+    width: auto;
+    height: auto;
+    color: var(--c-primary);
+}
+
+// ---------------------------------------------------------------------------
+// 10. Listas de ocorrencia
+// ---------------------------------------------------------------------------
+//
+// A mesma linha aparece na home, em /reports, em /around e na barra lateral do
+// mapa. Uma so definicao, para as quatro.
+
+.item-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.item-list__item {
+    border-bottom: 1px solid var(--c-border);
+    background: transparent;
+
+    &:last-child {
+        border-bottom: 0;
+    }
+
+    > a {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-3) 0;
+        color: inherit;
+        text-decoration: none;
+
+        &:hover {
+            text-decoration: none;
+        }
+    }
+
+    &:hover {
+        background: var(--c-surface-alt);
+    }
+
+    .img,
+    img {
+        flex: 0 0 auto;
+        width: 88px;
+        height: 56px;
+        object-fit: cover;
+        border-radius: var(--radius-sm);
+        margin: 0;
+        float: none;
+    }
+}
+
+.item-list__heading {
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+    margin: 0;
+}
+
+// ---------------------------------------------------------------------------
+// 11. Avisos e banners
+// ---------------------------------------------------------------------------
+
+// Faixa "Area de teste". Continua existindo — e o que impede alguem de confundir
+// o piloto com o servico oficial (D-007) — mas em fluxo normal, como barra, e
+// nao como fita diagonal sobreposta ao logotipo.
+.dev-site-notice {
+    position: static;
+    transform: none;
+    top: auto;
+    left: auto;
+    padding: var(--space-2) var(--container-gutter);
+    background-color: var(--c-error);
+    color: var(--c-text-inverse);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.02em;
+    text-align: center;
+}
+
+// Banner de estado no topo da ocorrencia.
+@mixin banner-estado($fundo, $tinta) {
+    background-color: $fundo;
+    border-top-color: $tinta;
+    color: $tinta;
+}
+
+.banner {
+    p {
+        border-radius: var(--radius-md);
+        font-size: var(--fs-sm);
+        font-weight: var(--fw-semibold);
+    }
+}
+
+.banner--progress {
+    @include banner-estado($status-progress, $status-progress-ink);
+}
+
+.banner--fixed {
+    @include banner-estado($status-resolved, $status-resolved-ink);
+}
+
+.banner--closed {
+    @include banner-estado($status-closed, $status-closed-ink);
+}
+
+.banner--unknown {
+    @include banner-estado($status-info, $status-info-ink);
+}
+
+.banner--hidden {
+    @include banner-estado(mix($error_color, $white, 10%), $error_color);
+}
+
+// Mensagens de sistema.
+.c-alert {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border: 1px solid var(--c-border);
+    border-left: 4px solid var(--c-text-muted);
+    border-radius: var(--radius-md);
+    background: var(--c-surface);
+    color: var(--c-text-body);
+    font-size: var(--fs-sm);
+    margin-bottom: var(--space-4);
+}
+
+.c-alert--success {
+    border-left-color: var(--c-success);
+    background: var(--c-success-bg);
+    color: var(--c-success);
+}
+
+.c-alert--warning {
+    border-left-color: var(--c-warning);
+    background: var(--c-warning-bg);
+    color: var(--c-warning);
+}
+
+.c-alert--error {
+    border-left-color: var(--c-error);
+    background: var(--c-error-bg);
+    color: var(--c-error);
+}
+
+// Estado vazio e carregamento derivam do mesmo sistema, sem identidade paralela.
+.c-empty {
+    padding: var(--space-10) var(--space-4);
+    border: 1px dashed var(--c-border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--c-surface);
+    color: var(--c-text-muted);
+    text-align: center;
+}
+
+// ---------------------------------------------------------------------------
+// 12. Paginacao e ferramentas
+// ---------------------------------------------------------------------------
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    margin: var(--space-8) 0;
+    font-size: var(--fs-sm);
+
+    a,
+    span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 0 var(--space-3);
+        border-radius: var(--radius-md);
+    }
+
+    a:hover {
+        background: var(--c-surface-alt);
+        text-decoration: none;
+    }
+}
+
+#key-tools {
+    // O upstream monta esta barra como `display: table` com os itens em
+    // `table-cell`. Uma tabela nao encolhe abaixo da largura minima do conteudo:
+    // com tres acoes — "Denunciar abuso", "Receber atualizacoes", "Problemas nas
+    // proximidades" — ela travava em 421px e estourava a janela em **qualquer**
+    // largura de celular. Medido na pagina da ocorrencia: 437px de rolagem numa
+    // janela de 391.
+    //
+    // Em flex que quebra linha, as acoes se empilham quando nao cabem, que e o
+    // que se espera de uma barra de acoes.
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+
+    li {
+        display: block;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    a,
+    button {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-2);
+    }
+}
+
+// Controles do mapa: mesmo raio e mesma sombra do resto do sistema.
+.olControlPanZoom,
+.map-control {
+    border-radius: var(--radius-md);
+}
+
+// Acessibilidade: o salto para o conteudo precisa ser visivel quando recebe foco.
+.skiplink:focus {
+    @include foco-visivel;
+    background: var(--c-surface);
+    color: var(--c-text);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-4);
+}
+
+// ---------------------------------------------------------------------------
+// 13. Conteudo corrido
+// ---------------------------------------------------------------------------
+//
+// Paginas de texto — Sobre, privacidade, contato, erros. Medida de linha limitada
+// a 68 caracteres: acima disso o olho perde a linha na volta.
+
+.prose {
+    max-width: 44rem;
+
+    h1 {
+        margin-bottom: var(--space-4);
+    }
+
+    h2 {
+        margin-top: var(--space-10);
+    }
+
+    h3 {
+        margin-top: var(--space-6);
+    }
+
+    ul,
+    ol {
+        margin: 0 0 var(--space-4);
+        padding-left: var(--space-6);
+    }
+
+    li {
+        margin-bottom: var(--space-2);
+    }
+
+    a {
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+}
+
+.prose__lead {
+    color: var(--c-text-body);
+    font-size: var(--fs-lead);
+    line-height: var(--lh-body);
+}
+
+.prose__steps {
+    counter-reset: passo;
+    list-style: none;
+    padding-left: 0;
+
+    > li {
+        position: relative;
+        padding-left: var(--space-10);
+        margin-bottom: var(--space-4);
+        counter-increment: passo;
+    }
+
+    > li::before {
+        content: counter(passo);
+        position: absolute;
+        left: 0;
+        top: -2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: var(--radius-pill);
+        background: var(--c-primary-soft);
+        color: var(--c-primary-ink);
+        font-size: var(--fs-sm);
+        font-weight: var(--fw-bold);
+    }
+}
+
+.prose__list {
+    dt {
+        color: var(--c-text);
+        font-weight: var(--fw-bold);
+        margin-top: var(--space-4);
+    }
+
+    dd {
+        margin: var(--space-1) 0 0;
+        padding: 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 14. Contraste alto
+// ---------------------------------------------------------------------------
+//
+// Ligado pela barra utilitaria e guardado no navegador (catanduva.js). Nao e um
+// tema paralelo: sao os mesmos tokens, com os degraus intermediarios puxados
+// para os extremos. Qualquer componente novo herda o modo sem escrever regra.
+//
+// O que muda, e por que:
+//   - cinzas de texto viram quase preto (4.86 passa a 12.6)
+//   - o verde escurece ate 7.0 sobre branco, porque aqui ele tambem e texto
+//   - bordas saem de 1.2 para 4.5 de contraste, para que a forma dos controles
+//     nao dependa so de sombra
+//   - links ganham sublinhado permanente: cor deixa de ser o unico sinal
+
+.u-high-contrast {
+    --c-bg: #ffffff;
+    --c-surface: #ffffff;
+    --c-surface-alt: #{mix($textprimary, $white, 8%)};
+    --c-border: #{mix($textprimary, $white, 45%)};
+    --c-border-strong: #{mix($textprimary, $white, 70%)};
+
+    --c-text: #000000;
+    --c-text-body: #{$textprimary};
+    --c-text-muted: #{mix($textprimary, $white, 88%)};
+
+    --c-primary: #{darken($green, 8%)};
+    --c-primary-hover: #{darken($green, 14%)};
+    --c-primary-bright: #{darken($green, 8%)};
+    --c-primary-soft: #{mix($green, $white, 12%)};
+    --c-primary-line: #{mix($green, $white, 45%)};
+
+    --shadow-xs: none;
+    --shadow-sm: none;
+    --shadow-md: 0 0 0 1px #{mix($textprimary, $white, 45%)};
+    --shadow-lg: 0 0 0 1px #{mix($textprimary, $white, 45%)};
+
+    a {
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+
+    .btn,
+    .btn--primary,
+    .site-header__search,
+    .utility-bar__link {
+        text-decoration: none;
+    }
+
+    .btn,
+    button.btn,
+    a.btn,
+    input.btn {
+        border-color: var(--c-border-strong);
+    }
+
+    // Pilulas de estado ficam com contorno: o preenchimento claro sozinho quase
+    // desaparece quando o fundo tambem e branco puro.
+    .c-badge {
+        border: 1px solid currentColor;
+    }
+
+    .home-hero__photo,
+    .band-cta__skyline {
+        opacity: 0.85;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 15. Listas de componente
+// ---------------------------------------------------------------------------
+//
+// O upstream marca `ul li { list-style: square }` — seletor de dois elementos,
+// que vence um `list-style: none` posto so no <ul> do componente. O resultado
+// eram quadradinhos a esquerda de cada numero do painel, de cada acao rapida, de
+// cada ocorrencia recente e de cada link do rodape.
+//
+// A regra vive aqui, e nao espalhada por cada componente, porque a lista e um
+// detalhe de implementacao dos componentes: eles usam <ul> por semantica, nao
+// por querer marcadores.
+.nav-menu li,
+.utility-bar li,
+.home-actions__grid li,
+.stats-panel__grid li,
+.recent-list li,
+.site-footer__links li,
+.home-search__examples li,
+.prose__steps > li,
+.item-list li {
+    list-style: none;
+    margin-bottom: 0;
+}
+
+// A frase da barra utilitaria e um complemento, nao um rotulo: abaixo de 62em
+// ela empurrava os controles de acessibilidade para uma segunda linha e dobrava
+// a altura da barra.
+@media (max-width: 61.99em) {
+    .utility-bar__tagline {
+        display: none;
+    }
+}
+
+
+// Alvo de toque dos links de lista.
+//
+// A WCAG 2.5.8 pede 24x24 para qualquer alvo que nao seja um link em linha com
+// o texto de um paragrafo. Os links do rodape e o "Ver todas" do painel sao
+// itens de lista, nao texto corrido: ficavam com 18 a 22px de altura.
+.site-footer__links a,
+.recent-panel__more,
+.stats-panel__period {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+}
+
+// ---------------------------------------------------------------------------
+// 17. Paginas de mapa
+// ---------------------------------------------------------------------------
+
+// Chamada "clique no mapa para registrar um problema".
+//
+// O upstream a escreve em caixa alta de 14px, o que a 1440px vira duas linhas de
+// versais gritando no canto da tela. Caixa alta e mais lenta de ler e desfaz a
+// hierarquia que o resto da interface constroi com peso e tamanho. A cor de
+// marca fica; a voz muda.
+.big-green-banner {
+    top: 0;
+    padding: var(--space-4) var(--space-5);
+    background: var(--c-primary);
+    color: var(--c-text-inverse);
+    font-size: var(--fs-body);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+    text-transform: none;
+    text-align: left;
+
+    &:hover {
+        background: var(--c-primary-hover);
+        color: var(--c-text-inverse);
+    }
+}
+
+// A barra lateral do mapa rola. A superficie de cartao que a lista de
+// ocorrencias recebe nas paginas comuns — borda, raio e overflow: hidden —
+// recorta o conteudo que ainda vai rolar, e o ultimo item aparecia por fora da
+// caixa. Aqui a lista volta a ser lista.
+#map_sidebar {
+    .item-list--reports {
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        overflow: visible;
+    }
+
+    .item-list__item > a {
+        padding-left: var(--space-4);
+        padding-right: var(--space-4);
+    }
+}
+
+// Filtros do mapa: os selects herdam a altura e o raio do sistema, mas dentro da
+// barra lateral eles dividem a linha e nao podem ocupar 100%.
+.report-list-filters {
+    select {
+        min-width: 0;
+    }
+}
+
+// `.fake-link` e um <input type="submit"> que o upstream quer que pareca um
+// link: e a acao secundaria de um formulario que ja tem botao principal. Sem
+// esta excecao a regra de botao primario transformava "Me envie um e-mail para
+// entrar" num segundo botao verde do mesmo peso, e o formulario passava a ter
+// duas acoes principais.
+input.fake-link,
+button.fake-link,
+.fake-link {
+    display: inline;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--c-primary);
+    font-family: var(--font-sans);
+    font-size: var(--fs-body);
+    font-weight: var(--fw-medium);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+
+    &:hover {
+        color: var(--c-primary-hover);
+    }
+
+    &:focus-visible {
+        @include foco-visivel;
+        border-radius: var(--radius-sm);
+    }
+}
+
+// Alvo de toque: um link de acao precisa dos 24px da WCAG 2.5.8 mesmo parecendo
+// texto. A area cresce por padding vertical, que nao desloca a linha de base.
+input.fake-link,
+button.fake-link {
+    padding: var(--space-2) 0;
+}
+
+// ---------------------------------------------------------------------------
+// 18. Caixa de CEP fora da home
+// ---------------------------------------------------------------------------
+//
+// A mesma caixa aparece em /alert e em /around quando a busca falha, so que com
+// o markup do upstream: um <div> com borda de 1px em $primary_b e um
+// <input id="sub"> preto e quadrado dentro. A home tem markup proprio
+// (.home-search) e nao passa por aqui.
+//
+// O componente e o mesmo, entao o desenho tem que ser o mesmo. Sem isto a
+// pessoa via uma caixa de busca na home e outra, diferente, na pagina seguinte.
+body:not(.frontpage) {
+    .postcode-form-box {
+        max-width: 36rem;
+        color: var(--c-text-body);
+
+        label {
+            color: var(--c-text);
+        }
+
+        .form-hint {
+            color: var(--c-text-muted);
+            margin-bottom: var(--space-2);
+        }
+
+        > div {
+            display: flex;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: var(--space-2);
+            width: 100%;
+            padding: 6px;
+            background: var(--c-surface);
+            border: 1px solid var(--c-border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+
+            &:focus-within {
+                border-color: var(--c-primary);
+                box-shadow: var(--shadow-focus);
+            }
+        }
+
+        input#pc {
+            flex: 1 1 auto;
+            width: auto;
+            min-width: 0;
+            min-height: 44px;
+            padding: 0 var(--space-3);
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+
+            &:focus,
+            &:focus-visible {
+                border: 0;
+                box-shadow: none;
+                outline: 0;
+            }
+        }
+
+        input#sub {
+            flex: 0 0 auto;
+            width: auto;
+            min-width: 6rem;
+            min-height: 44px;
+            padding: var(--space-2) var(--space-5);
+            border: 0;
+            border-radius: var(--radius-md);
+            background: var(--c-primary);
+            color: var(--c-text-inverse);
+            font-weight: var(--fw-semibold);
+
+            &:hover,
+            &:focus {
+                background: var(--c-primary-hover);
+                color: var(--c-text-inverse);
+            }
+        }
+    }
+
+    // O titulo seguinte encostava na caixa.
+    .postcode-form-box + h2,
+    .postcode-form-box ~ h2 {
+        margin-top: var(--space-8);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 19. Controles no padrao GOV.UK
+// ---------------------------------------------------------------------------
+//
+// Parte dos formularios do upstream — contato, reclamacoes, residuos — usa as
+// classes do design system do GOV.UK, que o `_govuk.scss` traz junto: borda
+// preta de 2px sem raio, corpo de 19px e o anel de foco amarelo #FFDD00.
+//
+// Sao classes (0,1,0) contra os seletores de elemento da secao 4, que sao
+// (0,0,1): venciam sempre. O resultado era um formulario de contato com caixas
+// pretas quadradas no meio de uma interface de campos claros e arredondados.
+//
+// O amarelo do foco sai junto. Ele existe para funcionar sobre o preto do
+// GOV.UK; sobre esta paleta ele nao pertence a lugar nenhum, e o anel de duas
+// camadas da secao 1 ja resolve os mesmos fundos.
+.govuk-input,
+.govuk-textarea,
+.govuk-select,
+.govuk-date-input__input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: var(--space-3) var(--space-4);
+    background-color: var(--c-surface);
+    border: 1px solid var(--c-border-strong);
+    border-radius: var(--radius-md);
+    color: var(--c-text);
+    font-family: var(--font-sans);
+    font-size: var(--fs-body);
+    line-height: var(--lh-snug);
+    box-shadow: none;
+
+    &:hover {
+        border-color: var(--c-text-muted);
+    }
+
+    &:focus,
+    &:focus-visible {
+        border-color: var(--c-primary);
+        outline: 2px solid transparent;
+        outline-offset: 2px;
+        box-shadow: var(--shadow-focus);
+    }
+}
+
+.govuk-input,
+.govuk-select,
+.govuk-date-input__input {
+    min-height: 44px;
+}
+
+.govuk-textarea {
+    min-height: 140px;
+}
+
+.govuk-input--error,
+.govuk-textarea--error,
+.govuk-select--error {
+    border-color: var(--c-error);
+    border-width: 2px;
+}
+
+.govuk-label {
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+    margin-bottom: var(--space-2);
+}
+
+.govuk-hint {
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+}
+
+.govuk-error-message {
+    color: var(--c-error);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+}
+
+.govuk-button {
+    @include btn-base;
+    background-color: var(--c-primary);
+    border-color: var(--c-primary);
+    color: var(--c-text-inverse);
+    box-shadow: none;
+
+    &:hover {
+        background-color: var(--c-primary-hover);
+        border-color: var(--c-primary-hover);
+        color: var(--c-text-inverse);
+    }
+}
+
+.govuk-radios__label,
+.govuk-checkboxes__label {
+    font-size: var(--fs-body);
+    font-weight: var(--fw-regular);
+}
+
+// Barra lateral das paginas institucionais.
+//
+// O upstream pinta a coluna inteira com $primary diluido — uma faixa mint de
+// 980px de altura para um menu de tres linhas — e nao da forma nem respiro ao
+// bloco. A cor sai da coluna e vai para o painel, que passa a ser o mesmo painel
+// mint do resto do sistema.
+.sticky-sidebar {
+    background: transparent;
+
+    aside {
+        background: var(--c-primary-soft);
+        border: 1px solid var(--c-primary-line);
+        border-radius: var(--radius-xl);
+        padding: var(--space-4);
+
+        ul {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        li {
+            list-style: none;
+            margin: 0;
+        }
+
+        a,
+        strong {
+            display: block;
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-sm);
+            font-size: var(--fs-sm);
+            line-height: var(--lh-snug);
+        }
+
+        a {
+            color: var(--c-primary-ink);
+
+            &:hover {
+                background: var(--c-surface);
+                text-decoration: none;
+            }
+        }
+
+        strong {
+            background: var(--c-surface);
+            color: var(--c-text);
+            font-weight: var(--fw-bold);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 20. Barra de ferramentas da barra lateral do mapa
+// ---------------------------------------------------------------------------
+//
+// `.shadow-wrap` fica fixa no rodape da barra lateral e a lista de ocorrencias
+// rola por baixo dela. O upstream esconde o que passa por tras com um artificio:
+// `#key-tools` nao tem fundo, e sim um `box-shadow` branco de 1em de espalhamento
+// que pinta um halo em volta da caixa.
+//
+// O halo cobre 16px acima de `#key-tools`, mas `.shadow-wrap` tem 2em (32px) de
+// `padding-top`. Sobram 16px transparentes no alto da barra, e e por ali que o
+// texto do ultimo item aparecia, ao lado de "Receber atualizacoes".
+//
+// A correcao troca o artificio por uma superficie de verdade: a barra ganha
+// fundo proprio, com um esmaecimento no topo que e exatamente a altura do
+// padding. Nada mais depende de o halo alcancar o lugar certo.
+.shadow-wrap:not(.static) {
+    background: linear-gradient(
+        to bottom,
+        #{rgba($surface, 0)} 0,
+        var(--c-surface) 2em,
+        var(--c-surface) 100%
+    );
+}
+
+#key-tools {
+    margin: 0;
+    // O halo perde a funcao — e com ela o contorno branco de 16px que aparecia
+    // sobre qualquer fundo que nao fosse branco.
+    box-shadow: none;
+    // O upstream poe 0.25em da cor da marca aqui. Quatro pixels de verde solido
+    // separando uma barra de um unico botao pesam mais do que a barra.
+    border-top: 1px solid var(--c-border);
+    background: var(--c-surface);
+
+    li {
+        border-right: 0;
+    }
+
+    a,
+    button {
+        color: var(--c-text-body);
+        font-size: var(--fs-sm);
+        font-weight: var(--fw-medium);
+        line-height: var(--lh-snug);
+        text-transform: none;
+        background-color: transparent;
+
+        &:hover {
+            color: var(--c-primary-hover);
+            background-color: var(--c-surface-alt);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// A janela de correcao de quem registrou (F5)
+//
+// Aparece na pagina da ocorrencia, logo abaixo do bloco dela, e so para quem a
+// escreveu e so enquanto a janela esta aberta. Por isso PODE ter moldura: ao
+// contrario dos blocos do painel de mapa, este e excepcional - a maior parte
+// das visitas a esta pagina nao o ve, e quando ele aparece precisa se
+// distinguir do conteudo publico logo acima.
+//
+// A borda tracejada diz "isto e seu e ainda da para mexer", sem o alarme de uma
+// caixa de erro nem a comemoracao de uma de sucesso.
+// ---------------------------------------------------------------------------
+
+.autor-janela {
+    box-sizing: border-box;
+    margin: var(--space-5) 0;
+    padding: var(--space-4);
+    border: 2px dashed var(--c-border);
+    border-radius: var(--radius-lg);
+    background: var(--c-surface-alt);
+}
+
+.autor-janela__titulo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-2);
+    color: var(--c-text);
+    font-size: var(--fs-body);
+    font-weight: var(--fw-bold);
+}
+
+.autor-janela__icone {
+    display: flex;
+    color: var(--c-primary);
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+.autor-janela__prazo {
+    margin: 0 0 var(--space-4);
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-snug);
+}
+
+.autor-janela__form {
+    label,
+    legend {
+        display: block;
+        margin: 0 0 var(--space-2);
+        color: var(--c-text);
+        font-size: var(--fs-sm);
+        font-weight: var(--fw-bold);
+    }
+
+    // O respiro entre um campo e o rotulo do proximo. Sem ele os tres campos
+    // viram um bloco so e a pessoa perde de vista onde um termina.
+    input.form-control,
+    textarea.form-control,
+    select.form-control {
+        margin: 0 0 var(--space-4);
+    }
+}
+
+.autor-janela__fotos {
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    border: 0;
+
+    legend {
+        padding: 0;
+    }
+}
+
+.autor-janela__foto {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-2);
+    // Sobrescreve o `font-weight: bold` dos rotulos do formulario: aqui o
+    // rotulo e a frase de uma caixa de selecao, e nao o nome de um campo.
+    font-weight: var(--fw-regular);
+
+    input[type="checkbox"] {
+        flex: 0 0 auto;
+        width: 20px;
+        height: 20px;
+        margin: 0;
+        accent-color: var(--c-primary);
+    }
+}
+
+.autor-janela__salvar {
+    width: 100%;
+}
+
+// Retirar fica separado, e nao parece um irmao de "Salvar correcao": e a acao
+// que nao volta atras. Sem cor de perigo, porem - retirar a propria ocorrencia
+// e um direito, nao um acidente prestes a acontecer.
+.autor-janela__retirar {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--c-border);
+}
+
+.autor-janela__retirar-botao {
+    width: 100%;
+    background: transparent;
+    color: var(--c-error);
+    box-shadow: inset 0 0 0 1px var(--c-error);
+
+    &:hover,
+    &:focus-visible {
+        background: var(--c-error-bg);
+        color: var(--c-error);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// A tela de inspeção (F10, fase 5.2)
+//
+// É a tela de trabalho da equipe da prefeitura, e a adoção do piloto passa por
+// ela. Ao medir, a maior parte do que o plano descrevia — "sem os tokens, sem a
+// tipografia" — já não era verdade: os campos herdaram o sistema de
+// `_components.scss` §4 e vêm com 44px, raio 10 e a fonte do piloto.
+//
+// O que restava era a moldura: a coluna em azul-claro do upstream
+// (rgb(233,242,255)), as divisórias em preto a 20% e o título fora da escala.
+// São as três coisas que faziam a tela parecer de outro site.
+//
+// Tudo aqui é CSS. A composição do formulário é do `report/_inspect.html`, 87
+// linhas do upstream, e copiá-las para dar nome a cada seção é uma dívida que
+// não se paga com o que ela devolveria — ver a fase 5.2 no PLANO_DE_FASES.md.
+// ---------------------------------------------------------------------------
+
+#side-inspect {
+    // A coluna deixa de ser azul-clara: é uma superfície do sistema, como o
+    // painel do mapa e a ficha da ocorrência.
+    background: var(--c-surface-alt);
+    color: var(--c-text-body);
+}
+
+// O título da coluna. Mesma medida dos títulos de passo do fluxo do mapa
+// (`--fs-h3`): é o mesmo nível de hierarquia — o nome do que se está fazendo
+// nesta tela.
+.inspect-form-heading {
+    margin: 0 0 var(--space-4);
+    color: var(--c-text);
+    font-size: var(--fs-h3);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-tight);
+}
+
+// As divisórias entre seções. Em preto a 20% elas ficavam mais pesadas do que
+// qualquer coisa que separassem; na cor de borda do sistema elas fazem o que
+// divisória faz — separar sem chamar atenção.
+#report_inspect_form .inspect-section {
+    padding-top: var(--space-5);
+    border-top-color: var(--c-border);
+
+    &:first-child {
+        padding-top: 0;
+    }
+
+    // Rótulo e campo com o mesmo ritmo do resto do sistema. O upstream envolve
+    // cada par num <p>, então é nele que a medida vale.
+    > p {
+        margin: 0 0 var(--space-4);
+    }
+
+    label {
+        display: block;
+        margin-bottom: var(--space-2);
+        color: var(--c-text);
+        font-size: var(--fs-sm);
+        font-weight: var(--fw-bold);
+    }
+}
+
+// A linha que o formulário escreve sobre quem registrou: nome, e-mail,
+// telefone, coordenadas. É informação de trabalho, não corpo de texto — fica
+// legível sem competir com os campos.
+#report_inspect_form .inspect-section:first-child p {
+    margin: 0 0 var(--space-2);
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-snug);
+
+    strong {
+        color: var(--c-text);
+        font-weight: var(--fw-semibold);
+    }
+}
+
+// O aviso de que fechar exige explicar (fase 4.4). Fica colado na caixa de
+// "Salvar como uma atualização pública", que é o controle que ele explica.
+.inspect-aviso-fechamento {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: var(--space-3);
+    align-items: start;
+    margin: var(--space-2) 0 var(--space-4);
+    color: var(--c-text-body);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-snug);
+
+    svg {
+        width: 18px;
+        height: 18px;
+        margin-top: 1px;
+        color: var(--c-warning);
+    }
+}

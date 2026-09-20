@@ -1,0 +1,34 @@
+[%# O protocolo da ocorrência (F11, fase 6.2).
+
+    Substitui templates/web/base/report/_council_sent_info.html, que tem 46
+    linhas e onze ramos — um para cada cobrand britânico que quis um formato
+    próprio de referência. Nenhum deles é o nosso, e o ramo final, o `ELSE`,
+    dava "Protocolo FixMyStreet: 75": a marca do upstream e o id da linha.
+
+    A cópia é grande no arquivo original e pequena aqui porque quase tudo o que
+    ela copiava era decisão de outro. O que sobrou são os dois casos que
+    existem em Catanduva:
+
+      o órgão respondeu   quando a integração devolve uma referência própria, é
+                          ela que a pessoa vai citar ao ligar para lá. Vem
+                          primeiro.
+
+      o piloto            `CTD-2026-0075`, derivado do id e do ano. Ver o POD de
+                          `protocolo`, em Catanduva.pm, inclusive sobre o que
+                          este formato NÃO resolve.
+
+    `duration_string` é do upstream e diz há quanto tempo a ocorrência foi
+    enviada; fica como estava.
+%]
+[% SET can_display_external_id = problem.can_display_external_id %]
+[% SET duration_clause = problem.duration_string %]
+<p class="council_sent_info">
+    [% duration_clause %][% IF duration_clause %]. [% END %]
+    <strong>
+    [%- IF can_display_external_id %]
+        [%- tprintf(loc('Council ref:&nbsp;%s'), problem.external_id) %].
+    [%- ELSE %]
+        [%- tprintf('Protocolo:&nbsp;%s', c.cobrand.protocolo(problem)) %].
+    [%- END -%]
+    </strong>
+</p>

@@ -1,0 +1,81 @@
+[%# Corpo do formulario de nova ocorrencia — Map Evolution.
+
+    Copia de templates/web/base/report/new/fill_in_details_form.html com uma
+    unica diferenca: o passo de **revisao** entra entre form_report.html (que
+    emite category, subcategory, location, duplicates, extra, photo, details) e
+    form_user.html (que emite user, o ultimo antes do envio).
+
+    Por que aqui: e o unico lugar onde os dois blocos sao irmaos. Nao ha gancho
+    entre eles, e uma .js-reporting-page nao pode nascer dentro de outra.
+
+    Por que existir: o FixMyStreet nao tem etapa de revisao — do preenchimento a
+    pessoa vai direto para os seus dados e envia. O estado 08 da referencia pede
+    um resumo antes do envio.
+
+    O que este passo **nao** faz: nao valida, nao transforma e nao envia nada. Ele
+    le os campos que ja foram preenchidos e os mostra. O envio continua sendo o
+    do passo `user`, com as validacoes do upstream intactas. Se ele fosse
+    removido amanha, o fluxo continuaria funcionando.
+%]
+[% PROCESS 'report/new/form_heading.html' %]
+
+<div id="js-roads-responsibility" class="box-warning hidden" aria-live="polite">
+[% TRY %][% INCLUDE 'report/new/roads_message.html' %][% CATCH file %][% END %]
+</div>
+
+<div id="problem_form">
+
+[% IF report.used_map;
+    url_skip = c.uri_for(
+        '/report/new',
+        { pc = pc, latitude = latitude, longitude = longitude, skipped = 1 }
+    );
+%]
+    <ul class="change_location">
+        <li class="change_location__map">[% loc('Click the map or drag the pin to adjust the location') %]</li>
+        <li class="screen-reader-only skip-the-map">[% tprintf( loc('Can’t use the map to start a report? <a href="%s" rel="nofollow">Skip this step</a>'), url_skip) %]</li>
+        <li class="change_location__search">[% loc('Or <a href="/">search for a different location</a>') %]</li>
+    </ul>
+[% END %]
+
+<div id="js-top-message">
+    [% PROCESS 'report/new/top_message.html' %]
+</div>
+
+[% IF report.used_map && partial_token %]
+    <p id="unknown">[% loc('Please note your report has <strong>not yet been sent</strong>. Choose a category and add further information below, then submit.') %]</p>
+[% END %]
+[% IF oauth_failure %]
+    <p class="form-error">[% loc('Sorry, we could not log you in. Please fill in the form below.') %]</p>
+[% END %]
+
+[% sidebar_html | safe %]
+
+[% INCLUDE 'errors.html' %]
+
+    [% PROCESS 'report/new/form_report.html' %]
+
+    [%# ------------------------------------------------------------------
+        Estado 08 — Revisar ocorrencia
+
+        O conteudo do resumo e preenchido por catanduva-map.js no momento em que
+        o passo abre, lendo os proprios campos do formulario. Nada e guardado em
+        duplicado: se a pessoa voltar e mudar algo, o resumo e remontado.
+    ------------------------------------------------------------------ %]
+    <div data-page-name="review" class="js-reporting-page js-reporting-page--review">
+        <h2 class="form-section-heading">Revisar ocorrência</h2>
+        <div class="form-section-description">
+            <p>Confira as informações abaixo antes de enviar.</p>
+        </div>
+
+        <dl class="map-review js-review-list"></dl>
+
+        <div class="map-panel__step-actions">
+            <a href="#" class="btn js-back">[% loc('Back') %]</a>
+            <button type="button" class="btn btn--primary js-reporting-page--next">[% loc('Continue') %]</button>
+        </div>
+    </div>
+
+    [% PROCESS 'report/new/form_user.html' %]
+
+</div>

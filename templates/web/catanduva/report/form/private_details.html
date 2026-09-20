@@ -1,0 +1,80 @@
+[%# O cabecalho do passo "Nos conte sobre voce" (F6, fase 5.1).
+
+    Substitui templates/web/base/report/form/private_details.html, que tem 18
+    linhas: o titulo, o link para entrar com senha e a nota de privacidade.
+
+    Era o unico passo do fluxo que nao tinha passado pela evolucao visual, e o
+    unico que nao cabia no painel — rolava 251px em 1440x900. As tres pecas
+    daqui respondem por parte disso; o resto esta no
+    `user_loggedout_by_email_password.html` do cobrand e no
+    `disable_phone_number_entry`.
+
+    O QUE MUDA, e por que:
+
+      o titulo        passa a usar `map-step__head`, que e o vocabulario dos
+                      outros oito passos. Ganha uma linha de apoio dizendo o que
+                      se faz aqui - "confirmar" - porque este passo nao pede
+                      dados por pedir: o e-mail e o que confirma a ocorrencia.
+
+      entrar          era um paragrafo de duas linhas em que a frase INTEIRA era
+                      o link ("Ou entre com uma senha para preencher previamente
+                      essas informacoes."). Vira "Ja tenho conta", que e a
+                      intencao de quem clica, em uma linha.
+
+      a privacidade   fica, e tem de ficar: e a unica frase da tela que diz para
+                      onde os dados vao. Vira `map-step__aviso`, o mesmo bloco
+                      que o passo de categoria usa, com o `id` do upstream no
+                      span de texto — ver a nota ao lado dele.
+
+    O TEXTO EM SI NAO E ESCRITO AQUI. Ele vem do `councils_text_private.html`,
+    que o cobrand substitui para dizer a verdade enquanto a caixa de
+    demonstracao estiver ligada. O "poitica de privacidade" que aparecia era
+    erro do catalogo pt_BR, corrigido no catalogo (F7): assim some de todas as
+    telas, e nao so desta.
+
+    A variante `IF js` do upstream saiu. Ela nunca renderizava neste fluxo: `js`
+    so e verdadeiro quando a requisicao traz `js=1`, e o passo chega aqui por
+    navegacao normal. Manter um ramo que nao roda e guardar um texto que ninguem
+    revisa.
+%]
+<div class="map-step__head">
+    <h2 class="map-step__title form-section-heading form-section-heading--private">Nos conte sobre você</h2>
+    <p class="map-step__lead">
+        Precisamos do seu nome e e-mail para confirmar a ocorrência.
+    </p>
+</div>
+
+[% UNLESS c.user_exists %]
+[%# As classes sao as do upstream e nao podem mudar: `js-new-report-show-sign-in`
+    e o que o fixmystreet.js escuta para trocar as duas caixas, e
+    `js-new-report-sign-in-hidden` e o que o esconde quando a de entrar aparece.
+    O que muda e o texto e o fato de o link ser o link, e nao o paragrafo. %]
+<p class="map-step__entrar hidden-nojs js-new-report-sign-in-hidden">
+    <a class="js-new-report-show-sign-in" href="#">Já tenho conta</a>
+</p>
+[% END %]
+
+[% IF type == 'report' %]
+[%# O `id` esta no SPAN, e nao no `div`, e isto custou uma investigacao.
+
+    `fixmystreet.js` faz `$('#js-councils_text_private').html(...)` toda vez que
+    a pessoa escolhe uma categoria, com o texto que o `/report/new/ajax`
+    devolve. Com o id no `div`, aquele `.html()` apagava o icone e a composicao
+    inteira do aviso no primeiro clique — o servidor mandava a estrutura certa e
+    o JavaScript a desfazia, o que rende horas de olhar para o template achando
+    que ele e que estava errado.
+
+    Com o id no span de texto, o JS troca so o que e dele: a frase. O icone e a
+    moldura sao nossos e ficam.
+
+    QUAL frase e decidido no `report/new/councils_text_private.html` do cobrand,
+    que e por onde passam as duas escritas — a do servidor e a do AJAX. %]
+<div class="map-step__aviso map-step__aviso--privacidade js-new-report-sign-in-hidden">
+    <span class="map-step__aviso-icone" aria-hidden="true">
+        [% INCLUDE '_ui-icon.html' icon = 'shield' %]
+    </span>
+    <span class="map-step__aviso-texto" id="js-councils_text_private">
+        [% PROCESS 'report/new/councils_text_private.html' %]
+    </span>
+</div>
+[% END %]

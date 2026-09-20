@@ -1,0 +1,28 @@
+[%# Contador de caracteres e acoes do passo "Detalhes publicos".
+
+    Entra pelo gancho `after_detail.html` do form_report.html, logo abaixo do
+    campo de descricao.
+
+    O contador nao promete um teto que nao existe. Nem o banco (`detail` e
+    `text`), nem o controlador, nem o template impoem limite de caracteres — a
+    referencia desenha "0/500 caracteres", mas inventar 500 aqui criaria uma
+    regra de negocio nova. O catanduva-map.js escreve so a contagem; se um dia o
+    campo ganhar `maxlength`, ele passa a escrever "N/limite caracteres"
+    sozinho, lendo o proprio campo.
+%]
+<p class="map-detalhe__contador js-detalhe-contador" aria-live="polite"></p>
+
+[%# As mesmas acoes dos outros passos. "Voltar" recua um passo — daqui, para as
+    fotos — porque e o `js-back` do upstream que faz isso; "Continuar" carrega
+    `js-reporting-page--next`, o mesmo gatilho do botao do upstream, que o CSS
+    esconde para nao haver dois na tela. %]
+<div class="map-step__actions map-step__actions--navegacao">
+    <a href="#" class="btn js-back map-step__cancelar">
+        [% INCLUDE '_ui-icon.html' icon = 'arrow-left' %]
+        <span>[% loc('Back') %]</span>
+    </a>
+    <button type="button" class="btn btn--primary js-reporting-page--next map-step__proximo">
+        <span>[% loc('Continue') %]</span>
+        [% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]
+    </button>
+</div>

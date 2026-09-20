@@ -105,6 +105,69 @@ jobs:
     - name: Suite de testes
       run: ~/perl5/perlbrew/bin/perlbrew exec script/test --jobs 3 t
 
+    # Compila os scripts do piloto - nao os executa, porque eles precisam de um
+    # banco povoado. Um erro de sintaxe num script que so roda por cron ou a mao
+    # apareceria no dia em que alguem precisasse dele, e ai com pressa.
+    #
+    # `checar-configuracao` e o que teria pego o F3 - duas prefeituras
+    # duplicadas enviando cada ocorrencia duas vezes - no dia em que o segundo
+    # orgao foi criado. Ver docs/CICLO_DE_VIDA_DA_OCORRENCIA.md.
+    - name: Scripts do piloto compilam
+      # Os scripts fazem `use FixMyStreet`, e o modulo le conf/general.yml ja
+      # em tempo de compilacao. Esse arquivo nasce na instalacao, que aqui nao
+      # acontece - entao `perl -c` morria no YAML antes de chegar a olhar a
+      # sintaxe do script, e o passo reprovava scripts que estao corretos.
+      #
+      # FMS_OVERRIDE_CONFIG e o proprio mecanismo do FixMyStreet para apontar
+      # outro arquivo - e o que o script/test usa. O de exemplo e versionado e
+      # serve: o que se quer aqui e compilar, e nao conectar em coisa alguma.
+      env:
+        FMS_OVERRIDE_CONFIG: general.yml-example
+      run: |
+        # O diretorio tem scripts em Perl e em bash. Rodar `perl -c` num script
+        # de bash produz dezenas de erros de sintaxe que nao dizem nada - o
+        # interpretador certo vem do shebang, e nao do diretorio.
+        falhou=0
+        for script in bin/catanduva/*; do
+          [ -f "$script" ] || continue
+          case "$(head -1 "$script")" in
+            *perl) ~/perl5/perlbrew/bin/perlbrew exec perl -c "$script" || falhou=1 ;;
+            *bash|*sh) bash -n "$script" || falhou=1 ;;
+            *) echo "$script nao declara interpretador no shebang"; falhou=1 ;;
+          esac
+        done
+        [ "$falhou" = 0 ] || { echo "ha script do piloto que nao compila"; exit 1; }
+
+  core:
+    # O inventario de docs/PATCHES_DE_CORE.md contra a realidade do git.
+    #
+    # Job proprio, e nao um passo do `test`, por uma razao pratica: o script
+    # compara com o commit em que o fork saiu do upstream, e para isso precisa
+    # do historico completo. O `test` faz checkout raso, que e o que o torna
+    # rapido; buscar 1574 commits la para rodar um script de trinta linhas seria
+    # pagar caro pela conveniencia.
+    #
+    # Nao precisa de carton nem de banco: o script so usa modulos do core do
+    # Perl. Por isso roda em segundos, sem nenhum dos caches dos outros jobs.
+    #
+    # Nao depende do job `changes`: tocar num arquivo de core e exatamente o
+    # tipo de mudanca que nao deve escapar por ser pequena.
+    name: Patches de core registrados
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: O que mudou fora do cobrand esta documentado?
+      run: |
+        perl bin/catanduva/conferir-core || {
+          echo
+          echo "Um arquivo fora do cobrand mudou sem passar por docs/PATCHES_DE_CORE.md."
+          echo "Isso nao e proibido - e uma decisao, e a decisao precisa estar escrita."
+          exit 1
+        }
+
   cypress:
     # Roda so o spec do cobrand brasileiro. O workflow Cypress do upstream esta
     # desabilitado neste fork e exercita os 20 cobrands britanicos - custo alto
@@ -205,7 +268,7 @@ jobs:
     # branch. Roda sempre (`if: always()`), inclusive quando a suite e pulada por
     # ser mudanca so de documentacao - garantindo que o check exista e nao trave a PR.
     name: CI BR
-    needs: [ changes, test, cypress ]
+    needs: [ changes, test, cypress, core ]
     if: always()
     runs-on: ubuntu-22.04
     steps:
@@ -214,11 +277,17 @@ jobs:
         echo "changes.code   = ${{ needs.changes.outputs.code }}"
         echo "test.result    = ${{ needs.test.result }}"
         echo "cypress.result = ${{ needs.cypress.result }}"
+        echo "core.result    = ${{ needs.core.result }}"
         if [ "${{ needs.changes.result }}" != "success" ]; then
           echo "Deteccao de mudancas falhou."; exit 1
         fi
         # Os dois jobs sao pulados juntos quando a mudanca e so de documentacao,
         # entao 'skipped' aqui nao e falha - e ausencia de trabalho a fazer.
+        # O `core` roda sempre - inclusive em PR so de documentacao, que e
+        # justamente quando alguem pode estar mexendo neste inventario.
+        if [ "${{ needs.core.result }}" != "success" ]; then
+          echo "Conferencia dos patches de core falhou."; exit 1
+        fi
         for job in "suite:${{ needs.test.result }}" "cypress:${{ needs.cypress.result }}"; do
           nome=${job%%:*}
           resultado=${job#*:}

@@ -1,0 +1,156 @@
+// ---------------------------------------------------------------------------
+// Design tokens — UI Evolution V2
+// ---------------------------------------------------------------------------
+//
+// As variaveis SCSS de _colours.scss existem porque o upstream as consome em
+// tempo de compilacao. Estas existem porque o codigo proprio do cobrand precisa
+// dos mesmos valores em tempo de execucao, e porque um token so vale alguma
+// coisa se houver um unico lugar onde ele e definido.
+//
+// Regra herdada da Fase 4 e mantida aqui: token declarado e token consumido.
+// Nenhum valor de paleta, de escala tipografica ou de raio de componente e
+// escrito fora daqui — as excecoes sao reinicializacoes (border-radius: 0), os
+// extremos do modo de contraste alto e duas formas que nao pertencem a escala
+// nenhuma. A contagem esta em docs/ui/UI_EVOLUTION_STATUS.md.
+//
+// Especificacao completa: docs/ui/DESIGN_SYSTEM.md.
+
+:root {
+    // -- Cor: marca -------------------------------------------------------
+    --c-primary: #{$green};
+    --c-primary-hover: #{$greenhover};
+    --c-primary-active: #{$greenactive};
+    --c-primary-bright: #{$greenbright};
+    --c-primary-ink: #{$greenink};
+    --c-primary-soft: #{$mint};
+    --c-primary-softer: #{$mintsoft};
+    --c-primary-line: #{$mintline};
+
+    --c-night-start: #{$deepteal};
+    --c-night-end: #{$deepgreen};
+    --c-night: #{$brandnight};
+
+    // A faixa escura do topo e do rodape e o mesmo degrade nos dois lugares.
+    --grad-night: linear-gradient(
+        100deg,
+        #{$deepteal} 0%,
+        #{$brandnight} 45%,
+        #{$deepgreen} 100%
+    );
+
+    // -- Cor: superficie e texto ------------------------------------------
+    --c-bg: #{$background};
+    --c-surface: #{$surface};
+    --c-surface-alt: #{$surfacealt};
+    --c-border: #{$border};
+    --c-border-strong: #{$borderstrong};
+
+    --c-text: #{$textprimary};
+    --c-text-body: #{$textbody};
+    --c-text-muted: #{$textmuted};
+    --c-text-inverse: #{$white};
+    --c-text-inverse-muted: #{rgba($white, 0.82)};
+
+    // -- Cor: estado -------------------------------------------------------
+    --c-pending-bg: #{$status-pending};
+    --c-pending-ink: #{$status-pending-ink};
+    --c-progress-bg: #{$status-progress};
+    --c-progress-solid: #{$status-progress-solid};
+    --c-progress-ink: #{$status-progress-ink};
+    --c-resolved-bg: #{$status-resolved};
+    --c-resolved-ink: #{$status-resolved-ink};
+    --c-closed-bg: #{$status-closed};
+    --c-closed-ink: #{$status-closed-ink};
+    --c-info-bg: #{$status-info};
+    --c-info-ink: #{$status-info-ink};
+
+    --c-error: #{$error_color};
+    --c-error-bg: #{mix($error_color, $white, 8%)};
+    --c-success: #{$status-resolved-ink};
+    --c-success-bg: #{$status-resolved};
+    --c-warning: #{$status-progress-ink};
+    --c-warning-bg: #{$status-progress};
+    --c-focus: #{$textprimary};
+
+    // -- Tipografia --------------------------------------------------------
+    --font-sans: #{$body-font};
+
+    // Os degraus sao os medidos na referencia, convertidos da escala de 1536px
+    // para a de 1440px (fator 0,9375) e arredondados ao meio pixel mais proximo.
+    // Os valores moveis vivem em base.scss; layout.scss sobe os tres primeiros a
+    // partir de 768px.
+    --fs-display: 2.125rem; // 34px no celular, 52px no desktop
+    --fs-h1: 1.75rem; // 28px no celular, 36px no desktop
+    --fs-h2: 1.375rem; // 22px
+    --fs-h3: 1.1875rem; // 19px
+    --fs-h4: 1.0625rem; // 17px
+    --fs-stat: 1.625rem; // 26px no celular, 28px no desktop
+    --fs-lead: 1.0625rem; // 17px no celular, 18px no desktop
+    --fs-body: 1rem; // 16px
+    --fs-sm: 0.875rem; // 14px
+    --fs-xs: 0.8125rem; // 13px
+    --fs-2xs: 0.75rem; // 12px
+    --fs-script: 1.625rem; // 26px — a frase manuscrita do hero, unico uso de Caveat
+
+    --fw-regular: 400;
+    --fw-medium: 500;
+    --fw-semibold: 600;
+    --fw-bold: 700;
+    --fw-black: 800;
+
+    --lh-display: 1.12;
+    --lh-heading: 1.25;
+    --lh-snug: 1.4;
+    --lh-body: 1.55;
+
+    --ls-display: -0.025em;
+    --ls-heading: -0.015em;
+    --ls-wide: 0.16em;
+
+    // -- Espacamento -------------------------------------------------------
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    // -- Layout ------------------------------------------------------------
+    --container-max: 80rem; // 1280px
+    --container-gutter: var(--space-4);
+    --header-height: 64px; // 84px a partir de 768px
+    --utility-bar-height: #{$utility-bar-height};
+
+    // -- Forma -------------------------------------------------------------
+    --radius-sm: 8px;
+    --radius-md: 10px; // botoes, campos
+    --radius-lg: 14px; // cartoes, caixa de busca
+    --radius-xl: 18px; // paineis
+    --radius-pill: 999px;
+
+    // -- Profundidade ------------------------------------------------------
+    //
+    // Derivadas de --c-text, nao de preto puro: sombra neutra sobre um fundo
+    // levemente azulado le como sujeira.
+    --shadow-xs: 0 1px 2px #{rgba($textprimary, 0.05)};
+    --shadow-sm: 0 1px 3px #{rgba($textprimary, 0.06)}, 0 1px 2px #{rgba($textprimary, 0.04)};
+    --shadow-md: 0 4px 16px #{rgba($textprimary, 0.07)};
+    --shadow-lg: 0 12px 32px #{rgba($textprimary, 0.1)};
+    --shadow-focus: 0 0 0 3px #{rgba($green, 0.28)};
+
+    // -- Movimento ---------------------------------------------------------
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --dur: 0.16s;
+}
+
+// Quem pediu menos movimento nao recebe nenhum.
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --dur: 0.001s;
+    }
+}

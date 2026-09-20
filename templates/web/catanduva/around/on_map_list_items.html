@@ -1,0 +1,140 @@
+[%# Cartoes da faixa inferior — Map Evolution.
+
+    Substitui templates/web/base/around/on_map_list_items.html, que emite
+    .item-list vertical para a barra lateral. Aqui a mesma informacao vira cartao
+    horizontal.
+
+    Este template e o mesmo que /ajax renderiza a cada filtro, pagina ou
+    movimento do mapa (Around.pm, sub ajax → /reports/ajax). Por isso a estrutura
+    externa nao muda: um <ul class="item-list item-list--reports"> com
+    data-show-old-reports, e cada item com .item-list__item e data-report-id.
+    Sao esses tres que o JS do upstream procura — para o realce do pino no mapa,
+    para o contador de relatos antigos e para a paginacao.
+
+    Os dados sao os de sempre: on_map (o que esta na area visivel) e around_map
+    (o que esta proximo, com distancia). Nenhum campo e inventado; o que nao
+    existir no registro simplesmente nao aparece.
+%]
+[% BLOCK catanduva_map_card %]
+    [%- SET state_class = 'c-badge--pending' -%]
+    [%- IF problem.is_fixed; SET state_class = 'c-badge--resolved';
+        ELSIF problem.is_closed; SET state_class = 'c-badge--closed';
+        ELSIF problem.state != 'confirmed'; SET state_class = 'c-badge--progress';
+        END -%]
+    [%- SET days = problem.days_ago -%]
+
+    [%# `fora` marca as que vieram de around_map: elas estao proximas, mas do
+        lado de fora do enquadramento do mapa. E por esta classe que o contador
+        do titulo sabe o que nao contar. %]
+    <li class="item-list__item map-card[% ' map-card--fora' IF fora %]" data-report-id="[% problem.id | html %]">
+        <a class="map-card__link" href="[% c.cobrand.relative_url_for_report(problem) %][% problem.url %]">
+            [%# A foto so aparece depois de aprovada (MOD-002); o controlador de
+                fotos recusa servir o que o cobrand nao exibe. %]
+            [% IF problem.photo AND c.cobrand.allow_photo_display(problem, 0) %]
+                <img class="map-card__thumb" src="[% problem.photos.first.url_fp %]" alt="" width="96" height="72" loading="lazy">
+            [% ELSE %]
+                <span class="map-card__thumb map-card__thumb--empty" aria-hidden="true">
+                    [% INCLUDE '_ui-icon.html' icon = 'image' %]
+                </span>
+            [% END %]
+
+            <span class="map-card__body">
+                [%# O `title` e para quem usa mouse ver o que o corte escondeu.
+                    Nao e a solucao do corte, e um complemento: no toque ele nao
+                    existe. Quem le o cartao inteiro sem depender dele e o leitor
+                    de tela — o corte e do CSS, o texto continua todo no DOM — e
+                    quem clica, porque o cartao leva a ocorrencia. %]
+                <span class="map-card__title" title="[% problem.title | html %]">[% problem.title | html %]</span>
+
+                [%# Rua e numero, e nao o `display_name` inteiro do Nominatim —
+                    ver Catanduva.pm, short_address. Vazio quando a ocorrencia
+                    nao tem geocode gravado. %]
+                [% SET endereco = c.cobrand.short_address(problem) %]
+                [% IF endereco %]
+                    <span class="map-card__place">[% endereco | html %]</span>
+                [% END %]
+
+                <span class="map-card__meta">
+                    [%- IF days == 0 -%]
+                        Hoje
+                    [%- ELSIF days == 1 -%]
+                        Há 1 dia
+                    [%- ELSIF days <= c.cobrand.display_days_ago_threshold -%]
+                        Há [% days %] dias
+                    [%- ELSE -%]
+                        [% prettify_dt(problem.confirmed, 1) %]
+                    [%- END -%]
+                    [%- IF dist %] <span class="map-card__sep">•</span> [% dist %] km[% END -%]
+                </span>
+
+                <span class="c-badge [% state_class %] map-card__state">[% prettify_state(problem.state) %]</span>
+            </span>
+        </a>
+
+        [%# O icone vem de c.cobrand.category_icon, que casa por palavra e nao por
+            nome inteiro — as categorias sao editaveis na administracao, e uma
+            tabela de nomes exatos ficaria errada na primeira renomeacao. O que
+            nao casar recebe o icone generico. %]
+        [% IF problem.category %]
+            <span class="map-card__category">
+                [% INCLUDE '_ui-icon.html' icon = c.cobrand.category_icon(problem.category) %]
+                <span>[% problem.category | html %]</span>
+            </span>
+        [% END %]
+    </li>
+[% END %]
+
+[%# Dois grupos, e a diferenca entre eles precisa aparecer.
+
+    `on_map` esta dentro do enquadramento do mapa; `around_map` esta proximo mas
+    **fora** dele — o servidor o acrescenta quando o enquadramento tem menos que
+    uma pagina (FixMyStreet::Map, map_features).
+
+    A primeira versao desta faixa juntava os dois numa fila so, sem dizer. O
+    resultado era uma faixa anunciando 20 ocorrencias sobre um mapa com 14 pinos
+    no quadro: o numero estava certo para a lista e errado para quem o lia como
+    "o que esta no mapa". O upstream separava os dois com um rotulo; aqui a
+    separacao e a barra tracejada, e o contador do titulo ignora o segundo grupo.
+%]
+[% BLOCK catanduva_map_divisor %]
+    <li class="item-list__item map-strip__divisor">
+        <span>Fora da área visível</span>
+    </li>
+[% END %]
+
+<ul class="item-list item-list--reports map-strip__cards"[%' data-show-old-reports="1"' IF num_old_reports > 0 %]>
+[% IF on_map.size %]
+    [% FOREACH problem IN on_map %]
+        [% INCLUDE catanduva_map_card %]
+    [% END %]
+    [% IF around_map.size %]
+        [% INCLUDE catanduva_map_divisor %]
+        [% SET fora = 1 %]
+        [% FOREACH item IN around_map %]
+            [% dist = tprintf("%.1f", (item.distance || 0) );
+               problem = item.problem;
+            %]
+            [% INCLUDE catanduva_map_card %]
+        [% END %]
+    [% END %]
+[% ELSIF around_map.size %]
+    [%# Nada no enquadramento: a faixa inteira e "por perto", e o divisor abre a
+        fila para dizer isso. %]
+    [% INCLUDE catanduva_map_divisor %]
+    [% SET fora = 1 %]
+    [% FOREACH item IN around_map %]
+        [% dist = tprintf("%.1f", (item.distance || 0) );
+           problem = item.problem;
+        %]
+        [% INCLUDE catanduva_map_card %]
+    [% END %]
+[% ELSE %]
+    <li class="item-list__item map-strip__empty">
+        [% IF c.get_param('js') %]
+            <p>[% loc('Loading reports…') %]</p>
+        [% ELSE %]
+            [% PROCESS 'around/_on_map_empty.html' %]
+        [% END %]
+    </li>
+[% END %]
+</ul>

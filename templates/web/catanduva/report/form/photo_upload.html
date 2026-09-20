@@ -1,0 +1,97 @@
+[%# Passo "Adicione fotos da ocorrencia".
+
+    Substitui templates/web/base/report/form/photo_upload.html.
+
+    O upload continua sendo o do upstream, e de proposito: quem envia, guarda os
+    ids temporarios, monta as miniaturas e remove arquivo e o Dropzone, ligado
+    por fixmystreet.js (`dropzone`). Tres coisas aqui sao contrato com ele e nao
+    podem mudar de nome:
+
+      - o rotulo com `for="form_photo"`, que e por onde ele acha o formulario;
+      - `#form_photos`, que ele esconde e substitui pela area de arrastar;
+      - `input[name="upload_fileid"]`, onde os ids dos arquivos enviados ficam.
+
+    O que o catanduva-map.js faz depois e so composicao: reescreve o miolo da
+    area de upload, move as miniaturas para a galeria horizontal abaixo e conta
+    quantas fotos existem. Nenhuma regra de envio passa por ele.
+
+    O limite e **tres**, nao cinco. A referencia desenha cinco, mas o Dropzone e
+    inicializado com `maxFiles` vindo de `data-max-photos` (padrao 3) e o
+    caminho sem JavaScript tem tres campos de arquivo. Mudar isso seria mudar
+    regra de negocio para a tela ficar parecida com um desenho. %]
+[% IF c.cobrand.allow_photo_upload %]
+    <div class="map-step__head">
+        <h2 class="map-step__title">Adicione fotos da ocorrência</h2>
+        <p class="map-step__lead">Inclua imagens que ajudem a identificar o problema.</p>
+    </div>
+
+    <input type="hidden" name="upload_fileid" value="[% upload_fileid %]">
+
+    [%# O miolo da area de arrastar e montado pelo Dropzone, entao os dois
+        icones dela nao podem ser escritos no lugar em que aparecem. Ficam aqui,
+        escondidos, e o catanduva-map.js os clona: assim o desenho continua
+        vindo do conjunto do cobrand, e nao de SVG copiado dentro do JavaScript. %]
+    <div class="map-foto__icones" hidden>
+        <span class="js-foto-icone-camera">[% INCLUDE '_ui-icon.html' icon = 'camera-solid' %]</span>
+        <span class="js-foto-icone-enviar">[% INCLUDE '_ui-icon.html' icon = 'upload' %]</span>
+    </div>
+
+    <div class="map-foto__cabecalho">
+        <label id="photo-upload-label" class="map-foto__rotulo" for="form_photo">
+            <span data-singular="[% loc('Photo') %]" data-plural="[% loc('Photos') %]">[% loc('Photo') %]</span>
+            <span class="js-hide-if-category-photo-required">[% loc('(optional)') %]</span>
+        </label>
+
+        [%# Conta as fotos que existem de verdade; escrito pelo catanduva-map.js
+            a partir das miniaturas do Dropzone. Nasce com o numero certo para
+            quem volta ao passo com fotos ja enviadas. %]
+        <p class="map-foto__contagem js-foto-contagem" aria-live="polite"></p>
+    </div>
+
+  [% IF field_errors.photo %]
+    <p class="form-error">[% field_errors.photo %]</p>
+  [% END %]
+
+    [%# Caminho sem JavaScript: tres campos de arquivo, que e o que o servidor
+        le em `photo1`, `photo2` e `photo3`. Com JavaScript o Dropzone esconde
+        este bloco e poe a area de arrastar no lugar. %]
+    <div id="form_photos" data-max-photos="3">
+      [% IF upload_fileid %]
+        <p>[% loc('You have already attached photos to this report.  Note that you can attach a maximum of 3 to this report (if you try to upload more, the oldest will be removed).') %]</p>
+        [% FOREACH id IN upload_fileid.split(',') %]
+        <img align="right" src="/photo/temp.[% id %]" alt="">
+        [% END %]
+      [% END %]
+        <input type="file" name="photo1" id="form_photo">
+        <label for="form_photo2">[% loc('Photo') %]</label>
+        <input type="file" name="photo2" id="form_photo2">
+        <label for="form_photo3">[% loc('Photo') %]</label>
+        <input type="file" name="photo3" id="form_photo3">
+    </div>
+
+    [%# Galeria das fotos ja enviadas. Fica vazia — e escondida — ate existir a
+        primeira: uma fileira de molduras cinzas so para lembrar a referencia
+        diria que falta alguma coisa. %]
+    <section class="map-foto__galeria js-foto-secao" hidden>
+        <h3 class="map-foto__galeria-titulo js-foto-titulo"></h3>
+
+        [%# Uma linha so. Com o limite em tres elas cabem no painel, entao nao
+            ha setas nem indicador: controles para navegar onde nao ha para onde
+            ir sao ruido. A rolagem horizontal fica como rede de seguranca —
+            invisivel enquanto tudo couber, e o que impede uma segunda fileira
+            no dia em que o limite subir. %]
+        <div class="map-foto__faixa-linha">
+            <div class="map-foto__faixa js-foto-faixa" role="group"
+                 aria-label="Fotos adicionadas">
+[%# Um <label>, e nao um <button>: ele e ligado pelo catanduva-map.js ao
+                    campo de arquivo do Dropzone, e assim abre o seletor pelo mecanismo
+                    do proprio HTML, sem clique sintetico. `role` e `tabindex` porque
+                    rotulo nao entra na ordem de tabulacao sozinho. %]
+                <label class="map-foto__adicionar js-foto-adicionar" role="button" tabindex="0">
+                    <span class="map-foto__adicionar-mais" aria-hidden="true">+</span>
+                    <span class="map-foto__adicionar-texto">Adicionar<br>mais fotos</span>
+                </label>
+            </div>
+        </div>
+    </section>
+[% END %]

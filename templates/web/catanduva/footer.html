@@ -1,0 +1,57 @@
+[%# Rodape do cobrand — UI Evolution V2.
+
+    Substitui templates/web/base/footer.html. O upstream poe o <footer> dentro de
+    .content, que esta dentro do container de largura maxima; a faixa de chamada
+    da referencia sangra de borda a borda da janela.
+
+    Por isso os fechamentos vem antes do rodape aqui: .content, .container,
+    .table-cell e .wrapper fecham na mesma ordem do upstream, e o rodape sai
+    depois deles. Nada mais mudou de aninhamento — mexer nessa pilha e o tipo de
+    coisa que quebra o mapa em tela cheia.
+
+    A faixa nao aparece nas paginas de mapa: la o conteudo ocupa a janela inteira
+    e qualquer coisa depois dele vira uma barra que rouba altura do mapa.
+%]
+[% RETURN IF ajax_loading ~%]
+                </div><!-- .content role=main -->
+            </div><!-- .container -->
+        </div><!-- .table-cell -->
+    </div> <!-- .wrapper -->
+
+    [% IF pagefooter AND NOT bodyclass.match('mappage') %]
+    <section class="band-cta">
+        <span class="band-cta__skyline" aria-hidden="true"></span>
+        <div class="container band-cta__inner">
+            <span class="band-cta__mark" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'leaf' %]</span>
+            <div class="band-cta__text">
+                <p class="band-cta__title">Catanduva é a nossa casa.</p>
+                <p class="band-cta__sub">Vamos cuidar juntos!</p>
+            </div>
+            <a class="btn btn--on-night btn--pill band-cta__action" href="/faq#participar">
+                Saiba como participar
+                [% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]
+            </a>
+        </div>
+    </section>
+
+    <footer class="site-footer" role="contentinfo">
+        <div class="container site-footer__inner">
+            <ul class="site-footer__links">
+                <li><a href="/faq">Sobre o piloto</a></li>
+                <li><a href="/faq#acessibilidade">Acessibilidade</a></li>
+                <li><a href="[% c.cobrand.privacy_policy_url %]">Privacidade</a></li>
+                <li><a href="/alert">Alertas locais</a></li>
+                <li><a href="/contact">Fale conosco</a></li>
+            </ul>
+            <p class="site-footer__note">
+                [% loc('Would you like to contribute to FixMyStreet? Our code is open source and <a href="https://fixmystreet.org">available at fixmystreet.org</a>.') %]
+                [% loc('Powered by <a class="platform-logo" href="https://fixmystreet.org/">FixMyStreet Platform</a>') %]
+            </p>
+        </div>
+    </footer>
+    [% END %]
+
+    [% INCLUDE 'common_footer_tags.html' %]
+
+</body>
+</html>

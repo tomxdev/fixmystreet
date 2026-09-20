@@ -2,7 +2,7 @@
 
 > **Piloto municipal — Catanduva/SP**
 > Registro de defeitos e limitações **encontrados e ainda não resolvidos**.
-> Última revisão: 10/09/2026.
+> Última revisão: 15/09/2026.
 
 ---
 
@@ -52,6 +52,17 @@ redescoberto do zero custa uma tarde.
 
 ---
 
+### 1.4 Treze achados da auditoria do ciclo de vida
+
+| | |
+|---|---|
+| **Onde** | [`CICLO_DE_VIDA_DA_OCORRENCIA.md`](CICLO_DE_VIDA_DA_OCORRENCIA.md), levantado em 15/09/2026. A ordem de execução está em [`PLANO_DE_FASES.md`](PLANO_DE_FASES.md); o que o fork alterou fora do cobrand, em [`PATCHES_DE_CORE.md`](PATCHES_DE_CORE.md) |
+| **Os dois críticos** | confirmar a ocorrência pelo link do e-mail devolve **500** (`F1`), e o e-mail de confirmação chega **em inglês** (`F2`). Os dois estão no caminho de quem registra **sem conta**, que é o do cidadão comum |
+| **O alto** | duas prefeituras duplicadas no banco fazem cada ocorrência ser enviada **duas vezes** (`F3`) |
+| **Impacto** | o dado fica correto em todos os casos — o que quebra é a experiência e o destino do envio |
+| **Resolver** | `F1` é uma linha no `mapa_da_confirmacao` do cobrand; `F2` são templates de e-mail próprios; `F3` é dado de configuração. Os dez restantes estão classificados no documento |
+
+---
 ## 2. Do upstream, que nos afeta
 
 ### 2.1 `/reports` responde com cache e sem `Vary: Cookie`
@@ -65,14 +76,16 @@ redescoberto do zero custa uma tarde.
 | **⚠️ Produção** | **Não resolvido, e mais sério.** Em cache de navegador o efeito é confusão, porque o cache é privado. **Atrás de um CDN, um cache compartilhado pode servir a página de um usuário para outro.** Não há dado pessoal nessa página, mas o comportamento é errado |
 | **Resolver** | Decidir junto de `INF-003`, quando houver CDN: ou configurar o CDN para não cachear resposta com cookie de sessão, ou acrescentar `Vary: Cookie` e propor ao upstream |
 
-### 2.2 Erros de formulário não são associados ao campo
+### 2.2 Erros de formulário não são associados ao campo — **RESOLVIDO**
 
 | | |
 |---|---|
-| **Onde** | Dezenas de templates do upstream: `<p class='form-error'>` sem `aria-describedby` nem `aria-errormessage` |
-| **Impacto** | Quem usa leitor de tela ouve o campo sem ouvir o erro dele |
-| **Por que não corrigimos** | São muitas ocorrências em arquivos do upstream; reescrevê-las aqui geraria conflito em toda sincronização futura |
-| **Resolver** | É contribuição a propor ao mysociety, não patch de fork. Ver [`ACESSIBILIDADE.md`](ACESSIBILIDADE.md) |
+| **Onde** | Dezenove templates do upstream: `<p class='form-error'>` sem `id`, e sem `aria-describedby` no campo |
+| **Impacto** | Quem usa leitor de tela ouvia "Por favor, digite seu nome" sem saber a qual dos campos da tela aquilo pertencia |
+| **Por que parecia caro** | "São muitas ocorrências em arquivos do upstream; reescrevê-las aqui geraria conflito em toda sincronização futura." A objeção estava certa — e valia para dezenove arquivos, não para os quatro que importam |
+| **Como foi feito** | Em duas camadas. **Marcação** nos quatro templates do caminho do cidadão (título, descrição, nome, e-mail, senha), que é a única que vale com JavaScript desligado — e é aí que não existe validação de navegador nenhuma. **Uma passagem no `catanduva.js`** alcança os outros quinze, que são de admin, contato e conta |
+| **O detalhe que evita um defeito novo** | O `id` segue `<id do campo>-error`, que é o que o jQuery Validate gera. Com o mesmo nome ele reaproveita o parágrafo do servidor em vez de escrever um segundo logo abaixo |
+| **Validado** | Um subteste em `t/cobrand/catanduva.t`, e medido no navegador nos dois caminhos — erro do servidor e erro do jQuery — sem duplicar mensagem |
 
 ### 2.3 Canal de contestação por token existe sem produtor
 

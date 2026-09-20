@@ -1,47 +1,19 @@
-[%# UX-003 - campo de CEP.
+[%# Este arquivo existia para acrescentar o campo de CEP ao passo de detalhes
+    (UX-003). O campo saiu da tela.
 
-    NAO cite sintaxe do Template Toolkit dentro deste comentario. Um comentario
-    TT termina no primeiro fecha-diretiva que aparece, entao um exemplo colado
-    no meio do texto encerra o comentario antes da hora e o resto do texto passa
-    a ser interpretado como diretiva. Foi o que aconteceu na primeira versao
-    deste arquivo, e o modo como falhou e o que torna o erro caro: o template
-    base inclui este arquivo dentro de um TRY cujo CATCH e do tipo "file", e o
-    TT classifica erro de parse tambem como "file". A excecao foi engolida, o
-    campo sumiu da pagina, e nada apareceu em log nenhum.
+    Por que saiu: a localizacao ja foi escolhida e confirmada no passo dois, com
+    mapa, pino e endereco. Pedir o CEP de novo aqui era pedir duas vezes a mesma
+    informacao, e a referencia desta tela nao o tem.
 
-    O arquivo entra por um hook do report/new/form_report.html, protegido por
-    esse TRY - basta existir. Nenhum template do upstream e sobrescrito, e
-    sincronizar com o mysociety nao gera conflito aqui.
+    O que muda de verdade, dito com clareza: o CEP continua sendo gravado na
+    ocorrencia — `report_new_munge_before_insert`, no Catanduva.pm, o deriva da
+    geocodificacao reversa do ponto quando o parametro nao vem no formulario. O
+    que se perde e a correcao manual: antes, quem estava na rua podia consertar
+    um CEP errado do geocodificador; agora nao ha onde. Se essa correcao for
+    necessaria, o lugar dela e outro — a revisao, ou a administracao.
 
-    O CEP vem da geocodificacao reversa do ponto marcado no mapa, mas fica
-    visivel e editavel de proposito. O geocoder erra, e quem esta na rua sabe
-    corrigir - exigir que o cidadao soubesse o CEP de cor era justamente o que
-    fazia abandonar o cadastro no meio.
-
-    O operador de alternativa do TT e curto-circuito, entao
-    c.cobrand.cep_from_pin so e chamado quando o campo ainda nao foi preenchido
-    - inclusive ao reexibir o formulario depois de um erro de validacao, quando
-    o que o cidadao digitou tem de sobreviver.
+    O arquivo continua existindo, e vazio de proposito: o form_report.html do
+    upstream o chama dentro de um TRY cujo CATCH e do tipo "file", e deixar o
+    gancho presente e explicito e melhor do que apagar o arquivo e descobrir
+    meses depois que o gancho existia.
 %]
-[% SET cep = c.req.params.cep || c.cobrand.cep_from_pin %]
-
-<label for="form_cep">[% loc('Postcode') %]</label>
-
-<p class="form-hint" id="cep-hint">
-  [% loc('Filled in from the point marked on the map. Correct it if it is wrong.') %]
-</p>
-
-<input type="text"
-       class="form-control"
-       name="cep"
-       id="form_cep"
-       value="[% cep | html %]"
-       inputmode="numeric"
-       autocomplete="postal-code"
-       maxlength="9"
-       pattern="[0-9]{5}-?[0-9]{3}"
-       [%# Sem o title, o navegador recusa o envio com um generico "corresponda
-           ao formato solicitado", que nao diz qual formato. Com ele, a mensagem
-           - lida tambem por leitor de tela - explica o que se espera. %]
-       title="[% loc('Five digits, a hyphen, then three digits.') %]"
-       aria-describedby="cep-hint">

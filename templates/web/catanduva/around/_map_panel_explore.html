@@ -1,0 +1,158 @@
+[%# Estado 01 — Explorar mapa.
+
+    Conteudo do painel flutuante quando ninguem comecou a registrar nada.
+
+    Nao ha aba "Lista de ocorrencias" aqui, e isso e deliberado. As duas imagens
+    de referencia (map-evolution.png e flows/01-explore-map.png) desenham essa
+    aba, mas o plano a proibe duas vezes — secao 9.1 estado 01 e secao 8 — porque
+    a faixa inferior ja e a regiao de listagem. A regra 9 do plano manda preferir
+    a especificacao escrita quando ela diverge da imagem. Registrado em
+    MAP_COMPONENT_MAPPING.md, secao 5.
+
+    Os filtros vem inteiros de reports/_list-filters.html. Nao sao reescritos: os
+    ids #statuses, #filter_categories, #sort e #show_old_reports sao o contrato
+    com fixmystreet.js, que liga tudo por id e esconde o botao de aplicar quando
+    ha JS.
+%]
+[% USE Number.Format %]
+
+<div class="map-panel__header">
+    [%# Duas linhas, com a quebra onde a referencia a desenha
+        (reference/flows/samples/tela_pesquisa_espacamentos_base.png). O <br> e
+        deliberado: e a quebra do desenho, nao a que a largura do painel produz. %]
+    <h1 class="map-panel__title">Encontre e acompanhe<br>os problemas da sua cidade.</h1>
+    <p class="map-panel__lead">
+        Navegue pelo mapa, filtre por categoria e veja o que já foi reportado na
+        sua região.
+    </p>
+</div>
+
+<div class="map-panel__body">
+
+    [%# Buscar, localizar e filtrar.
+
+        Os tres andam juntos: sao as maneiras de dizer *onde* olhar. No desktop
+        o agrupador nao existe visualmente — `display: contents` faz os filhos
+        continuarem filhos do painel, e a composicao e a mesma de sempre.
+
+        No celular ele passa a existir, e e ele que vira a folha inferior que o
+        link "Filtro" abre. Sem isto, a folha trazia so os filtros: o campo de
+        busca e o "usar minha localizacao" ficavam dentro do #map_sidebar, que
+        no modo mapa-cheio e `visibility: hidden` — existiam no DOM, nao tinham
+        como ser alcancados com o dedo. %]
+    <div class="map-panel__buscar">
+
+    [%# Filtros reais: situacao, categoria, ordenacao e relatos antigos. %]
+    [% INCLUDE "reports/_list-filters.html" %]
+
+    [%# Busca por endereco. O campo pertence ao #mapSearchForm, declarado em
+        display_location.html — ver a nota la sobre o atributo form=. %]
+    <div class="map-panel__field">
+        <label for="pc_search">Buscar por endereço ou ponto de referência</label>
+        <div class="home-search__box">
+            <span class="home-search__icon" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'search' %]</span>
+            [%# `required` porque submeter vazio nao produz erro nenhum: o
+                /around sem `pc` e sem coordenadas manda a pessoa para a home,
+                calado. O navegador avisa antes de sair da pagina, que e a hora
+                certa de avisar. %]
+            <input type="text" id="pc_search" name="pc" form="mapSearchForm"
+                   value="[% pc | html %]" maxlength="200" required
+                   placeholder="Ex.: Rua São Paulo, Centro...">
+            <input type="submit" form="mapSearchForm" class="btn btn--primary" value="Buscar">
+        </div>
+    </div>
+
+    [%# "Usar minha localizacao atual".
+
+        O <a> continua sendo o do upstream, com o id #geolocate_link que o
+        `geolocation.js` procura. O href para /around?geolocate=1 continua a
+        valer sem JS.
+
+        Ao lado dele, a regiao de estado. Ela existe porque o upstream, quando a
+        geolocalizacao falha, escreve a mensagem *dentro* do proprio link —
+        perde o icone, perde o rotulo e deixa um botao que diz "Voce recusou".
+        Aqui o botao continua sendo um botao e a mensagem tem lugar proprio, com
+        role="status" para quem usa leitor de tela. %]
+    <div class="map-panel__actions">
+        [% INCLUDE 'around/_postcode_form_geolocation.html' url=c.uri_for('/around', { geolocate = 1 }) %]
+        <p class="map-geo-status js-geo-status" role="status" aria-live="polite" hidden></p>
+    </div>
+
+    [%# Indicadores. Os mesmos numeros da home, da mesma fonte
+        (Catanduva.pm, front_stats_data) — contagens, nao estimativas.
+
+        DENTRO do `.map-panel__buscar`, e nao ao lado dele. No desktop isso nao
+        muda nada: `display: contents` faz os filhos continuarem filhos do
+        painel, e a ordem visual e a mesma de sempre. No celular muda tudo — e
+        este agrupador que vira a folha inferior, e o que ficar de fora dele
+        mora no #map_sidebar, que no modo mapa-cheio e `visibility: hidden`.
+
+        Era o KNOWN_ISSUES 13: os indicadores e a dica existiam no DOM e nao
+        havia gesto que os alcancasse. %]
+    [% stats = c.cobrand.front_stats_data() %]
+    [%# Icone a esquerda, numero e rotulo empilhados a direita. Na vertical o
+        bloco gastava 69px por indicador para dizer tres palavras; na horizontal
+        o icone pode crescer e o bloco encolhe. %]
+    <ul class="map-panel__stats">
+        <li class="map-stat">
+            <span class="map-stat__icon" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'pin-solid' %]</span>
+            <span class="map-stat__text">
+                <span class="map-stat__value">[% stats.registered | format_number %]</span>
+                <span class="map-stat__label">ocorrências</span>
+            </span>
+        </li>
+        <li class="map-stat">
+            <span class="map-stat__icon map-stat__icon--ok" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'check-circle-solid' %]</span>
+            <span class="map-stat__text">
+                <span class="map-stat__value">[% stats.resolved | format_number %]</span>
+                <span class="map-stat__label">resolvidas</span>
+            </span>
+        </li>
+        <li class="map-stat">
+            <span class="map-stat__icon map-stat__icon--wip" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'clock-solid' %]</span>
+            <span class="map-stat__text">
+                <span class="map-stat__value">[% stats.in_progress | format_number %]</span>
+                <span class="map-stat__label">em andamento</span>
+            </span>
+        </li>
+    </ul>
+
+  [% IF allow_creation %]
+    [%# Como se comeca a registrar. A referencia confia no botao do cabecalho,
+        mas o gatilho real e o clique no mapa — dizer isso e o que evita que a
+        pessoa fique procurando um botao que nao inicia o fluxo.
+
+        O atalho "nao consegue usar o mapa?" vive dentro deste mesmo bloco, e
+        nao mais como um paragrafo proprio embaixo dele. Ele **nao** foi
+        removido: `skipped=1` e o caminho funcional de quem nao consegue operar
+        um mapa — o New.pm marca `used_map(0)` e a pagina de detalhes troca o
+        mapa pelo #skipped-map. Esconde-lo atras de um estado de erro de JS
+        seria pior, porque quem mais precisa dele e justamente quem pode estar
+        sem o mapa funcionando. Como link discreto na mesma caixa, ele continua
+        alcancavel pelo teclado e por leitor de tela sem gastar uma secao. %]
+    [%# Texto em portugues, e nao o `loc('Click map to report a problem')`: o
+        catalogo pt_BR nao traduz essa chave e a interface saia em ingles. A
+        referencia mostra as duas linhas centradas, a instrucao com o pino e o
+        atalho embaixo. %]
+    <p class="map-panel__hint">
+        <span class="map-panel__hint-text">
+            [% INCLUDE '_ui-icon.html' icon = 'pin' %]
+            Clique no mapa para registrar um problema
+        </span>
+        <a class="map-panel__hint-skip" href="[% url_skip %]" rel="nofollow">Não consegue usar o mapa?</a>
+    </p>
+  [% END %]
+
+    </div>
+
+</div>
+
+[%# "Receber atualizacoes" saiu **desta tela**.
+
+    O bloco era o `around/_updates.html` do upstream (um #key-tools com o link
+    para /alert/list). Ele gastava 69px no fim do painel — e no celular o JS do
+    upstream o movia para a barra de acoes do mapa, ocupando metade dela.
+
+    Nada foi removido do sistema: a rota /alert/list, o fluxo de alertas e o
+    "Receber atualizacoes" das outras telas continuam como estavam. O que saiu
+    foi o INCLUDE nesta composicao. %]

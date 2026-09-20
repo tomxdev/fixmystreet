@@ -1,0 +1,94 @@
+[%# Home — UI Evolution V2.
+
+    Substitui templates/web/base/index.html, que compoe a pagina como duas
+    colunas de tabela: "como registrar um problema" em quatro passos de um lado e
+    a lista de recentes do outro. A referencia tem outra composicao — hero com
+    busca, quatro acoes rapidas, numeros e recentes lado a lado, faixa de
+    chamada — e nenhum dos blocos do upstream sobrevive a ela na forma original.
+
+    O que continua exatamente igual:
+      - pre_container_extra ainda processa around/postcode_form.html, entao o
+        formulario de busca e o mesmo, no mesmo lugar do fluxo;
+      - front/site-message.html continua sendo processado, senao a mensagem de
+        servico que a prefeitura publicar nao aparece;
+      - bodyclass = 'frontpage' continua, e e dela que dependem os scripts da
+        home (common_scripts.html) e o prefetch do <head>.
+
+    Os quatro passos de "como registrar" nao sumiram: viraram as quatro acoes
+    rapidas, que dizem a mesma coisa em forma de atalho e, ao contrario dos
+    passos, levam a algum lugar.
+%]
+[% rendered_site_message = 0 %]
+[% pre_container_extra = PROCESS 'around/postcode_form.html' %]
+[% SET bodyclass = 'frontpage' %]
+[% INCLUDE 'header.html', title = '', inline_css = 1 %]
+
+[% IF error %]
+    <p class="form-error">[% error %]</p>
+[% END %]
+
+[% PROCESS 'front/site-message.html' %]
+
+[% TRY %][% INCLUDE "front/pre-columns.html" %][% CATCH file %][% END %]
+
+[%# ---------------------------------------------------------------------
+    Acoes rapidas
+
+    Quatro atalhos para os quatro comecos possiveis. Os destinos sao rotas que
+    existem e respondem: /around sem coordenadas devolveria a pessoa para a home,
+    entao o atalho do mapa leva ao centro do municipio — os mesmos valores que a
+    navegacao usa, vindos da caixa delimitadora de Cobrand/Catanduva.pm.
+--------------------------------------------------------------------- %]
+[% SET map_uri = '/around?lat=-21.1383&amp;lon=-48.9728&amp;zoom=3' %]
+[% IF c.cobrand.council_area %]
+    [% SET reports_uri = '/reports/' _ c.cobrand.council_area | uri %]
+[% ELSE %]
+    [% SET reports_uri = '/reports' %]
+[% END %]
+
+<section class="home-actions" aria-label="Atalhos">
+    <ul class="home-actions__grid">
+        <li class="action-card">
+            <span class="c-icon-circle">[% INCLUDE '_ui-icon.html' icon = 'pencil' %]</span>
+            <span class="action-card__body">
+                <h2 class="action-card__title"><a href="#pc">Registrar ocorrência</a></h2>
+                <p class="action-card__desc">Informe o problema na sua cidade em poucos minutos.</p>
+            </span>
+            <span class="action-card__arrow" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]</span>
+        </li>
+
+        <li class="action-card">
+            <span class="c-icon-circle">[% INCLUDE '_ui-icon.html' icon = 'map' %]</span>
+            <span class="action-card__body">
+                <h2 class="action-card__title"><a href="[% map_uri %]">Ver no mapa</a></h2>
+                <p class="action-card__desc">Explore os problemas registrados na sua região.</p>
+            </span>
+            <span class="action-card__arrow" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]</span>
+        </li>
+
+        <li class="action-card">
+            <span class="c-icon-circle">[% INCLUDE '_ui-icon.html' icon = 'bell' %]</span>
+            <span class="action-card__body">
+                <h2 class="action-card__title"><a href="[% reports_uri %]">Acompanhar status</a></h2>
+                <p class="action-card__desc">Veja as atualizações e o andamento das solicitações.</p>
+            </span>
+            <span class="action-card__arrow" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]</span>
+        </li>
+
+        <li class="action-card">
+            <span class="c-icon-circle">[% INCLUDE '_ui-icon.html' icon = 'users' %]</span>
+            <span class="action-card__body">
+                <h2 class="action-card__title"><a href="/alert">Alertas locais</a></h2>
+                <p class="action-card__desc">Fique por dentro dos problemas mais recentes.</p>
+            </span>
+            <span class="action-card__arrow" aria-hidden="true">[% INCLUDE '_ui-icon.html' icon = 'arrow-right' %]</span>
+        </li>
+    </ul>
+</section>
+
+<div class="home-panels">
+    [% INCLUDE 'front/stats.html' %]
+    [% INCLUDE 'front/recent.html' %]
+</div>
+
+[% INCLUDE 'footer.html' pagefooter = 'yes' %]

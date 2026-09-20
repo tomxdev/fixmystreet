@@ -1,0 +1,147 @@
+#!/usr/bin/env perl
+#
+# Confere a configuracao do piloto antes de publicar.
+#
+# Existe por causa do F3: duas prefeituras duplicadas no banco faziam cada
+# ocorrencia ser enviada duas vezes, e ninguem percebeu por meses. Nao foi falta
+# de cuidado - foi falta de uma pergunta feita em voz alta. As perguntas estao
+# aqui.
+#
+# Cada verificacao responde uma coisa que, se estiver errada, so aparece quando
+# a mensagem chega ao destinatario errado - ou nao chega.
+#
+#   bin/catanduva/checar-configuracao            # relata
+#   bin/catanduva/checar-configuracao --quieto   # so o resultado, para o CI
+#
+# Sai com 0 se tudo passou, 1 se houve falha. Avisos nao derrubam a saida: eles
+# sao coisas que podem ser deliberadas.
+
+use strict;
+use warnings;
+use v5.14;
+use utf8;
+binmode STDOUT, ":encoding(UTF-8)";
+
+BEGIN {
+    use File::Basename qw(dirname);
+    use File::Spec;
+    my $d = dirname(File::Spec->rel2abs($0));
+    require "$d/../../setenv.pl";
+}
+
+use FixMyStreet;
+use FixMyStreet::DB;
+use FixMyStreet::Cobrand::Catanduva;
+use Getopt::Long;
+
+my $quieto = 0;
+GetOptions('quieto' => \$quieto) or die "uso: $0 [--quieto]\n";
+
+my (@falhas, @avisos);
+
+sub falha { push @falhas, $_[0]; say "  FALHA  $_[0]" unless $quieto; }
+sub aviso { push @avisos, $_[0]; say "  aviso  $_[0]" unless $quieto; }
+sub certo { say "  ok     $_[0]" unless $quieto; }
+
+my $db = FixMyStreet::DB->schema;
+my $cobrand = FixMyStreet::Cobrand::Catanduva->new;
+
+say "Configuracao do piloto de Catanduva\n" unless $quieto;
+
+# -- Orgaos destinatarios ----------------------------------------------------
+#
+# Mais de um orgao ativo sobre a mesma area significa envio duplicado: o
+# `bodies_str` da ocorrencia acaba com os dois, e cada um recebe um e-mail.
+
+say "Orgaos" unless $quieto;
+
+my @ativos = $db->resultset('Body')->search({ deleted => 0 })->all;
+
+if (@ativos == 0) {
+    falha("nenhum orgao ativo - nao ha para onde enviar ocorrencia nenhuma");
+}
+elsif (@ativos > 1) {
+    falha(sprintf('%d orgaos ativos (%s) - se cobrirem a mesma area, cada ocorrencia sai duplicada',
+        scalar @ativos, join('; ', map { $_->name } @ativos)));
+}
+else {
+    certo(sprintf('um orgao ativo: %s', $ativos[0]->name));
+}
+
+# -- Categorias em mais de um orgao ------------------------------------------
+#
+# Mesmo com um orgao ativo, uma categoria repetida entre orgaos e sinal de que
+# houve duplicacao em algum momento.
+
+my %por_categoria;
+for my $contato ($db->resultset('Contact')->search({ state => { '!=' => 'deleted' } })->all) {
+    push @{ $por_categoria{ $contato->category } }, $contato->body_id;
+}
+
+my @repetidas = grep { @{ $por_categoria{$_} } > 1 } sort keys %por_categoria;
+if (@repetidas) {
+    falha(sprintf('categoria em mais de um orgao: %s', join(', ', @repetidas)));
+}
+else {
+    certo(sprintf('%d categorias, cada uma num orgao so', scalar keys %por_categoria));
+}
+
+# -- Para onde as ocorrencias vao de verdade ---------------------------------
+
+say "\nDestinatarios" unless $quieto;
+
+my $demonstracao = $cobrand->demonstration_recipient;
+if ($demonstracao) {
+    certo("caixa de demonstracao ligada: $demonstracao");
+}
+else {
+    aviso('demonstration_recipient nao configurado - as ocorrencias vao para o e-mail de cada categoria. '
+        . 'Deliberado se ja houver parceria; perigoso se nao houver');
+}
+
+# Enderecos que parecem reais. No piloto, tudo deve ser @example.org ou a caixa
+# de demonstracao: um endereco de prefeitura de verdade aqui significa que o
+# piloto vai escrever para alguem que nao pediu.
+my @suspeitos;
+for my $contato ($db->resultset('Contact')->search({ state => { '!=' => 'deleted' } })->all) {
+    my $email = $contato->email or next;
+    next if $email =~ /\@example\.(org|com|net)$/i;
+    next if $demonstracao && $email eq $demonstracao;
+    push @suspeitos, sprintf('%s -> %s', $contato->category, $email);
+}
+
+if (@suspeitos) {
+    aviso(sprintf('contatos com endereco fora de example.org: %s', join('; ', @suspeitos)));
+}
+else {
+    certo('nenhum contato aponta para um endereco real');
+}
+
+# -- Vocabulario -------------------------------------------------------------
+#
+# Estado sem traducao aparece em ingles no meio de telas em portugues. Era o
+# UI-021.
+
+say "\nVocabulario" unless $quieto;
+
+my $traducoes = $db->resultset('Translation')->search({ tbl => 'state', lang => 'pt-br' })->count;
+my $estados = $db->resultset('State')->count;
+
+# +2 pelos dois estados fixos, que tem id negativo e nao estao na tabela.
+if ($traducoes >= $estados + 2) {
+    certo("$traducoes estados traduzidos para pt-br");
+}
+else {
+    falha("apenas $traducoes estados traduzidos, para $estados na tabela mais os 2 fixos. "
+        . 'Rode bin/catanduva/traduzir-estados');
+}
+
+# -- Resultado ---------------------------------------------------------------
+
+unless ($quieto) {
+    say '';
+    say @falhas ? sprintf('%d falha(s), %d aviso(s).', scalar @falhas, scalar @avisos)
+                : sprintf('Tudo certo. %d aviso(s).', scalar @avisos);
+}
+
+exit(@falhas ? 1 : 0);

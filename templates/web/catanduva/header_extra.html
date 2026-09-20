@@ -1,0 +1,23 @@
+[%# Gancho de <head> do cobrand (common_header_tags.html, ultima linha).
+    Nenhum arquivo do upstream e alterado: o proprio upstream faz PROCESS deste
+    nome dentro de um TRY, justamente para o cobrand acrescentar o que precisar.
+
+    Tipografia. A referencia usa uma grotesca geometrica de altura-x alta;
+    Plus Jakarta Sans e a correspondencia mais proxima disponivel livremente.
+    Caveat entra so para a frase manuscrita do hero, e em um peso so — sem ela o
+    texto cai na pilha sans e continua legivel.
+
+    display=swap de proposito: o texto aparece na fonte de sistema enquanto a
+    webfont carrega, em vez de ficar invisivel. O layout mexe um pouco; um titulo
+    invisivel por 300ms mexe mais.
+%]
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+
+[%# Barra utilitaria: contraste e tamanho do texto.
+
+    Vai no <head> com defer, e nao no gancho de rodape, porque footer_extra.html
+    nao e processado nas paginas de mapa — e a preferencia de contraste de quem a
+    ligou precisa valer em todas as paginas, nao so nas que tem a barra. %]
+<script defer src="[% version('/cobrands/catanduva/catanduva.js') %]"></script>

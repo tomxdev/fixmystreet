@@ -1,0 +1,35 @@
+[%
+
+email_summary = "Falta confirmar a sua ocorrência no " _ site_name _ " para que ela seja enviada para ${ report.body }.";
+email_columns = 2;
+
+PROCESS '_email_settings.html';
+
+INCLUDE '_email_top.html';
+
+%]
+
+<th style="[% td_style %][% primary_column_style %]" id="primary_column">
+  [% start_padded_box | safe %]
+  <h1 style="[% h1_style %]">Confirme sua&nbsp;ocorrência</h1>
+  <p style="[% p_style %]">Falta um passo para a sua ocorrência ser registrada: confirme que quer enviá-la para [% report.body %].
+[% TRY %][% INCLUDE '_problem-confirm_extra.html' %][% CATCH file %][% END %]
+  </p>
+  [% IF report.non_public %]
+      <p style="[% p_style %]">Ela não será publicada para consulta pública no [% site_name %], mas será enviada para [% report.body %].</p>
+  [% ELSE %]
+      <p style="[% p_style %]">Depois de confirmada, ela aparece no mapa do [% site_name %] e é enviada para [% report.body %]. Você recebe um e-mail quando houver resposta.</p>
+  [% END %]
+  <p style="margin: 20px auto; text-align: center">
+    <a style="[% button_style %]" href="[% token_url %]">Sim, enviar minha ocorrência</a>
+  </p>
+  <p style="[% p_style %]">Se mudou de ideia, não precisa fazer nada: sem este clique, a ocorrência não é registrada nem enviada a ninguém.</p>
+  [% TRY %][% INCLUDE '_problem-confirm_footer.html' %][% CATCH file %][% END %]
+  [% end_padded_box | safe %]
+</th>
+[% WRAPPER '_email_sidebar.html' object = report, url = token_url %]
+    <h2 style="[% h2_style %]">[% report.title | html %]</h2>
+    [% report.detail | html_para_email(secondary_p_style) %]
+[% END %]
+
+[% INCLUDE '_email_bottom.html' %]

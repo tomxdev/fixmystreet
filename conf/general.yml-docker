@@ -208,7 +208,19 @@ ADMIN_BASE_URL: ''
 #     suggest_duplicates:
 #       buckinghamshire: 1
 #       oxfordshire: 1
-COBRAND_FEATURES: ''
+COBRAND_FEATURES:
+  # Caixa de demonstracao do piloto brasileiro (INT-005).
+  #
+  # Nao ha parceria com a prefeitura, entao nao ha para onde enviar de verdade.
+  # Com isto, toda ocorrencia do cobrand catanduva vai para a caixa do projeto -
+  # o ciclo pode ser mostrado inteiro, e o unico que muda no dia em que houver
+  # parceria e o endereco.
+  #
+  # E protecao, e nao so conveniencia: sem ela, basta editar um contato de
+  # categoria pela administracao para o piloto passar a escrever para fora.
+  # Ver F3 em docs/CICLO_DE_VIDA_DA_OCORRENCIA.md.
+  demonstration_recipient:
+    catanduva: 'ocorrencias@example.org'
 
 # How many items are returned in the GeoRSS and Open311 feeds by default
 RSS_LIMIT: '20'
