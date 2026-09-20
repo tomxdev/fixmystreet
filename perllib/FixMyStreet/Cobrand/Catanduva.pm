@@ -585,6 +585,49 @@ sub allow_photo_display {
     return 0;
 }
 
+=head2 fotos_aguardando
+
+As ocorrencias com fotografia que ainda nao passou por moderacao.
+
+A aprovacao previa (MOD-002) nao tem fila: ela acontece quando um moderador abre
+a ocorrencia B<por outro motivo>. No volume do piloto isso se resolve sozinho -
+mas so enquanto o volume for esse. Com movimento, uma foto pode ficar meses
+invisivel sem que ninguem saiba que ela existe, e quem registrou vai achar que o
+sistema perdeu o anexo.
+
+O filtro final e feito em Perl, com C<photo_approved>, e nao em SQL. E de
+proposito: a regra de "aprovada" mora num lugar so, e reescreve-la como condicao
+sobre a coluna C<extra> criaria uma segunda definicao para discordar da primeira
+no dia em que a forma do metadado mudar. O SQL faz o que sabe fazer barato -
+tirar quem nao tem foto, quem nao esta visivel e quem e de outro cobrand.
+
+C<$limite> existe para que uma fila grande nao vire uma pagina de administracao
+que nao carrega. O contador, esse, e da fila inteira.
+
+=cut
+
+sub fotos_aguardando {
+    my ($self, $limite) = @_;
+    $limite ||= 50;
+
+    my $candidatas = FixMyStreet::DB->resultset('Problem')->search({
+        photo   => { '!=' => undef },
+        cobrand => $self->moniker,
+        state   => [ FixMyStreet::DB::Result::Problem->visible_states() ],
+    }, {
+        order_by => { -asc => 'confirmed' },
+    });
+
+    my (@fila, $total);
+    while (my $ocorrencia = $candidatas->next) {
+        next if $self->photo_approved($ocorrencia);
+        $total++;
+        push @fila, $ocorrencia if @fila < $limite;
+    }
+
+    return { ocorrencias => \@fila, total => $total || 0 };
+}
+
 =head2 report_moderate_after
 
 Marks the photo approved once a moderator has been through the report.
@@ -1287,6 +1330,87 @@ sub category_icon {
     }
 
     return 'clipboard';
+}
+
+=head2 estado_visual
+
+O grupo de estado ao qual uma ocorrencia pertence, para efeito de aparencia:
+C<pending>, C<progress>, C<resolved> ou C<closed>.
+
+Existe porque esta decisao estava escrita tres vezes - em
+C<front/_list-entry.html>, C<report/nearby.html> e
+C<around/on_map_list_items.html> - e agora e lida tambem pelo pino do mapa. Uma
+quarta copia seria a que discorda das outras tres no dia em que um estado novo
+aparecer: o selo diria "Em andamento" e o pino continuaria da cor de aberta.
+
+Os quatro grupos sao os do vocabulario de estados do Design System
+(C<$status-pending>, C<-progress>, C<-resolved> e C<-closed> em
+C<_colours.scss>), e nao uma divisao inventada aqui.
+
+A ordem das perguntas importa. C<is_fixed> vem antes de C<is_closed> porque
+"resolvida" tambem e um estado fechado, e responder "encerrada" a uma ocorrencia
+resolvida seria trocar uma boa noticia por uma neutra.
+
+=cut
+
+sub estado_visual {
+    my ($self, $problem) = @_;
+
+    return 'pending' unless $problem;
+    return 'resolved' if $problem->is_fixed;
+    return 'closed'   if $problem->is_closed;
+    # Aberta, mas ja saiu de "confirmed": alguem da prefeitura mexeu nela.
+    return 'progress' if $problem->state ne 'confirmed';
+    return 'pending';
+}
+
+=head2 pin_colour
+
+A cor do pino no mapa, por estado da ocorrencia.
+
+O upstream devolve C<yellow> para todo pino nos contextos C<around>, C<reports>
+e C<report> (C<Cobrand::Default>, linha 1086). Nao e defeito: e escolha dele. O
+efeito num mapa com muitas ocorrencias e que resolvidas e abertas ficam
+indistinguiveis - justamente na tela cujo proposito e dar a visao de conjunto,
+que e a unica coisa que a listagem nao da.
+
+As cores saem de C<estado_visual>, e por isso o pino e o selo da listagem nunca
+podem discordar. Os nomes a direita sao os arquivos de C<web/i/pin-*.png>, e a
+escolha de cada um segue o vocabulario de estados do Design System: vermelho
+para aberta, ambar para em andamento, verde para resolvida, cinza para
+encerrada sem solucao.
+
+B<A cor nao e o unico canal.> O estado aparece por escrito no selo da listagem,
+na pagina da ocorrencia e no balao do pino - quem nao distingue as cores nao
+perde informacao nenhuma, so o atalho visual.
+
+B<Nao ha bloco de legenda>, e isso e deliberado por duas razoes.
+
+A primeira e de espaco: o painel de explorar esta exatamente cheio em 1440x900
+(PROBLEMAS_CONHECIDOS, item 12 da auditoria de mapa), e qualquer bloco novo traz
+a rolagem de volta.
+
+A segunda e que ja existe uma. Os selos dos cartoes na faixa inferior usam as
+quatro mesmas familias de cor - C<$status-pending>, C<-progress>, C<-resolved> e
+C<-closed> - e trazem o estado por escrito ao lado. Quem olha um cartao vermelho
+escrito "Aberta" ao lado de um pino vermelho no mapa ja leu a legenda; um bloco
+separado repetiria o que a tela mostra, custando a altura que ela nao tem.
+
+(Os tres indicadores no pe do painel B<nao> sao a legenda: o primeiro deles e um
+pino verde que conta o total, e verde aqui significa resolvida.)
+
+=cut
+
+my %COR_DO_PINO = (
+    pending  => 'red',
+    progress => 'orange',
+    resolved => 'green',
+    closed   => 'grey',
+);
+
+sub pin_colour {
+    my ($self, $problem, $context) = @_;
+    return $COR_DO_PINO{ $self->estado_visual($problem) } || 'red';
 }
 
 =head2 street_imagery_provider

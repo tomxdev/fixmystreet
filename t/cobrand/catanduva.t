@@ -7,6 +7,8 @@ use FixMyStreet::Script::UpdateAllReports;
 use Test::MockModule;
 use DateTime;
 use JSON::MaybeXS;
+use YAML;
+use Path::Tiny;
 
 # report_new_munge_before_insert reads a form parameter and the stash, and the
 # photo rules ask who is looking. Only these things are ever asked of it.
@@ -1937,6 +1939,373 @@ subtest 'o link compartilhado mostra a imagem do piloto, e nao a britanica' => s
             'a home anuncia a imagem do piloto');
         $mech->content_lacks('/cobrands/fixmystreet/images/fms-og_image.jpg',
             'e nao a do FixMyStreet britanico');
+    };
+};
+
+subtest 'a cor do pino diz o estado, e nunca discorda do selo' => sub {
+    # O upstream devolve `yellow` para todo pino nos contextos around/reports/
+    # report. Nao e defeito, e escolha dele - mas deixa o mapa com muitas
+    # ocorrencias sem distinguir resolvida de aberta, justamente na tela cujo
+    # proposito e a visao de conjunto.
+
+    my $cobrand = FixMyStreet::Cobrand::Catanduva->new;
+
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        my $usuario = $mech->create_user_ok('pino@example.org', name => 'Quem Olha');
+
+        # Um por grupo de estado. Os rotulos sao os internos, que nunca mudam.
+        my %ESPERADO = (
+            'confirmed'       => [ 'pending',  'red'    ],
+            'investigating'   => [ 'progress', 'orange' ],
+            'action scheduled'=> [ 'progress', 'orange' ],
+            'fixed - council' => [ 'resolved', 'green'  ],
+            'closed'          => [ 'closed',   'grey'   ],
+            'duplicate'       => [ 'closed',   'grey'   ],
+        );
+
+        for my $estado (sort keys %ESPERADO) {
+            my ($grupo, $cor) = @{ $ESPERADO{$estado} };
+            my ($ocorrencia) = $mech->create_problems_for_body(1, $body->id,
+                "Ocorrencia $estado", {
+                    user => $usuario, cobrand => 'catanduva', state => $estado,
+                    latitude => -21.1383, longitude => -48.9728,
+                });
+
+            is $cobrand->estado_visual($ocorrencia), $grupo,
+                "\"$estado\" pertence ao grupo $grupo";
+            is $cobrand->pin_colour($ocorrencia, 'around'), $cor,
+                "\"$estado\" desenha um pino $cor";
+
+            # O selo da listagem le do MESMO metodo. E este o ponto de ter
+            # tirado a decisao dos tres templates: se um dia ela mudar, os dois
+            # mudam juntos ou nenhum muda.
+            $mech->get_ok('/report/' . $ocorrencia->id);
+            $mech->content_contains("pin-$cor.png",
+                "a pagina de \"$estado\" mostra o pino $cor");
+
+            $ocorrencia->delete;
+        }
+
+        # E o que o upstream fazia: uma cor so, para todos.
+        my ($qualquer) = $mech->create_problems_for_body(1, $body->id,
+            'Nenhuma deve ser amarela', {
+                user => $usuario, cobrand => 'catanduva',
+                latitude => -21.1383, longitude => -48.9728,
+            });
+        $mech->get_ok('/report/' . $qualquer->id);
+        $mech->content_lacks('pin-yellow.png', 'nenhum pino ficou amarelo');
+        $qualquer->delete;
+    };
+};
+
+subtest 'o expurgo da LGPD: o script, e o que sobra depois dele' => sub {
+    # Ja existe um subteste ("retention: a resolved report is anonymised once it
+    # is five years old") que chama FixMyStreet::Script::Inactive diretamente e
+    # prova a REGRA: fora do prazo e encerrada, anonimiza; dentro do prazo,
+    # aberta, ou de outro cobrand, nao toca.
+    #
+    # Falta o que esta ENTRE a regra e o que roda no cron. Sao duas coisas, e as
+    # duas estao documentadas no proprio `bin/catanduva/expurgo-lgpd` como
+    # armadilhas:
+    #
+    #   1. a guarda de cobrand - sem catanduva em ALLOWED_COBRANDS o moniker cai
+    #      para 'default', e a rotina anonimizaria as ocorrencias do cobrand
+    #      ERRADO. O script morre antes.
+    #   2. a inversao do --commit - o script passa `'dry-run' => !$commit`. Com
+    #      underscore em vez de hifen, o BUILDARGS do Inactive sobrescreve com
+    #      undef e a rotina GRAVA sem --commit: a diferenca entre um ensaio e um
+    #      apagamento.
+    #
+    # E falta a outra metade da promessa: que a ocorrencia SOBREVIVE. A decisao
+    # 3 da LGPD manda tirar o dado pessoal, a decisao 4 manda manter a
+    # ocorrencia, que e interesse publico. So funciona se o buraco continuar la.
+
+    # -- O script, por fora -------------------------------------------------
+    #
+    # Aqui e proposito NAO haver dados: o harness roda dentro de uma transacao
+    # (FixMyStreet::Test), entao o processo filho enxerga o banco sem as linhas
+    # criadas por este arquivo. Isso nao atrapalha nenhuma das duas perguntas -
+    # a guarda morre antes de consultar nada, e a inversao do --commit aparece
+    # na saida do proprio Inactive, que diz "DRY RUN" quando esta em ensaio.
+
+    my $conf_atual = $ENV{FMS_OVERRIDE_CONFIG} || 'general.yml';
+    my $base = YAML::Load(Path::Tiny::path(FixMyStreet->path_to("conf/$conf_atual"))->slurp);
+
+    my $escrever = sub {
+        my ($sufixo, $cobrands) = @_;
+        my %conf = (%$base, ALLOWED_COBRANDS => $cobrands);
+        my $nome = "general-test-expurgo-$sufixo.$$.yml";
+        Path::Tiny::path(FixMyStreet->path_to("conf/$nome"))->spew(YAML::Dump(\%conf));
+        return $nome;
+    };
+
+    my $com_catanduva = $escrever->('ok', ['catanduva']);
+    my $sem_catanduva = $escrever->('nao', ['fixmystreet']);
+
+    my $rodar = sub {
+        my ($conf, @args) = @_;
+        my $script = FixMyStreet->path_to('bin/catanduva/expurgo-lgpd');
+        local $ENV{FMS_OVERRIDE_CONFIG} = $conf;
+        my $saida = `$^X $script @args 2>&1`;
+        return ($? >> 8, $saida);
+    };
+
+    my ($codigo, $saida) = $rodar->($sem_catanduva, '--commit');
+    isnt $codigo, 0, 'sem catanduva em ALLOWED_COBRANDS, o script recusa rodar';
+    like $saida, qr/ALLOWED_COBRANDS/, 'e diz por que - nao morre calado';
+
+    ($codigo, $saida) = $rodar->($com_catanduva);
+    is $codigo, 0, 'com o cobrand certo, o script roda';
+    like $saida, qr/DRY RUN/, 'sem --commit e ensaio, e o script anuncia isso';
+
+    ($codigo, $saida) = $rodar->($com_catanduva, '--commit');
+    is $codigo, 0, 'com --commit o script roda ate o fim';
+    unlike $saida, qr/DRY RUN/,
+        'e com --commit nao e mais ensaio - e esta a inversao que o script documenta';
+
+    unlink FixMyStreet->path_to("conf/$_") for ($com_catanduva, $sem_catanduva);
+
+    # -- O que sobra depois -------------------------------------------------
+    #
+    # Em processo, porque e aqui que os dados existem. Os argumentos sao
+    # exatamente os que o script passa; se o prazo mudar la, muda aqui.
+
+    my $cidadao = $mech->create_user_ok('expurgo@example.org', name => 'Quem Reportou');
+    my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+        { cobrand => 'catanduva' });
+
+    my $ha_muito = DateTime->now->subtract(months => 61);
+
+    my ($velha) = $mech->create_problems_for_body(1, $body->id, 'Buraco de seis anos', {
+        dt => $ha_muito, lastupdate => "$ha_muito",
+        state => 'fixed - council', cobrand => 'catanduva', user => $cidadao,
+        latitude => -21.1383, longitude => -48.9728,
+        anonymous => 0, name => 'Quem Reportou',
+    });
+    my $id = $velha->id;
+    my $titulo = $velha->title;
+
+    # Uma atualizacao publica, que tambem carrega nome de gente.
+    $mech->create_comment_for_problem($velha, $cidadao, 'Quem Reportou',
+        'Continua igual', 'f', 'confirmed', 'confirmed');
+
+    FixMyStreet::override_config { ALLOWED_COBRANDS => ['catanduva'] }, sub {
+        FixMyStreet::Script::Inactive->new(
+            anonymize => 60,
+            cobrand   => 'catanduva',
+        )->reports;
+    };
+
+    $velha->discard_changes;
+
+    # O dado pessoal sai - e nao so o vinculo.
+    isnt $velha->user_id, $cidadao->id, 'a ocorrencia perde o vinculo com quem a registrou';
+    is $velha->name, '', 'e o nome de quem registrou vai junto';
+    is $velha->anonymous, 1, 'e ela passa a constar como anonima';
+
+    my $atualizacao = $velha->comments->first;
+    isnt $atualizacao->user_id, $cidadao->id,
+        'a atualizacao publica tambem perde o vinculo';
+    is $atualizacao->name, '', 'e o nome nela tambem sai';
+
+    # A outra metade da promessa, que um teste de anonimizacao costuma esquecer.
+    is $velha->title, $titulo, 'o titulo continua';
+    is $velha->state, 'fixed - council', 'o estado continua';
+    ok $velha->latitude && $velha->longitude, 'o lugar continua';
+
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        $mech->get_ok("/report/$id");
+        $mech->content_contains('Buraco de seis anos',
+            'e a pagina da ocorrencia continua de pe');
+        $mech->content_lacks('Quem Reportou',
+            'sem o nome de quem a registrou, nem na ocorrencia nem na atualizacao');
+    };
+};
+
+subtest 'a fila de fotografias aguardando aprovacao' => sub {
+    # A aprovacao previa (MOD-002) nao tinha fila: ela acontecia quando um
+    # moderador abria a ocorrencia POR OUTRO MOTIVO. No volume do piloto isso se
+    # resolve sozinho - mas so enquanto o volume for esse. Com movimento, uma
+    # foto pode ficar meses invisivel sem que ninguem saiba que existe, e quem
+    # registrou vai achar que o sistema perdeu o anexo.
+    #
+    # A fila mora na primeira tela de /admin, e nao numa aba propria: uma aba
+    # exigiria acao de controlador - arquivo novo no espaco do core, rota,
+    # `admin_pages` - e uma fila que so quem procura encontra e uma fila que
+    # ninguem olha.
+
+    my $cobrand = FixMyStreet::Cobrand::Catanduva->new;
+
+    # `skip_must_have_2fa` porque o cobrand exige segundo fator de quem e
+    # superusuario (SEC-003), e sem ele o `log_in_ok` para na tela do codigo.
+    # A regra tem subteste proprio; aqui ela so atrapalha.
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+        STAGING_FLAGS => { skip_must_have_2fa => 1 },
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        my $usuario = $mech->create_user_ok('fila@example.org', name => 'Quem Fotografou');
+
+        my $criar = sub {
+            my ($titulo, %opcoes) = @_;
+            my ($ocorrencia) = $mech->create_problems_for_body(1, $body->id, $titulo, {
+                user => $usuario, cobrand => $opcoes{cobrand} // 'catanduva',
+                latitude => -21.1383, longitude => -48.9728,
+                state => $opcoes{state} // 'confirmed',
+                photo => $opcoes{photo},
+            });
+            if ($opcoes{aprovada}) {
+                $ocorrencia->set_extra_metadata(publish_photo => 1);
+                $ocorrencia->update;
+            }
+            return $ocorrencia;
+        };
+
+        my $FOTO = '0123456789012345678901234567890123456789.jpeg';
+
+        # Medido por DIFERENCA, e nao por total. Os subtestes deste arquivo
+        # dividem uma transacao so, entao a fila ja chega aqui com dezenas de
+        # ocorrencias criadas por outros - e um total absoluto seria uma
+        # suposicao que quebra toda vez que alguem acrescentar um subteste
+        # acima.
+        my $antes = $cobrand->fotos_aguardando(1000)->{total};
+
+        my $na_fila    = $criar->('Com foto por olhar',  photo => $FOTO);
+        my $aprovada   = $criar->('Com foto ja olhada',  photo => $FOTO, aprovada => 1);
+        my $sem_foto   = $criar->('Sem foto nenhuma');
+        my $escondida  = $criar->('Com foto, escondida', photo => $FOTO, state => 'hidden');
+        my $de_outro   = $criar->('De outro cobrand',    photo => $FOTO, cobrand => 'default');
+
+        my $fila = $cobrand->fotos_aguardando(1000);
+        my %ids = map { $_->id => 1 } @{ $fila->{ocorrencias} };
+
+        is $fila->{total}, $antes + 1, 'das cinco recem-criadas, so uma entrou na fila';
+        ok $ids{ $na_fila->id },     'a que tem foto por olhar esta na fila';
+        ok !$ids{ $aprovada->id },   'a ja aprovada saiu';
+        ok !$ids{ $sem_foto->id },   'quem nao tem foto nunca entra';
+        ok !$ids{ $de_outro->id },   'e a de outro cobrand nao e nossa para moderar';
+
+        # Escondida nao aparece porque `visible_states` a exclui - e o mesmo
+        # criterio do resto do site. Aprovar a foto de uma ocorrencia que
+        # ninguem ve seria trabalho sem efeito.
+        ok !$ids{ $escondida->id }, 'e a escondida tambem nao';
+
+        # O limite corta a lista, nao o contador: uma fila grande nao pode virar
+        # uma pagina de administracao que nao carrega, mas o numero tem de ser o
+        # verdadeiro.
+        my $curta = $cobrand->fotos_aguardando(2);
+        is $curta->{total}, $fila->{total}, 'o contador e da fila inteira';
+        is scalar @{ $curta->{ocorrencias} }, 2, 'e a lista respeita o limite';
+
+        # E na tela. A fila e inutil se so existir no metodo.
+        my $chefe = $mech->create_user_ok('chefe@example.org', name => 'Quem Modera',
+            is_superuser => 1);
+        $mech->log_in_ok($chefe->email);
+
+        $mech->get_ok('/admin');
+        $mech->content_contains('aguardando aprovação',
+            'a fila aparece na primeira tela da administracao');
+        $mech->content_contains('Com foto por olhar',
+            'com a ocorrencia que espera');
+        $mech->content_lacks('Com foto ja olhada',
+            'e sem a que ja foi olhada');
+
+        # Fila vazia nao deixa uma caixa vazia na tela.
+        for my $o (@{ $cobrand->fotos_aguardando(1000)->{ocorrencias} }) {
+            $o->set_extra_metadata(publish_photo => 1);
+            $o->update;
+        }
+        $mech->get_ok('/admin');
+        $mech->content_lacks('aguardando aprovação',
+            'sem fila, nao sobra caixa vazia');
+        $mech->content_contains('administration interface',
+            'e o texto do upstream continua onde estava');
+
+        $mech->log_out_ok;
+    };
+};
+
+subtest 'marcar como resolvido e a unica transicao de estado do cidadao - e da para desfazer' => sub {
+    # Item da 7.3. O plano descreve este evento como "definitivo, sem
+    # confirmacao" e sugere um "tem certeza?". Este subteste existe para
+    # verificar a premissa antes de acrescentar atrito - porque um aviso de
+    # confirmacao numa acao REVERSIVEL nao protege ninguem, so cansa.
+    #
+    # Nao ha botao solto: marcar resolvido e uma caixa dentro do formulario de
+    # atualizacao, entao a pessoa ja esta escrevendo algo quando decide.
+
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(body_id => $body->id,
+            category => 'Buraco na via', email => 'buraco@example.org');
+
+        my $autor = $mech->create_user_ok('resolveu@example.org', name => 'Quem Registrou');
+        my ($ocorrencia) = $mech->create_problems_for_body(1, $body->id,
+            'Buraco que sera dado como resolvido', {
+                user => $autor, cobrand => 'catanduva', category => 'Buraco na via',
+                latitude => -21.1383, longitude => -48.9728,
+            });
+        my $id = $ocorrencia->id;
+
+        $mech->log_in_ok($autor->email);
+
+        # -- Marcar como resolvido -------------------------------------------
+        $mech->get_ok("/report/$id");
+        $mech->content_contains('form_fixed',
+            'quem registrou ve a caixa de "resolvido"');
+
+        $mech->submit_form_ok({ with_fields => {
+            update => 'A prefeitura tapou o buraco.',
+            fixed  => 1,
+        } }, 'marca como resolvido junto de uma atualizacao');
+
+        $ocorrencia->discard_changes;
+        is $ocorrencia->state, 'fixed - user',
+            'o estado passa a ser o de resolvida por quem registrou';
+
+        # -- E desfazer -------------------------------------------------------
+        #
+        # E isto que responde a pergunta do plano. O
+        # `reopening_disallowed` do cobrand nao e sobrescrito, e nenhuma
+        # categoria do piloto levanta a bandeira - entao a pessoa pode voltar
+        # atras pelo mesmo formulario.
+        $mech->get_ok("/report/$id");
+        $mech->content_contains('form_reopen',
+            'e, tendo marcado, ve a caixa de "nao foi resolvido"');
+
+        $mech->submit_form_ok({ with_fields => {
+            update => 'Voltou a afundar na mesma semana.',
+            reopen => 1,
+        } }, 'reabre a ocorrencia');
+
+        $ocorrencia->discard_changes;
+        is $ocorrencia->state, 'confirmed',
+            'e ela volta a ficar aberta - a transicao NAO e definitiva';
+
+        # -- Quem nao registrou nao decide -------------------------------------
+        $mech->log_out_ok;
+        my $outro = $mech->create_user_ok('passante@example.org', name => 'Quem Passava');
+        $mech->log_in_ok($outro->email);
+
+        $mech->get_ok("/report/$id");
+        $mech->content_lacks('form_reopen',
+            'quem nao registrou nao ve a caixa de reabrir');
+
+        $mech->log_out_ok;
     };
 };
 

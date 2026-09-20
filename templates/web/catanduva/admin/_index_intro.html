@@ -1,0 +1,73 @@
+[%# A fila de fotografias aguardando aprovacao (7.1).
+
+    POR QUE AQUI, e nao numa pagina propria de /admin.
+
+    Uma pagina propria exigiria uma acao de controlador, e controlador nao tem
+    versao de cobrand: seria um arquivo novo no espaco do core, uma entrada em
+    `admin_pages`, uma rota e uma linha a mais em PATCHES_DE_CORE.md. Tudo isso
+    para uma lista que, no volume do piloto, cabe em cinco linhas.
+
+    Este arquivo, em compensacao, custa zero de superficie de core: ele apenas
+    sombreia o `admin/_index_intro.html` do upstream, que a `admin/index.html`
+    ja processa - e o upstream nunca vai brigar com uma sombra.
+
+    E o lugar esta certo por si: a fila aparece na PRIMEIRA tela que um
+    moderador ve ao entrar na administracao, em vez de numa aba que ele
+    precisaria saber que existe. Uma fila que so quem procura encontra e uma
+    fila que ninguem olha.
+
+    O texto do upstream continua abaixo, sem corte: ele fala do projeto e da
+    lista de discussao, e nao e nosso para apagar.
+%]
+[% fila = c.cobrand.fotos_aguardando() %]
+
+[% IF fila.total %]
+<div class="fms-admin-warning">
+    <h2 style="margin-top: 0">
+        [% IF fila.total == 1 %]1 fotografia aguardando aprovação
+        [%- ELSE %][% fila.total %] fotografias aguardando aprovação[% END %]
+    </h2>
+
+    [%# A frase importa: quem chega aqui pode nao saber por que existe uma fila.
+        Ver MOD-002 - nenhuma foto aparece antes de alguem olhar. %]
+    <p>
+        Nenhuma fotografia aparece ao público antes de alguém olhar. Abra a
+        ocorrência e use <strong>Moderar</strong>: decidir manter ou remover a
+        foto é o que a aprova.
+    </p>
+
+    <table cellspacing="0" cellpadding="2" border="1">
+        <tr>
+            <th>[% loc('ID') %]</th>
+            <th>[% loc('Title') %]</th>
+            <th>Registrada em</th>
+            <th>[% loc('State') %]</th>
+        </tr>
+        [% FOREACH ocorrencia IN fila.ocorrencias %]
+        <tr>
+            <td>[% ocorrencia.id %]</td>
+            <td><a href="[% c.uri_for('/report', ocorrencia.id) %]">[% ocorrencia.title | html %]</a></td>
+            <td>[% c.cobrand.data_por_extenso(ocorrencia.confirmed) %]</td>
+            <td>[% prettify_state(ocorrencia.state, 1) %]</td>
+        </tr>
+        [% END %]
+    </table>
+
+    [%# So aparece quando a fila passou do limite que o metodo devolve. Dizer
+        "mostrando 50 de 137" e melhor do que mostrar 50 calado. %]
+    [% IF fila.total > fila.ocorrencias.size %]
+    <p>Mostrando [% fila.ocorrencias.size %] das [% fila.total %] mais antigas.</p>
+    [% END %]
+</div>
+[% END %]
+
+<div class="fms-admin-info fms-admin-floated">
+This is the administration interface for [% site_name %]. If you
+need any help or guidance, there is <a href="https://fixmystreet.org/">plenty of
+online documentation</a>. The FixMyStreet Platform is
+<a href="https://github.com/mysociety/fixmystreet">actively supported</a> by
+its developers, and has a community of people using or working on the code.
+Please <a href="https://fixmystreet.org/community/">sign up to the mailing list
+or get in touch</a> to let us know about your use of the FixMyStreet Platform,
+and to receive notices of updates.
+</div>

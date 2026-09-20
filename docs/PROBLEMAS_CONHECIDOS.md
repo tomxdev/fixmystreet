@@ -75,7 +75,9 @@ redescoberto do zero custa uma tarde.
 | **Como se manifesta** | "Ao clicar em Todas as ocorrências pareço ficar deslogado" — a sessão está intacta, a página é que é velha |
 | **Local** | Resolvido: `bin/catanduva/ambiente-local` põe `CACHE_TIMEOUT: 0` |
 | **⚠️ Produção** | **Não resolvido, e mais sério.** Em cache de navegador o efeito é confusão, porque o cache é privado. **Atrás de um CDN, um cache compartilhado pode servir a página de um usuário para outro.** Não há dado pessoal nessa página, mas o comportamento é errado |
-| **Resolver** | Decidir junto de `INF-003`, quando houver CDN: ou configurar o CDN para não cachear resposta com cookie de sessão, ou acrescentar `Vary: Cookie` e propor ao upstream |
+| **Medido** | `curl -D -` em `/reports`: `Cache-Control: max-age=0`, e nenhum `Vary`. O risco é real e está inteiro no valor de `CACHE_TIMEOUT` |
+| **Guarda** | `bin/catanduva/checar-configuracao` passou a **avisar** se `CACHE_TIMEOUT` não for 0, dizendo o que acontece em navegador e o que acontece atrás de CDN. É aviso e não falha: pode ser deliberado, desde que seja decidido |
+| **Resolver** | Decidir junto de `INF-003`, quando houver CDN: ou configurar o CDN para não cachear resposta com cookie de sessão, ou acrescentar `Vary: Cookie` e propor ao upstream. Até lá, `CACHE_TIMEOUT: 0` — é uma instalação de uma cidade, e uma hora de cache nessa página não paga o risco |
 
 ### 2.2 Erros de formulário não são associados ao campo — **RESOLVIDO**
 
@@ -95,16 +97,21 @@ redescoberto do zero custa uma tarde.
 | **Onde** | `Contact.pm:85` consome um token de escopo `moderation`; `contact/form.html` tem o texto próprio |
 | **O que acontece** | **Nada no código cria esse token.** O caminho está pela metade no upstream |
 | **Impacto** | Nenhum para nós: o `MOD-005` implementou um caminho que não depende dele |
-| **Resolver** | Só se algum dia quisermos contestação por link em e-mail, sem exigir login |
+| **Decisão** | **O piloto não oferece.** O `MOD-005` já dá contestação a quem registrou, e por um caminho que não depende deste token. Implementar o produtor seria construir um segundo caminho para o mesmo fim, com a diferença de dispensar login — e é justamente o login que garante que quem contesta é quem registrou. Reavaliar só se aparecer demanda de contestação por quem não tem conta |
 
-### 2.4 Todos os pinos do mapa são amarelos
+### 2.4 Todos os pinos do mapa são amarelos — **RESOLVIDO**
 
 | | |
 |---|---|
-| **Onde** | `Cobrand::Default::pin_colour` (`Default.pm:1086`) devolve `yellow` para os contextos `around`, `reports` e `report` |
-| **O que acontece** | O estado da ocorrência não muda a cor do pino no mapa. Na listagem e na página, sim |
-| **Impacto** | Um mapa com muitas ocorrências não distingue resolvidas de abertas |
-| **Resolver** | Não é defeito, é escolha do upstream. Sobrescrever `pin_colour` no cobrand é pequeno — decidir se queremos |
+| **Onde** | `Cobrand::Default::pin_colour` (`Default.pm:1086`) devolvia `yellow` para os contextos `around`, `reports` e `report` |
+| **O que acontecia** | O estado da ocorrência não mudava a cor do pino no mapa. Na listagem e na página, mudava |
+| **Impacto** | Um mapa com muitas ocorrências não distinguia resolvidas de abertas — justamente na tela cujo propósito é a visão de conjunto, que é a única coisa que a listagem não dá |
+| **Decisão** | Sobrescrever. Não era defeito do upstream, era escolha dele; a escolha do piloto é outra |
+| **Como foi feito** | `pin_colour` no cobrand, lendo de um método novo, **`estado_visual`** — vermelho aberta, âmbar em andamento, verde resolvida, cinza encerrada. São as quatro famílias que o Design System já tinha (`$status-pending`, `-progress`, `-resolved`, `-closed`), e não uma divisão inventada |
+| **O que veio de brinde** | Essa decisão estava escrita **três vezes**, em `front/_list-entry.html`, `report/nearby.html` e `around/on_map_list_items.html`. Os três passaram a ler do cobrand: o pino e o selo não podem mais discordar |
+| **Legenda** | Deliberadamente nenhuma. O painel de explorar está exatamente cheio (item 12), e os selos dos cartões da faixa inferior já trazem a mesma família de cor **com o estado por escrito ao lado** — quem vê um cartão vermelho escrito "Aberta" ao lado de um pino vermelho já leu a legenda |
+| **Cor não é o único canal** | O estado aparece por escrito no selo, na página e no balão do pino. Quem não distingue as cores não perde informação, só o atalho |
+| **Validado** | Subteste em `t/cobrand/catanduva.t`: os seis estados do banco, o grupo e a cor de cada um, a página de cada um, e que **nenhum** pino ficou amarelo. Medido no navegador em `/around`: 11 vermelhos, 7 âmbar, 3 cinza, 2 verdes — exatamente as contagens do banco — e o painel continua com rolagem zero |
 
 ### 2.5 `t/app/controller/claims.t` sai com 255
 

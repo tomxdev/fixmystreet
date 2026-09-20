@@ -136,6 +136,37 @@ else {
         . 'Rode bin/catanduva/traduzir-estados');
 }
 
+# -- Cache de /reports -------------------------------------------------------
+#
+# O `Reports.pm` responde com `Cache-Control: max-age=CACHE_TIMEOUT` (3600 por
+# padrao) e SEM `Vary: Cookie`. Quer dizer: a resposta nao varia por sessao.
+#
+# Em cache de navegador o efeito e confusao - quem abriu a pagina deslogado e
+# depois entrou continua vendo a copia anonima, e conclui que perdeu a sessao.
+# Atras de um CDN e pior: um cache compartilhado pode servir a pagina montada
+# para uma pessoa a outra. Nao ha dado pessoal nessa pagina hoje, mas o
+# comportamento e errado, e "hoje nao ha" e uma garantia que ninguem escreveu.
+#
+# Enquanto nao houver CDN configurado (INF-003), a resposta do piloto e manter
+# CACHE_TIMEOUT em 0: e uma instalacao de uma cidade, e o cache de uma hora
+# nessa pagina nao paga o risco. Isto aqui existe para que subir esse numero
+# seja uma decisao, e nao um descuido.
+
+say "\nCache" unless $quieto;
+
+my $cache = FixMyStreet->config('CACHE_TIMEOUT');
+$cache = 3600 unless defined $cache;
+
+if ($cache == 0) {
+    certo('CACHE_TIMEOUT: 0 - /reports nao e cacheada, e a falta de Vary: Cookie nao importa');
+}
+else {
+    aviso("CACHE_TIMEOUT: $cache - /reports sera cacheada por $cache s sem Vary: Cookie. "
+        . 'Em navegador isso faz quem entrou continuar vendo a pagina de deslogado; '
+        . 'atras de CDN, a pagina de uma pessoa pode ser servida a outra. '
+        . 'Ou volte para 0, ou configure o CDN para nao cachear resposta com cookie de sessao');
+}
+
 # -- Resultado ---------------------------------------------------------------
 
 unless ($quieto) {

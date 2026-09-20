@@ -34,11 +34,8 @@
 [%~ FOREACH problem IN reports ~%]
     [%~ SET metros = c.cobrand.distancia_em_metros(origem_lat, origem_lon, problem.latitude, problem.longitude) ~%]
 
-    [%~ SET classe_estado = 'c-badge--pending' ~%]
-    [%~ IF problem.is_fixed; SET classe_estado = 'c-badge--resolved';
-        ELSIF problem.is_closed; SET classe_estado = 'c-badge--closed';
-        ELSIF problem.state != 'confirmed'; SET classe_estado = 'c-badge--progress';
-        END ~%]
+    [%~# O grupo de estado vem do cobrand - ver a nota em front/_list-entry.html ~%]
+    [%~ SET classe_estado = 'c-badge--' _ c.cobrand.estado_visual(problem) ~%]
 
     [%~ SET dias = problem.days_ago ~%]
     [%~ quando = BLOCK ~%]

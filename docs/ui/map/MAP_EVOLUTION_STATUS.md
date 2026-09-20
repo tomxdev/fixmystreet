@@ -4517,6 +4517,46 @@ o placeholder é o da referência.
 **Não commitado.**
 Branch: `proposta/ui-conceito-visual`.
 
+## O pino passa a dizer o estado
+
+O upstream devolve `pin-yellow.png` para **toda** ocorrência nos contextos
+`around`, `reports` e `report` (`Cobrand::Default::pin_colour`). Não é defeito:
+é escolha dele. Mas deixa a tela cujo propósito é a **visão de conjunto** sem
+distinguir resolvida de aberta — que é justamente o que a listagem logo abaixo
+já faz bem, e o mapa não fazia.
+
+| Grupo | Pino |
+|---|---|
+| Aberta (`confirmed`) | vermelho |
+| Em andamento (aberta, já fora de `confirmed`) | âmbar |
+| Resolvida | verde |
+| Encerrada, cancelada, duplicada, fora da competência | cinza |
+
+A divisão **não é nova**: são as quatro famílias que os selos da listagem já
+usavam. O que mudou é que agora ela mora num lugar só,
+`Cobrand::Catanduva::estado_visual`, de onde o pino e os três templates de
+cartão leem. Antes estava escrita três vezes, e o pino seria a quarta cópia.
+
+**Sem bloco de legenda, e de propósito.** O painel de explorar está exatamente
+cheio (KNOWN_ISSUES 12) e um bloco novo traria a rolagem de volta. Não faz
+falta: os cartões da faixa inferior trazem a mesma família de cor com o estado
+**por escrito** ao lado — um cartão vermelho dizendo "Aberta" ao lado de um pino
+vermelho é a legenda. Cor nunca é o único canal.
+
+### Medido
+
+| | |
+|---|---|
+| Pinos em `/around` | 11 vermelhos, 7 âmbar, 3 cinza, 2 verdes — exatamente as contagens do banco |
+| Amarelos | nenhum |
+| Página da ocorrência | `/report/85` (resolvida) verde, `/report/82` (em análise) âmbar, `/report/102` (cancelada) cinza |
+| Rolagem do painel | **zero** em 1440×900, 768×1024 e 390×844 |
+| Rolagem horizontal | nenhuma em nenhuma das três |
+| `t/cobrand/catanduva.t` | 44 subtestes passando; o novo cobre os seis estados do banco e que nenhum pino ficou amarelo |
+
+**Não commitado.**
+Branch: `proposta/ui-conceito-visual`.
+
 ## Atualizado em
 
-2026-09-14
+2026-09-20

@@ -76,6 +76,21 @@ branco.
 
 Erro: `--c-error: #B02A21` (branco sobre ele: 6.0).
 
+**Os mesmos quatro grupos pintam o pino do mapa.** O pino não usa estes valores
+— são os `pin-*.png` do upstream, opacos, para sustentar contraste sobre o
+mosaico — mas usa a mesma **divisão**, e ela vem de um lugar só,
+`Cobrand::Catanduva::estado_visual`:
+
+| Grupo | Selo | Pino |
+|---|---|---|
+| Pendente | `#FDE4E3` | `pin-red.png` |
+| Em andamento | `#FDF1CE` | `pin-orange.png` |
+| Resolvida | `#D9F3EA` | `pin-green.png` |
+| Encerrada | `#E8EDF1` | `pin-grey.png` |
+
+O upstream pinta todo pino de amarelo; o piloto não. **Cor nunca é o único
+canal**: o estado aparece por escrito no selo, na página e no balão do pino.
+
 ### 1.5 O único desvio deliberado da referência
 
 A referência pinta o botão primário em `#00A481` com texto branco. Medido pela
