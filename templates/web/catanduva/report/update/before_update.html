@@ -1,0 +1,17 @@
+[%# As dicas de foto, tambem no formulario de atualizacao.
+
+    `report/update/form_update.html` do upstream faz
+    `TRY; PROCESS 'report/update/before_update.html'` logo depois do campo de
+    fotos e antes do rotulo "Atualizacao" — e o ponto de extensao que existe
+    exatamente aqui, sem copiar o template do formulario.
+
+    POR QUE. A area de envio ja era a mesma do passo "Adicione fotos da
+    ocorrencia" (mesmo template, mesmo limite de tres, mesmo icone de camera e
+    mesmo botao de enviar). O que faltava eram as tres orientacoes — e a de
+    privacidade em especial vale tanto aqui quanto la: uma foto anexada a uma
+    atualizacao e publicada do mesmo jeito, e pode trazer um rosto ou uma placa
+    do mesmo jeito.
+
+    Sem `TRY`: se este arquivo existe, o parcial dele tambem existe.
+%]
+[% INCLUDE 'report/_dicas-de-foto.html' %]

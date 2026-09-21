@@ -1,37 +1,14 @@
 [%# Orientacoes e acoes do passo das fotos.
 
     Substitui templates/web/base/report/new/after_photo.html, que trazia as tres
-    mesmas frases como duas listas — uma "do" e uma "dont" — sem icone. Os
-    textos sao os do upstream, pelo `loc()`: o catalogo pt_BR ja traz exatamente
-    as tres frases que a referencia pede, entao nao ha nada a escrever a mao.
+    mesmas frases como duas listas — uma "do" e uma "dont" — sem icone.
 
-    Os ids `js-photo-tips` e `js-photo-tips-avoid-personal-info` sao preservados:
-    ha regra de cobrand ingles que mostra e esconde os dois por seletor. %]
-<div class="map-foto__dicas description_tips" id="js-photo-tips"
-     aria-label="[% loc('Tips for perfect photos') %]">
-    <p class="map-foto__dica">
-        <span class="map-foto__dica-icone map-foto__dica-icone--bom" aria-hidden="true">
-            [% INCLUDE '_ui-icon.html' icon = 'check-circle-solid' %]
-        </span>
-        <span>[% loc('Reports with photos in them tend to get fixed more quickly') %]</span>
-    </p>
-
-    <p class="map-foto__dica">
-        <span class="map-foto__dica-icone map-foto__dica-icone--foto" aria-hidden="true">
-            [% INCLUDE '_ui-icon.html' icon = 'camera-solid' %]
-        </span>
-        <span>[% loc('For best results include a close-up and a wide shot') %]</span>
-    </p>
-
-    [%# Escudo ambar, e nao um sinal de erro: isto e orientacao de privacidade,
-        nao validacao reprovada. %]
-    <p class="map-foto__dica" id="js-photo-tips-avoid-personal-info">
-        <span class="map-foto__dica-icone map-foto__dica-icone--privacidade" aria-hidden="true">
-            [% INCLUDE '_ui-icon.html' icon = 'shield-solid' %]
-        </span>
-        <span>[% loc('Avoid personal information and vehicle number plates') %]</span>
-    </p>
-</div>
+    AS DICAS MUDARAM DE ARQUIVO. Elas passaram a valer tambem no formulario de
+    atualizacao, que usa a mesma area de envio e o mesmo limite de tres; ter
+    duas copias do mesmo texto em duas telas era garantir que um dia elas
+    divergissem. Agora sao um parcial so, incluido aqui e em
+    report/update/before_update.html. %]
+[% INCLUDE 'report/_dicas-de-foto.html' %]
 
 [%# As mesmas acoes dos outros passos. O "Continuar" carrega
     `js-reporting-page--next`, que e a classe pela qual o pageController avanca

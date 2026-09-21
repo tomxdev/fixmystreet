@@ -1,0 +1,134 @@
+[%# Pagina da ocorrencia — Map Evolution.
+
+    Substitui templates/web/base/report/display.html.
+
+    O QUE MUDA, e o que nao muda.
+
+    O upstream empilha tudo numa coluna: titulo, meta, foto, descricao, barra de
+    ferramentas, atualizacoes e formulario, um debaixo do outro, com
+    `bodyclass = 'mappage'` — que NAO e o `mappage--catanduva` da evolucao do
+    mapa, e por isso esta pagina continuava com a coluna de altura inteira do
+    upstream enquanto todo o resto do fluxo ja era painel flutuante sobre o mapa.
+
+    Aqui ela entra na mesma geometria das outras: painel a esquerda, mapa
+    atras, e o conteudo dividido em duas visoes — Detalhes e Atualizacoes.
+
+    O QUE CONTINUA INTEIRO:
+
+      #map_sidebar    destino do skiplink e base dos offsets
+      #side-report    o upstream e o CSS dele procuram por este id
+      _main.html      quem modera continua vendo a composicao do upstream, com
+                      os formularios inline (ver a nota antes do IF)
+      _main_after     a janela de correcao de quem registrou (F5)
+      /report/update  o formulario posta para a mesma rota, com os mesmos nomes
+                      de campo: `update`, `fixed`, `reopen`, `submit_update`
+
+    O QUE SAI DA COMPOSICAO (e so dela): "Denunciar abuso" e "Receber
+    atualizacoes", que viviam em `report/display_tools.html`. As rotas
+    (/contact e /alert/subscribe) continuam de pe e alcancaveis — nada de
+    infraestrutura foi removido. Decisao de UX desta evolucao.
+
+    O id `key-tool-problems-nearby` migrou para o "Voltar ao mapa": e por ele
+    que map-OpenLayers.js instala o PermalinkFMS, que mantem o link apontando
+    para o enquadramento atual do mapa. Sem isso o link voltaria sempre para o
+    ponto inicial.
+%]
+[%
+    SET bodyclass = 'mappage mappage--catanduva mappage--ocorrencia';
+
+    PROCESS "report/photo-js.html";
+    PROCESS "maps/${map.type}.html";
+
+    # catanduva-map.js e quem liga as abas, o visualizador de fotos e o
+    # resguardo de envio duplicado. Ele ja e carregado nas outras telas do
+    # fluxo; esta era a unica da evolucao do mapa sem ele.
+    SET extra_js = [
+        version('/cobrands/catanduva/catanduva-map.js'),
+    ];
+
+    problem_title = tprintf('%s - %s', problem.title_safe, loc('Viewing a problem'));
+    INCLUDE 'header.html'
+        title = problem_title
+        rss = [ tprintf(loc('Updates to this problem, %s', "%s is the site name"), site_name), "/rss/$problem.id" ]
+        robots = 'index, nofollow';
+
+    can_moderate = permissions.moderate OR c.user.can_moderate(problem, staff = permissions.moderate);
+%]
+
+[% map_html | safe %]
+</div>
+
+<div id="map_sidebar" class="map-panel map-panel--ocorrencia">
+
+  <div id="side-report">
+
+[%# Os tres estados em que o upstream devolve a pessoa a esta pagina com o
+    formulario ja preenchido. Continuam existindo, e continuam mostrando o
+    formulario no topo — quem acabou de entrar na conta precisa ver o que
+    escreveu, e nao procurar por ele. %]
+[% IF login_success %]
+    <p class="form-success">[% loc('You have successfully signed in; please check and confirm your details are accurate:') %]</p>
+    [% SET shown_form = 1 %]
+[% ELSIF oauth_failure %]
+    <p class="form-error">[% loc('Sorry, we could not log you in. Please fill in the form below.') %]</p>
+    [% SET shown_form = 1 %]
+[% ELSIF oauth_need_email %]
+    <p class="form-error">
+        [% loc('Please note your update has <strong>not yet been posted</strong>.') %]
+        [% loc('We need your email address, please give it below.') %]
+    </p>
+    [% SET shown_form = 1 %]
+[% END %]
+
+[% INCLUDE 'report/_ocorrencia-cabecalho.html' %]
+
+[%# QUEM MODERA VE A COMPOSICAO DO UPSTREAM.
+
+    Nao e preguica: `_main.html` nao mostra a ocorrencia — ele mostra a
+    ocorrencia DENTRO de um formulario de moderacao, com titulo, descricao,
+    categoria e fotos em campos editaveis, caixas de reverter, o "esconder
+    ocorrencia inteira" e o motivo. Refazer isso na composicao nova seria
+    reescrever um formulario que funciona, com risco para uma funcionalidade de
+    equipe que este trabalho nao se propoe a mexer.
+
+    Entao: publico ve a composicao nova, quem modera ve a de sempre — dentro do
+    painel novo, com o cabecalho novo acima. As duas caem no mesmo
+    /moderate/report/<id>. %]
+[% IF can_moderate %]
+
+    [%# Sem abas aqui: a composicao do upstream ja e uma coluna so, e uma aba
+        que escondesse metade dela esconderia campos de um formulario aberto. %]
+    <div class="ocorrencia-moderacao">
+        [% INCLUDE 'report/_main.html' %]
+    </div>
+
+    [% INCLUDE 'report/_ocorrencia-atualizacoes.html' %]
+
+[% ELSE %]
+
+    [%# As duas visoes moram no DOM ao mesmo tempo.
+
+        Sem script, as duas aparecem, uma depois da outra, e a pagina continua
+        inteira. Com script, catanduva-map.js esconde uma e liga as abas — e e
+        so ai que elas viram abas de verdade, com `role="tab"`. %]
+    <div class="ocorrencia-visao ocorrencia-visao--detalhes js-ocorrencia-visao"
+         id="ocorrencia-detalhes" data-visao="detalhes"
+         role="tabpanel" aria-labelledby="ocorrencia-aba-detalhes">
+        [% INCLUDE 'report/_ocorrencia-detalhes.html' %]
+    </div>
+
+    <div class="ocorrencia-visao ocorrencia-visao--atualizacoes js-ocorrencia-visao"
+         id="ocorrencia-atualizacoes" data-visao="atualizacoes"
+         role="tabpanel" aria-labelledby="ocorrencia-aba-atualizacoes">
+        [% INCLUDE 'report/_ocorrencia-atualizacoes.html' %]
+    </div>
+
+[% END %]
+
+  </div>
+
+  [% second_column | safe %]
+
+</div>
+
+[% INCLUDE 'footer.html' %]

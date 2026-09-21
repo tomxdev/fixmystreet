@@ -1,0 +1,41 @@
+[%# As tres orientacoes sobre fotografar uma ocorrencia.
+
+    Vive num arquivo proprio porque aparece em DOIS lugares: o passo "Adicione
+    fotos da ocorrencia" do registro (report/new/after_photo.html) e o campo de
+    fotos do formulario de atualizacao (report/update/before_update.html). Sao
+    a mesma orientacao sobre a mesma acao — quem anexa foto numa atualizacao
+    precisa dela tanto quanto quem anexa no registro.
+
+    Os textos sao os do upstream, pelo `loc()`: o catalogo pt_BR ja traz
+    exatamente as tres frases, entao nao ha nada a escrever a mao.
+
+    Os ids `js-photo-tips` e `js-photo-tips-avoid-personal-info` sao preservados:
+    ha regra de cobrand ingles que mostra e esconde os dois por seletor. Eles
+    nao colidem porque as duas telas nunca renderizam juntas — o passo de fotos
+    so existe em /report/new, e o formulario de atualizacao so em /report/<id>.
+%]
+<div class="map-foto__dicas description_tips" id="js-photo-tips"
+     aria-label="[% loc('Tips for perfect photos') %]">
+    <p class="map-foto__dica">
+        <span class="map-foto__dica-icone map-foto__dica-icone--bom" aria-hidden="true">
+            [% INCLUDE '_ui-icon.html' icon = 'check-circle-solid' %]
+        </span>
+        <span>[% loc('Reports with photos in them tend to get fixed more quickly') %]</span>
+    </p>
+
+    <p class="map-foto__dica">
+        <span class="map-foto__dica-icone map-foto__dica-icone--foto" aria-hidden="true">
+            [% INCLUDE '_ui-icon.html' icon = 'camera-solid' %]
+        </span>
+        <span>[% loc('For best results include a close-up and a wide shot') %]</span>
+    </p>
+
+    [%# Escudo ambar, e nao um sinal de erro: isto e orientacao de privacidade,
+        nao validacao reprovada. %]
+    <p class="map-foto__dica" id="js-photo-tips-avoid-personal-info">
+        <span class="map-foto__dica-icone map-foto__dica-icone--privacidade" aria-hidden="true">
+            [% INCLUDE '_ui-icon.html' icon = 'shield-solid' %]
+        </span>
+        <span>[% loc('Avoid personal information and vehicle number plates') %]</span>
+    </p>
+</div>

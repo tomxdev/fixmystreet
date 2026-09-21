@@ -1,0 +1,82 @@
+[%# Cabecalho da ocorrencia — titulo, autoria, estado e abas.
+
+    Vale para as duas visoes: e por isso que ele esta fora delas, e nao repetido
+    dentro de cada uma. Trocar de aba nao muda o que esta aqui.
+
+    O ESTADO ATUAL NAO E O HISTORICO. Esta pilula diz em que ponto a ocorrencia
+    esta AGORA, e sai de `problem.state`. Quem conta a historia e a aba
+    Atualizacoes, com os eventos que de fato existem. Nenhuma sequencia de fases
+    e desenhada aqui, porque o sistema nao tem uma: ver
+    docs/VOCABULARIO_DE_ESTADOS.md, secao 1 — os estados sao escolhas da equipe,
+    nao etapas de uma esteira, e uma ocorrencia pode voltar de "Em andamento"
+    para "Em analise" sem que isso seja um erro.
+%]
+
+[%# "Voltar ao mapa", e nao "Voltar para todas as ocorrencias".
+
+    O id e o do upstream de proposito: map-OpenLayers.js instala nele o
+    PermalinkFMS, que reescreve o href conforme a pessoa move o mapa. Sem o id,
+    o link voltaria sempre para o enquadramento com que a pagina abriu. %]
+<a class="ocorrencia-voltar" id="key-tool-problems-nearby"
+   href="[% c.uri_for('/around', { lat => latitude, lon => longitude }) %]">
+    [% INCLUDE '_ui-icon.html' icon = 'arrow-left' %]
+    <span>Voltar ao mapa</span>
+</a>
+
+[%# Os avisos do upstream continuam aqui, e um deles e nosso: `banner.html`
+    carrega o MOD-005 — a tarja que diz a quem escreveu que a ocorrencia foi
+    retirada pela moderacao, e por onde contestar. Tirar o include para nao
+    repetir o estado teria levado essa tarja junto.
+
+    As tarjas de ESTADO que ele tambem emite ("Em andamento", "Estado
+    desconhecido") ficam escondidas por CSS nesta pagina: quem diz o estado aqui
+    e a pilula logo abaixo, e duas afirmacoes do mesmo fato, uma embaixo da
+    outra, e exatamente o que esta composicao veio desfazer. %]
+[% INCLUDE 'report/banner.html' %]
+
+<div class="ocorrencia-cabecalho">
+    <h1 class="ocorrencia-titulo">[% problem.title | html %]</h1>
+
+    [%# Duas linhas, como a referencia desenha: quem registrou, e quando.
+
+        `problem.anonymous` e respeitado — quem pediu para nao aparecer nao
+        aparece. A data usa o `prettify_dt` do projeto, que ja esta traduzido;
+        um segundo formato de data so para esta tela seria mais um vocabulario
+        a manter. %]
+    <p class="ocorrencia-autoria">
+        [% IF problem.anonymous %]
+            <span class="ocorrencia-autoria__quem">Registrado anonimamente</span>
+        [% ELSE %]
+            <span class="ocorrencia-autoria__quem">Registrado por [% problem.name | html %]</span>
+        [% END %]
+        <span class="ocorrencia-autoria__quando">[% prettify_dt(problem.confirmed) %]</span>
+    </p>
+
+    [%# A mesma pilula do cartao da faixa e da home: `estado_visual` agrupa os
+        treze estados do upstream nos quatro que o piloto pinta, e
+        `prettify_state` da o rotulo traduzido. Nada e escrito a mao aqui. %]
+    [% SET grupo = c.cobrand.estado_visual(problem) %]
+    <p class="ocorrencia-estado">
+        <span class="c-badge c-badge--[% grupo %] ocorrencia-estado__pilula">
+            [% prettify_state(problem.state) %]
+        </span>
+    </p>
+</div>
+
+[%# As abas so existem com script: sem ele as duas visoes ficam na pagina, uma
+    depois da outra, e uma aba que nao troca nada seria um botao morto.
+
+    `role="tab"` tambem e posto por script, pelo mesmo motivo: um `tablist` cujo
+    painel nao esconde nada mente para quem usa leitor de tela. %]
+[% UNLESS can_moderate %]
+<div class="ocorrencia-abas hidden-nojs js-ocorrencia-abas">
+    <button type="button" class="ocorrencia-abas__aba" id="ocorrencia-aba-detalhes"
+            data-visao="detalhes" aria-controls="ocorrencia-detalhes">
+        Detalhes
+    </button>
+    <button type="button" class="ocorrencia-abas__aba" id="ocorrencia-aba-atualizacoes"
+            data-visao="atualizacoes" aria-controls="ocorrencia-atualizacoes">
+        Atualizações
+    </button>
+</div>
+[% END %]
