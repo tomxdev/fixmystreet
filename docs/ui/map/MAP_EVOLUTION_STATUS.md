@@ -4705,6 +4705,116 @@ placeholder" e o "uma nota de privacidade, não duas".
 **Não commitado.**
 Branch: `proposta/ui-conceito-visual`.
 
+## "Ocorrências próximas" — a faixa aprende a caber
+
+Referência: `reference/flows/samples/tela_mapa_expandir.png`, que desenha os
+dois estados lado a lado.
+
+### O que estava errado, medido
+
+A faixa começava **sempre** depois do painel:
+
+```scss
+left: calc(var(--map-panel-width) + var(--map-panel-inset) + var(--space-3));
+```
+
+Só que o painel não tem altura fixa — ele mede o que o conteúdo do passo pede,
+até o teto da janela. Numa tela alta ele termina muito acima da faixa, e a conta
+continuava reservando a largura dele:
+
+| Em 1920×1080, antes | |
+|---|---|
+| Painel | y 170 → 746 |
+| Faixa | y 842 → 1072, começando em x=460 |
+| Cruzamento vertical | **nenhum** |
+| Mapa vazio à esquerda da faixa | **452px** |
+
+Captura: `screenshots/baseline/faixa-antes-1920x1080-fantasma.png`.
+
+### O que a faixa faz agora
+
+| Estado | Quando | Altura |
+|---|---|---|
+| expandida | cabe, e ninguém pediu o contrário | `--map-strip-height` (230px) |
+| recolhida | a pessoa clicou em "Recolher" | `--map-strip-barra` (50px) |
+| recolhida automaticamente | não cabe; `.map-strip--auto` marca | 50px |
+| vazia | nenhuma ocorrência | a barra mais uma linha de texto (101px) |
+
+**A largura sai da geometria, não de um breakpoint.** `catanduva-map.js` compara
+o retângulo do painel com o da faixa: havendo cruzamento vertical, a faixa começa
+depois do painel; não havendo, começa onde o mapa começa. O resultado vai para
+`--map-strip-left`, e o resto continua sendo CSS — `left/right/bottom` e uma
+`transition`. O valor de reserva da `var()` é a conta antiga, de propósito: sem
+script a página volta a ser o que era.
+
+**A escolha da pessoa e o que cabe na tela são coisas diferentes.**
+`preferida` só muda por clique e vive em `sessionStorage` (a visita, não o
+navegador); `efetiva` é o que a janela comporta. O automático só recolhe, nunca
+expande — por isso um resize de poucos pixels não reabre a faixa contra quem a
+fechou. E quem expande uma faixa recolhida pelo script dispensa o automático até
+a geometria mudar de opinião, que é o caso da "redução drástica de resolução".
+
+**As duas perguntas do automático**, ambas sobre o espaço que sobra:
+
+| | |
+|---|---|
+| Altura | ao mapa tem de sobrar pelo menos 1,5× o que a faixa toma — a proporção que a referência mostra |
+| Largura | uma fila que não mostra dois cartões não é uma fila; a largura do cartão sai do próprio CSS |
+
+### Medições (todas sem reload, na mesma sessão)
+
+| Viewport | Estado | Faixa | Sobreposição | Fantasma | Overflow |
+|---|---|---|---|---|---|
+| 1920×1080 | expandida | x=8 w=1904 | não | não | não |
+| 1440×900 | expandida | x=460 w=972 | não | não | não |
+| 1366×768 | expandida | x=460 w=898 | não | não | não |
+| 1280×720 | **auto-recolhida** | x=460 w=812 | não | não | não |
+| 1024×768 | **auto-recolhida** | x=460 w=556 | não | não | não |
+| 1920×600 | **auto-recolhida** | x=460 w=1452 | não | não | não |
+| 768×1024 | expandida | x=16 w=736 | não | não | não |
+| 390×844 | **auto-recolhida** (camada) | x=0 w=390 | — | — | não |
+| 1152×720 (1440×900 a 125%) | auto-recolhida | x=460 w=684 | não | não | não |
+| 960×600 (1440×900 a 150%) | auto-recolhida | x=388 w=556 | não | não | não |
+
+A sequência 1440 → 1366 → 1280 → 1024 → 768 → 390 → 1440 foi percorrida sem
+recarregar, e a preferência voltou intacta no fim.
+
+**O painel mudando de altura sozinho** — filtros, mensagens, troca de passo — é
+observado por `ResizeObserver`. Medido em 1920×1080: com o painel crescendo de
+746 para 1006, a faixa foi de `x=8 w=1904` para `x=460 w=1452`; ao encolher de
+volta, voltou sozinha.
+
+### Dois defeitos encontrados no caminho
+
+**A tecla Espaço não acionava botão nenhum nesta página.**
+`OpenLayers.Control.KeyboardDefaultsFMS` escuta `keydown` no `document` e, para
+as teclas que trata, chama `OpenLayers.Event.stop` — que cancela a ação padrão
+do elemento com foco. A isenção dele cobre `INPUT`, `TEXTAREA` e `SELECT`;
+`BUTTON` não. Com o foco no botão de recolher, Espaço largava um pino e navegava
+para `/report/new`. Mitigado na faixa, registrado inteiro em
+[`PROBLEMAS_CONHECIDOS.md`](../../PROBLEMAS_CONHECIDOS.md) 2.7.
+
+**O cartão tinha deixado de acender o pino.**
+`map-OpenLayers.js` liga os dois por `.item-list--reports__item`, e o `<li>`
+desta faixa só tinha `item-list__item` — a classe se perdeu quando os cartões
+foram redesenhados. Nada quebrou, e por isso ninguém viu. Devolvida ao template,
+com subteste que reprova sem ela.
+
+### O que não mudou
+
+`Ver todas` (rota e comportamento), o clique no cartão, a paginação, o divisor
+"fora da área visível", a contagem do título, os filtros, o `#js-reports-list`
+que o `/ajax` substitui, e o carrossel — que continua em uma linha só, com as
+setas aparecendo apenas quando há para onde ir.
+
+`t/cobrand/catanduva.t`: 50 subtestes.
+
+Capturas: `screenshots/iterations/faixa-final-1440-*.png`,
+`faixa-v1-1920-*.png`, `faixa-v2-390-*.png`, `faixa-v3-1440-vazia.png`.
+
+**Não commitado.**
+Branch: `proposta/ui-conceito-visual`.
+
 ## Atualizado em
 
-2026-09-20
+2026-09-21

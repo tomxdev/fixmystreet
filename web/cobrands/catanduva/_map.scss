@@ -51,6 +51,14 @@
     // ter para mostrar os controles sem rolagem. Como moldura flutuante 16
     // continua lendo como recuo — o que nao pode e encostar na borda.
     --map-panel-inset: var(--space-2);
+
+    // Altura da faixa quando recolhida: so a barra de controle.
+    //
+    // 48px nao e numero arbitrado — e o que o cabecalho da faixa ja media antes
+    // deste trabalho, conferido no DOM. O `min-height` no `.map-strip__head`
+    // trava o cabecalho nesse valor para que a conta continue valendo agora que
+    // o botao de recolher divide a linha com o titulo.
+    --map-strip-barra: 3rem;
 }
 
 // ---------------------------------------------------------------------------
@@ -777,6 +785,11 @@
     // que o bloco de indicadores foi buscar aqui. Sai do respiro da faixa, e
     // nao dos cartoes — nenhuma parcela da conta do cartao mudou.
     padding: var(--space-2) var(--space-6);
+
+    // A faixa recolhida e exatamente este cabecalho. Travar a altura aqui e o
+    // que torna `--map-strip-barra` uma medida e nao um palpite.
+    min-height: var(--map-strip-barra);
+    box-sizing: border-box;
 }
 
 .map-strip__title {
@@ -799,6 +812,49 @@
     svg {
         width: 16px;
         height: 16px;
+    }
+}
+
+// -- Recolher e expandir -----------------------------------------------------
+//
+// Criado por catanduva-map.js, e nao no template, pelo mesmo motivo das setas:
+// sem script ele nao teria o que fazer, e assim as duas faixas do projeto — a do
+// mapa e a da confirmacao — ganham o comportamento sem repetir markup.
+//
+// A seta aponta para onde o clique leva a faixa, e nao para o estado em que ela
+// esta: recolher a faz descer, expandir a faz subir. E o mesmo desenho girado, e
+// nao dois icones — assim a rotacao acompanha a transicao da propria faixa.
+.map-strip__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex: 0 0 auto;
+    min-height: 32px;
+    padding: 0 var(--space-2);
+    border: 0;
+    background: transparent;
+    color: var(--c-primary);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    cursor: pointer;
+
+    &:hover {
+        text-decoration: underline;
+    }
+
+    &:focus-visible {
+        @include foco-visivel;
+    }
+
+    svg {
+        width: 16px;
+        height: 16px;
+        transition: transform var(--dur-faixa) var(--ease);
+    }
+
+    // O desenho nasce apontando para cima ("expandir"); expandida, ele gira.
+    &[aria-expanded="true"] svg {
+        transform: rotate(180deg);
     }
 }
 
@@ -1021,6 +1077,54 @@
 
     p {
         margin: 0;
+    }
+}
+
+// -- Estados da faixa --------------------------------------------------------
+//
+// Sao dois, e eles nao sao a mesma coisa:
+//
+//   preferida   o que a pessoa escolheu — so muda por clique, e sobrevive a
+//               navegacao dentro da sessao
+//   efetiva     o que cabe na tela agora
+//
+// Quem concilia os dois e catanduva-map.js. Aqui ficam so as duas aparencias, e
+// `.map-strip--auto` marca a segunda quando ela veio da geometria e nao de um
+// clique — a diferenca nao muda o desenho, mas e o que um teste consegue ler.
+//
+// A altura e a unica propriedade animada. A faixa ja recorta o que passa dela
+// (`overflow: hidden`), entao os cartoes descem por baixo da borda em vez de
+// saltarem — e a barra de controle nunca sai de vista, que e a regra que impede
+// alguem de ficar sem como trazer a lista de volta.
+.map-strip {
+    transition: height var(--dur-faixa) var(--ease);
+}
+
+.map-strip--recolhida {
+    .map-strip__list {
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity var(--dur) var(--ease), visibility 0s linear var(--dur);
+    }
+
+    // Sem cartoes a alcancar, as setas nao tem o que fazer — e ficariam sobre a
+    // barra, que e a unica coisa que sobra.
+    .map-strip__nav {
+        display: none;
+    }
+}
+
+// Sem ocorrencias nao ha carrossel, e nao ha o que recolher: a faixa encolhe ate
+// a barra mais a mensagem, em vez de reservar 230px de superficie vazia sobre o
+// mapa.
+.map-strip--vazia {
+    .map-strip__toggle,
+    .map-strip__nav {
+        display: none;
+    }
+
+    .map-strip__list {
+        padding-bottom: var(--space-3);
     }
 }
 
@@ -1383,6 +1487,57 @@ html.mobile {
         pointer-events: auto;
     }
 
+    // Recolhida, a faixa e so esta barra — e ela flutua sobre o mapa, sem a
+    // superficie que a envolve no desktop. Entao a barra ganha a sua propria,
+    // como ja acontece com "Ver todas" e a paginacao aqui do lado.
+    .map-strip--recolhida .map-strip__head {
+        margin: 0 var(--space-4);
+        padding: var(--space-2) var(--space-3);
+        background: var(--c-surface);
+        border-radius: var(--radius-pill);
+        box-shadow: var(--shadow-md);
+    }
+
+    // E o titulo volta a aparecer: recolhida, ele e a unica coisa que diz o que
+    // esta ali. Expandida, os cartoes dizem, e a altura vale mais (ver a regra
+    // que o esconde logo abaixo).
+    .map-strip--recolhida .map-strip__title {
+        position: static;
+        width: auto;
+        height: auto;
+        margin: 0;
+        clip: auto;
+        font-size: var(--fs-sm);
+
+        // Cede primeiro, se precisar ceder: o titulo perde caracteres sem
+        // perder funcao, e o que esta ao lado dele nao.
+        flex: 0 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    // Recolhida aqui a altura e a do cabecalho, e nao a da faixa: o
+    // `height: auto` acima mede o conteudo, e conteudo invisivel continua
+    // ocupando lugar. `display: none` e o que de fato devolve o mapa.
+    //
+    // Nao ha transicao a perder: uma caixa de altura automatica nao anima.
+    .map-strip--recolhida .map-strip__list {
+        display: none;
+    }
+
+    // "Ver todas" sai da barra recolhida — aqui, e so aqui.
+    //
+    // Em 390px a linha tem lugar para duas coisas, e as duas sao o titulo (o
+    // que ha) e o botao (como chegar la). Somados, titulo, "Ver todas" e
+    // "Expandir" mediam 373px numa barra de 358: o botao saia da tela, que e o
+    // pior dos tres resultados possiveis. A referencia faz a mesma escolha na
+    // barra recolhida, e o link volta assim que a faixa abre.
+    .map-strip--recolhida .map-strip__all {
+        display: none;
+    }
+
     // O titulo continua no documento, para leitor de tela, mas cede a altura:
     // sobre o mapa, cada linha custa contexto.
     .map-strip__title {
@@ -1403,6 +1558,17 @@ html.mobile {
         background: var(--c-surface);
         border-radius: var(--radius-pill);
         box-shadow: var(--shadow-md);
+    }
+
+    // Uma pagina so nao tem paginacao, e a pastilha ficava la mesmo assim: 24x8
+    // de superficie branca sobre o mapa, sem nada dentro e sem nada a dizer.
+    //
+    // Some a pele, e nao a caixa: e o `margin-left: auto` dela que empurra o
+    // botao de recolher para a ponta da linha.
+    .map-strip__pagination:not(:has(a)) {
+        padding: 0;
+        background: none;
+        box-shadow: none;
     }
 
     .map-strip__list {

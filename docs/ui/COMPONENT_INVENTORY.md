@@ -96,10 +96,11 @@ componentes acima; nenhum redefine cor, tipo, espaço, raio ou sombra.
 | Componente | Antes | Depois | Ação | Onde |
 |---|---|---|---|---|
 | Painel do mapa | `#map_sidebar`, coluna de altura inteira ao lado do mapa | superfície flutuante sobre o mapa, com moldura e rolagem própria | REFACTOR | `_map.scss` §1, `layout.scss` |
-| Faixa de ocorrências | lista dentro da barra lateral | `.map-strip`, superfície flutuante sobre o mapa com a mesma moldura do painel; dois grupos separados por divisor — no enquadramento e fora dele; no celular, carrossel fixo | REPLACE | `_map.scss` §2 e §4, `layout.scss` |
+| Faixa de ocorrências | lista dentro da barra lateral | `.map-strip`, superfície flutuante sobre o mapa com a mesma moldura do painel; dois grupos separados por divisor — no enquadramento e fora dele; no celular, carrossel fixo. **Quatro estados** — expandida, recolhida, recolhida automaticamente (`--auto`) e vazia — e a largura sai da geometria real: `--map-strip-left` só reserva a coluna do painel quando os dois de fato se cruzam na vertical | REPLACE | `_map.scss` §2 e §4, `layout.scss`, `catanduva-map.js` |
 | Divisor da faixa | o upstream separava os grupos com um rótulo em linha | `.map-strip__divisor`, régua tracejada com rótulo vertical | REFACTOR | `_map.scss` §2, `around/on_map_list_items.html` |
 | Cartão de ocorrência | `.item-list__item` vertical | `.map-card`: miniatura de 104px esticada na altura, título em duas linhas, meta, pílula e categoria com ícone próprio, tudo na mesma coluna de texto; variantes `--similar` e `--nearby` | REFACTOR | `_map.scss` §2 |
 | Setas da faixa | não existia | `.map-strip__nav`, duas pastilhas sobre a lista, só no desktop e só quando há para onde rolar | **CREATE** | `_map.scss` §2, `catanduva-map.js` |
+| Recolher/expandir da faixa | não existia | `.map-strip__toggle`, no fim da linha do cabeçalho, com `aria-expanded` e `aria-controls` apontando para a lista; a seta é o mesmo desenho girado e aponta para onde o clique leva a faixa | **CREATE** | `_map.scss` §2, `catanduva-map.js` |
 | Cabeçalho de fluxo | não existia | voltar + título + contador de passos calculado | **CREATE** | `_map.scss` §5, `catanduva-map.js` |
 | Grade de categorias | `.govuk-radios` empilhado | grade selecionável, com o radio do upstream por baixo | RESTYLE | `_map.scss` §5 |
 | Confirmação de local | não existia | `.map-location`, endereço real de `/ajax/closest` | **CREATE** | `_map.scss` §5 |

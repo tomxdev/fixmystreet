@@ -132,6 +132,17 @@ redescoberto do zero custa uma tarde.
 | **Impacto** | Uma correção de segurança que caia no master antes da `v7.0` não chega até nós |
 | **Resolver** | Não se resolve vigiando. A decisão é sincronizar cedo quando a `v7.0` sair, em vez de acumular. `bin/catanduva/checar-upstream` mede a distância em um comando |
 
+### 2.7 A tecla Espaço não aciona botões na página de mapa
+
+| | |
+|---|---|
+| **Onde** | `web/js/map-OpenLayers.js`, `OpenLayers.Control.KeyboardDefaultsFMS` |
+| **O que acontece** | O controle escuta `keydown` no `document` para mover o mapa pelo teclado e, para as teclas que trata, chama `OpenLayers.Event.stop` — que cancela a ação padrão do elemento com foco. A isenção dele cobre `INPUT`, `TEXTAREA` e `SELECT`; `BUTTON` não está na lista |
+| **Como aparece** | Com o foco num botão da página de mapa, Espaço larga um pino e navega para `/report/new` em vez de acionar o botão. As setas, `Home`, `End`, `PageUp` e `PageDown` têm o mesmo destino |
+| **Impacto** | Acessibilidade: Espaço é uma das duas formas de acionar um `<button>` pelo teclado. Enter continua funcionando, então nada fica inalcançável — mas quem usa Espaço encontra outra coisa |
+| **Mitigado onde** | Só na faixa inferior: `catanduva-map.js` barra a propagação do Espaço nos botões dela (`devolverOEspacoAosBotoes`), devolvendo a tecla a quem tem o foco sem mexer no mapa |
+| **Resolver de vez** | Acrescentar `BUTTON` (e provavelmente `A`) à isenção do core, ou ignorar o evento quando `document.activeElement` não for o mapa. É patch de core: passa por [`PATCHES_DE_CORE.md`](PATCHES_DE_CORE.md) |
+
 ---
 
 ## 3. Do ambiente local
