@@ -49,6 +49,17 @@
     </h1>
 </div>
 
+[%# Como a cidade esta AGORA, antes de qualquer grafico.
+
+    O painel e o mesmo `front/stats.html` da home: mesmo componente, mesmos
+    quatro numeros, mesma fonte (`front_stats_data`, com o cache dela). Nao ha
+    CSS novo nem uma segunda contagem para desencontrar da primeira.
+
+    Vem primeiro porque e a pergunta que quem clica em "Ocorrencias" faz: quantas
+    ha, quantas andam, quantas acabaram. O grafico responde "como chegamos ate
+    aqui", que e a segunda pergunta. %]
+[% INCLUDE 'front/stats.html' %]
+
 <div class="dashboard-row">
     <div class="dashboard-item dashboard-item--12">
         <h2>[% loc('All time') %]</h2>
@@ -88,57 +99,82 @@
             </div>
         </div>
     </div>
+    [%# ONDE ESTAO AS OCORRENCIAS.
+
+        Aqui havia o seletor de prefeitura do upstream: "Escolha sua
+        prefeitura", uma lista suspensa e um botao "Ir". Ele faz sentido num
+        site que cobre centenas de municipios; num piloto de UM, e uma pergunta
+        com uma resposta so — e, pior, a lista aparecia **vazia** na tela, de
+        modo que a pagina chamada "Ocorrencias" nao tinha por onde chegar as
+        ocorrencias.
+
+        No lugar dele, os dois caminhos que existem de verdade, e que a pagina
+        ja podia oferecer: o mapa e a lista com filtros
+        (`/reports/<orgao>`, a mesma rota para onde o seletor levaria).
+
+        O seletor VOLTA se um dia houver mais de um orgao: a pergunta so e inutil
+        enquanto a resposta for uma. %]
     <div class="dashboard-item dashboard-item--6">
+      [% IF bodies.size > 1 %]
         <form class="dashboard-search">
             <h2>[% loc('Show reports in your area') %]</h2>
-          [% IF body %]
-            <label for="ward">[% loc('Pick your ward') %]</label>
-            <div class="dashboard-search__input">
-                <select id="ward" name="ward" class="js-autocomplete" required>
-                    <option value="">[% loc('Pick your ward') %]</option>
-                  [% FOR child IN children.values.sort('name') %]
-                    <option>[% child.name | html ~%]</option>
-                  [% END %]
-                </select>
-            </div>
-          [% ELSE %]
             <label for="body">[% loc('Pick your council') %]</label>
             <div class="dashboard-search__input">
                 <select id="body" name="body" class="js-autocomplete" required>
                     <option value="">[% loc('Pick your council') %]</option>
-                  [% FOR b IN bodies # Not body as 'body' may be on stash %]
+                  [% FOR b IN bodies %]
                     <option value="[% b.id %]">[% b.name | html ~%]
                         [% IF NOT b.area_count %] [% loc('(no longer exists)') %][% END ~%]
                     </option>
                   [% END %]
                 </select>
             </div>
-          [% END %]
             <div class="dashboard-search__submit">
                 <input type="submit" value="[% loc('Go') %]">
             </div>
         </form>
+      [% ELSE %]
+        <div class="painel-caminhos">
+            <h2>Ver as ocorrências</h2>
+            <p class="painel-caminhos__apoio">
+                No mapa, para ver onde estão. Na lista, para filtrar por
+                situação, categoria e data.
+            </p>
+            <div class="painel-caminhos__acoes">
+                <a class="btn btn--primary" href="/around">
+                    [% INCLUDE '_ui-icon.html' icon = 'map' %]
+                    <span>Ver no mapa</span>
+                </a>
+                [%# `bodies.0` e o unico orgao — e o mesmo destino que o seletor
+                    do upstream montaria a partir dele. %]
+                [% IF bodies.size %]
+                <a class="btn" href="/reports/[% bodies.0.name | uri %]">
+                    [% INCLUDE '_ui-icon.html' icon = 'lines-solid' %]
+                    <span>Ver a lista</span>
+                </a>
+                [% END %]
+            </div>
+        </div>
+      [% END %]
     </div>
 </div>
 
+[%# "Top 5 prefeituras que mais respondem" SAIU.
+
+    Era um ranking de orgaos numa cidade com um orgao: a tabela vinha vazia e o
+    rodape dizia "Media geral" seguido de nada, porque `calculate_top_five_bodies`
+    devolve `average` indefinido quando nenhum orgao tem media.
+
+    E ela nao tem media por um motivo que vale registrar: `Body::calculate_average`
+    mede o tempo entre a ocorrencia e o COMENTARIO que a marcou como resolvida —
+    e neste piloto resolver nao passa por comentario, passa pela tela de
+    inspecao. Sem comentario de resolucao, nao ha o que medir. Registrado em
+    docs/PROBLEMAS_CONHECIDOS.md.
+
+    Entao o numero nao foi movido para outro lugar da pagina: ele nao existe.
+    Mostrar "Media geral: —" seria mostrar uma casa vazia com nome. %]
 <div class="dashboard-row">
-    <div class="dashboard-item dashboard-item--6">
-      [% IF NOT body AND c.cobrand.moniker != 'fixmystreet' %]
-        <h2 class="dashboard-subheading">[% loc('Top 5 responsive councils') %]</h2>
-        <p>[% loc('Average time between a problem being reported and being fixed, last 100 reports.') %]</p>
-        <table class="dashboard-ranking-table">
-            <tbody>
-              [% FOR line IN top_five_bodies %]
-                <tr><td>[% line.name %]</td><td>[% tprintf(nget("%s day", "%s days", line.days), line.days) %]</td></tr>
-              [% END %]
-            </tbody>
-            <tfoot>
-                <tr><td>[% loc('Overall average') %]</td><td>[% tprintf(nget("%s day", "%s days", average), average) %]</td></tr>
-            </tfoot>
-        </table>
-      [% END %]
-    </div>
-    <div class="dashboard-item dashboard-item--6">
+    <div class="dashboard-item dashboard-item--12">
         <h2 class="dashboard-subheading">[% loc('Top 5 most used categories') %]</h2>
         <p>[% loc('Number of problems reported in each category, in the last 7 days.') %]</p>
         <table class="dashboard-ranking-table">

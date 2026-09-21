@@ -187,6 +187,17 @@ redescoberto do zero custa uma tarde.
 | **Registrado em** | [`LGPD_REGISTRO_TRATAMENTO.md`](LGPD_REGISTRO_TRATAMENTO.md) precisa dizer isto — hoje não diz |
 | **Resolver** | Decidir se o expurgo apaga a foto junto (e então remover os bytes, não só a referência) ou se a retenção da imagem tem base legal própria e prazo próprio. É decisão de tratamento de dados, não de código |
 
+### 2.12 O tempo médio de resolução não é calculável neste piloto
+
+| | |
+|---|---|
+| **Onde** | `FixMyStreet::DB::Result::Body::calculate_average`, usado por `UpdateAllReports::calculate_top_five_bodies` |
+| **O que acontece** | `calculate_average` mede o intervalo entre `problem.confirmed` e o **comentário** que marcou a ocorrência como resolvida — exige um `comment` confirmado com `problem_state` num estado de resolvido, ou `mark_fixed` |
+| **Por que não há dado** | Neste piloto, resolver não passa por comentário: passa pela tela de inspeção, que grava o estado direto na ocorrência. Sem comentário de resolução, não há intervalo a medir, e `average` volta indefinido |
+| **Como aparecia** | O bloco "Top 5 prefeituras que mais respondem" em `/reports` mostrava uma tabela vazia e o rodapé "Média geral" seguido de nada. O bloco foi retirado da página (21/09/2026) — ele também não fazia sentido num piloto de um município só |
+| **Impacto** | O piloto não sabe dizer quanto tempo leva para resolver uma ocorrência. É uma das perguntas que a prefeitura e quem registra mais fazem |
+| **Resolver** | Duas saídas: fazer a mudança de estado para resolvido gerar um comentário (é o que o upstream assume), ou medir por `problem.lastupdate` quando o estado virou resolvido — o que exige guardar essa data, hoje não guardada |
+
 ---
 
 ## 3. Do ambiente local
