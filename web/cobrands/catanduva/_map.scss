@@ -4036,7 +4036,26 @@ html.mobile .mappage--sent {
 // O bloco logo abaixo NAO usa a variavel de proposito: ele espaca os filhos
 // diretos do passo, e o formulario de atualizacao tem filhos proprios, com
 // espacamento proprio.
-$areas-de-foto: '.map-panel [data-page-name="photo"], .map-panel #update_form';
+$areas-de-foto: '.map-panel [data-page-name="photo"]', '.map-panel #update_form';
+
+// A lista e percorrida, e nao interpolada inteira.
+//
+// `#{$lista} .dropzone` nao faz o que parece: a interpolacao e textual, entao
+// o ` .dropzone` gruda so no ULTIMO item e o primeiro sai sozinho no seletor.
+// Foi o que aconteceu — `.map-panel [data-page-name="photo"]` recebeu o
+// `display: flex` e a borda tracejada da area de envio, passou por cima do
+// `display: none` do assistente e o passo de fotos ficou visivel em todas as
+// etapas. O Cypress pegou: `.js-reporting-page--active:visible` deixou de
+// existir.
+//
+// Aqui o sufixo e pendurado em cada area, que e o que se queria dizer.
+@function area-de-foto($sufixo) {
+    $saida: ();
+    @each $area in $areas-de-foto {
+        $saida: append($saida, unquote("#{$area} #{$sufixo}"), comma);
+    }
+    @return $saida;
+}
 
 .map-panel [data-page-name="photo"] {
     > * + * {
@@ -4114,7 +4133,7 @@ $areas-de-foto: '.map-panel [data-page-name="photo"], .map-panel #update_form';
 // mensagem nesse estado — como as miniaturas saem daqui para a galeria, isso
 // deixaria um retangulo vazio no lugar da area de upload.
 
-#{$areas-de-foto} .dropzone {
+#{area-de-foto(".dropzone")} {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -4164,7 +4183,7 @@ $areas-de-foto: '.map-panel [data-page-name="photo"], .map-panel #update_form';
     // imagem, nome de arquivo e barra de progresso para dizer uma linha.
 }
 
-#{$areas-de-foto} .dz-button {
+#{area-de-foto(".dz-button")} {
     display: flex;
     flex-direction: column;
     align-items: center;
