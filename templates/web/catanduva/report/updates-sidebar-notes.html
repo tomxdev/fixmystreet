@@ -1,0 +1,27 @@
+[%# A nota sobre o que uma atualizacao e, e o que ela nao e.
+
+    Substitui templates/web/base/report/updates-sidebar-notes.html, que emite as
+    mesmas duas frases num <p> solto.
+
+    POR QUE A COPIA. O texto aqui nao e conteudo da ocorrencia nem rotulo de
+    campo: e um aviso sobre o que vai acontecer com o que a pessoa escrever — e
+    o mais importante deles diz que a atualizacao NAO chega a prefeitura. Solto
+    no meio do formulario, com a cor de texto secundario, ele lia como legenda;
+    quem esta com pressa para escrever passa por cima.
+
+    A forma e a do `map-step__aviso`, que e o componente de aviso do sistema —
+    o mesmo que o passo de identificacao usa para a nota de privacidade. Nao ha
+    CSS novo: sao as classes que ja existem.
+
+    AS DUAS FRASES SAO AS DO UPSTREAM, com a mesma interpolacao do link da
+    politica. Nada foi reescrito — o que mudou foi so a moldura.
+%]
+<div class="map-step__aviso ocorrencia-aviso">
+    <span class="map-step__aviso-icone" aria-hidden="true">
+        [% INCLUDE '_ui-icon.html' icon = 'info' %]
+    </span>
+    <span class="map-step__aviso-texto">
+        [% loc( 'Please note that updates are not sent to the council.' ) %]
+        [% tprintf( loc( 'Your information will only be used in accordance with our <a href="%s">privacy policy</a>' ), c.cobrand.privacy_policy_url ) %]
+    </span>
+</div>

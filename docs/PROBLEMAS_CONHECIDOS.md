@@ -143,6 +143,50 @@ redescoberto do zero custa uma tarde.
 | **Mitigado onde** | Só na faixa inferior: `catanduva-map.js` barra a propagação do Espaço nos botões dela (`devolverOEspacoAosBotoes`), devolvendo a tecla a quem tem o foco sem mexer no mapa |
 | **Resolver de vez** | Acrescentar `BUTTON` (e provavelmente `A`) à isenção do core, ou ignorar o evento quando `document.activeElement` não for o mapa. É patch de core: passa por [`PATCHES_DE_CORE.md`](PATCHES_DE_CORE.md) |
 
+### 2.8 Foto anexada a uma atualização nunca é publicada
+
+| | |
+|---|---|
+| **Onde** | `Cobrand/Catanduva.pm` (`photo_approved`, `report_moderate_after`) e `App/Controller/Moderate.pm` |
+| **O que acontece** | O formulário de atualização aceita foto, o `Report::Update` a grava (`$update->photo($fileid)`) e os bytes vão para o `UPLOAD_DIR` — mas ela **nunca aparece**: `allow_photo_display` exige `publish_photo` no `extra` do objeto, e nada no piloto marca isso num comentário |
+| **Por quê** | O único ponto que aprova foto é `report_moderate_after`, e o `Moderate.pm` do upstream só o chama para **ocorrências**. Não existe `update_moderate_after` |
+| **Impacto** | Quem anexa foto a uma atualização vê o envio funcionar e a foto nunca surgir. O arquivo fica em disco, ocupando espaço, sem caminho para ser visto nem removido pela interface |
+| **O que já existe** | A fila de moderação de fotos (`fotos_aguardando`, em `/admin`) consulta **só** `Problem` — uma foto de atualização não entra nela |
+| **Resolver** | Duas frentes, e a segunda depende da primeira: dar ao `Moderate.pm` um gancho para atualizações (patch de core, ver [`PATCHES_DE_CORE.md`](PATCHES_DE_CORE.md)), e incluir comentários na fila de aprovação |
+| **Decidido em 21/09/2026** | **O campo de foto fica onde está.** A alternativa era escondê-lo até existir aprovação, e ela foi considerada: prometer um anexo que nunca é publicado é pior do que não oferecê-lo. Quem conduz o piloto preferiu manter e tratar os quatro itens (2.8 a 2.11) como trabalho próprio, em outro momento. Registrado para que a decisão não seja reaberta sem este contexto |
+
+### 2.9 O limite de três fotos é só do navegador
+
+| | |
+|---|---|
+| **Onde** | `report/form/photo_upload.html` (`data-max-photos="3"`) e `cobrands/fixmystreet/fixmystreet.js` (`maxFiles`) |
+| **O que acontece** | O Dropzone recusa o quarto arquivo. O servidor não conta nada: `Photo::process_photo_upload_or_cache` junta **todos** os `photo*` enviados mais tudo o que vier em `upload_fileid`, e grava |
+| **Como escapa** | Um POST montado à mão, ou o caminho sem JavaScript, em que o `#form_photos` tem três campos mas nada impede mais |
+| **Impacto** | Baixo hoje — é preciso intenção —, mas o limite que a interface anuncia ("Máximo de 3 fotos por ocorrência") não é o que o sistema garante |
+| **Vale para as duas telas** | O registro e o formulário de atualização usam o mesmo template e o mesmo caminho de servidor |
+| **Resolver** | Contar em `process_photo_upload_or_cache`, ou no `PhotoSet`, e recusar o excedente com erro de formulário. É patch de core |
+
+### 2.10 Não há teto de fotos por ocorrência ao longo do tempo
+
+| | |
+|---|---|
+| **O que acontece** | O limite de três é **por envio**, não por ocorrência. Cada atualização tem a sua própria coluna `comment.photo`; uma ocorrência com dez atualizações pode acumular 3 + 10×3 = 33 fotos |
+| **Como é armazenado** | `problem.photo` e `comment.photo` guardam uma lista de ids separada por vírgula; os bytes ficam no `PHOTO_STORAGE_BACKEND` (hoje `FileSystem`, no `UPLOAD_DIR`). O nome do arquivo é o **hash do conteúdo**, então a mesma imagem enviada duas vezes ocupa espaço uma vez |
+| **Impacto** | Crescimento sem teto do disco, proporcional ao número de atualizações. Em volume de piloto não é problema; num município inteiro, é capacidade a planejar |
+| **E o expurgo?** | **Não apaga foto nenhuma.** `FixMyStreet::Script::Inactive::anonymize_reports` troca autor, nome e `anonymous` na ocorrência e nos comentários dela — e não toca em `photo`, nem no banco nem no disco. Uma foto com rosto ou placa sobrevive ao expurgo que anonimizou quem a enviou |
+| **Resolver** | Decidir se o teto é por envio (como hoje) ou por ocorrência, e medir o consumo antes de abrir o piloto para mais bairros |
+
+### 2.11 O expurgo da LGPD anonimiza o autor e preserva a fotografia
+
+| | |
+|---|---|
+| **Onde** | `FixMyStreet::Script::Inactive::anonymize_reports`, chamado por `bin/catanduva/expurgo-lgpd` |
+| **O que acontece** | O expurgo troca `user`, `name` e `anonymous` na ocorrência e nos comentários dela. **A coluna `photo` não é tocada**, e os arquivos no `UPLOAD_DIR` continuam onde estavam |
+| **Por que importa** | A justificativa do MOD-002 — escrita em `Cobrand/Catanduva.pm` — é que uma fotografia pode trazer, sem nenhuma intenção, um rosto, uma placa ou o interior de uma casa. Isso não deixa de ser verdade quando o nome de quem registrou é apagado: o dado pessoal que sobra é a imagem |
+| **Impacto** | Uma ocorrência "anonimizada" pode continuar identificando pessoas pela foto, por tempo indeterminado |
+| **Registrado em** | [`LGPD_REGISTRO_TRATAMENTO.md`](LGPD_REGISTRO_TRATAMENTO.md) precisa dizer isto — hoje não diz |
+| **Resolver** | Decidir se o expurgo apaga a foto junto (e então remover os bytes, não só a referência) ou se a retenção da imagem tem base legal própria e prazo próprio. É decisão de tratamento de dados, não de código |
+
 ---
 
 ## 3. Do ambiente local

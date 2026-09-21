@@ -3192,8 +3192,20 @@
         );
     }
 
+    // Onde ha uma area de envio de fotos para vestir.
+    //
+    // Eram duas telas com o mesmo componente e duas aparencias: o passo de
+    // fotos do registro recebia o icone de camera, o botao "Clique para
+    // enviar" e a linha de formatos aceitos; o formulario de atualizacao ficava
+    // com o texto cru do Dropzone, porque o seletor so olhava para
+    // `[data-page-name='photo']`.
+    //
+    // E o mesmo template (report/form/photo_upload.html) e o mesmo limite de
+    // tres. A diferenca era so o alcance desta funcao.
+    var AREAS_DE_UPLOAD = "[data-page-name='photo'] .dropzone, #update_form .dropzone";
+
     function prepararAreaDeUpload() {
-        var $zona = $("[data-page-name='photo'] .dropzone");
+        var $zona = $(AREAS_DE_UPLOAD);
         if (!$zona.length || $zona.data("catanduva")) {
             return;
         }
@@ -3364,7 +3376,7 @@
             prepararAreaDeUpload();
             // Para quando a area estiver montada de verdade — nao quando ela
             // apenas existir no DOM.
-            if ($("[data-page-name='photo'] .dropzone").data("catanduva") || ++tentativas > 20) {
+            if ($(AREAS_DE_UPLOAD).data("catanduva") || ++tentativas > 20) {
                 return;
             }
             window.setTimeout(esperar, 150);
@@ -3552,7 +3564,319 @@
         contar();
     }
 
+    // -----------------------------------------------------------------------
+    // A pagina da ocorrencia: duas visoes, e um visualizador de fotos
+    // -----------------------------------------------------------------------
+    //
+    // Detalhes e Atualizacoes moram no mesmo DOM. Sem script as duas ficam na
+    // pagina, uma depois da outra, e tudo continua alcancavel; com script uma
+    // some e as abas passam a existir de verdade — `role="tab"` so e posto
+    // aqui, porque um `tablist` cujo painel nao esconde nada mente para quem
+    // usa leitor de tela.
+
+    var VISAO_PADRAO = "detalhes";
+
+    function $visoes() {
+        return $(".js-ocorrencia-visao");
+    }
+
+    function mostrarVisao(nome, moverFoco) {
+        var $abas = $(".ocorrencia-abas__aba");
+        if (!$abas.length) {
+            return;
+        }
+
+        $visoes().each(function () {
+            var minha = $(this).attr("data-visao") === nome;
+            this.hidden = !minha;
+        });
+
+        $abas.each(function () {
+            var minha = $(this).attr("data-visao") === nome;
+            $(this).attr("aria-selected", minha ? "true" : "false");
+            // Só a aba ativa fica no caminho do Tab: dentro de um tablist a
+            // navegacao entre abas e pelas setas, e nao pelo Tab.
+            $(this).attr("tabindex", minha ? "0" : "-1");
+            if (minha && moverFoco) {
+                this.focus();
+            }
+        });
+    }
+
+    function visaoAtual() {
+        var $ativa = $('.ocorrencia-abas__aba[aria-selected="true"]');
+        return $ativa.length ? $ativa.attr("data-visao") : VISAO_PADRAO;
+    }
+
+    function ligarAbasDaOcorrencia() {
+        var $abas = $(".ocorrencia-abas__aba");
+        if (!$abas.length || !$visoes().length) {
+            return;
+        }
+
+        $(".js-ocorrencia-abas").attr("role", "tablist");
+        $abas.attr("role", "tab");
+
+        $abas.on("click", function () {
+            var nome = $(this).attr("data-visao");
+            mostrarVisao(nome);
+            // O hash torna a visao enderecavel: dá para mandar um link que abre
+            // direto nas atualizacoes. `replaceState` e nao `location.hash`
+            // para nao empilhar uma entrada de historico por clique de aba.
+            if (window.history && window.history.replaceState) {
+                window.history.replaceState(null, "", "#" + nome);
+            }
+        });
+
+        // Setas entre as abas, que e o que se espera de um tablist.
+        $abas.on("keydown", function (e) {
+            var chave = e.key;
+            if (chave !== "ArrowLeft" && chave !== "ArrowRight") {
+                return;
+            }
+            e.preventDefault();
+            var indice = $abas.index(this);
+            var proxima = chave === "ArrowRight" ? indice + 1 : indice - 1;
+            proxima = (proxima + $abas.length) % $abas.length;
+            mostrarVisao($abas.eq(proxima).attr("data-visao"), true);
+        });
+
+        // O botao "Ver atualizacoes" do fim dos detalhes.
+        $(".js-ocorrencia-ir").on("click", function () {
+            mostrarVisao($(this).attr("data-visao"));
+            var painel = document.getElementById("map_sidebar");
+            if (painel) {
+                painel.scrollTop = 0;
+            }
+        });
+
+        // Onde abrir.
+        //
+        // O `#update_...` e para onde o upstream devolve a pessoa depois de
+        // publicar; abrir nos detalhes ali esconderia justamente o que ela
+        // acabou de escrever. O mesmo vale quando o formulario voltou com erro.
+        var hash = window.location.hash || "";
+        var temErroNoFormulario = $("#update_form .form-error, #update_form .form-success").length > 0;
+        var abrirNasAtualizacoes =
+            hash === "#atualizacoes" || hash.indexOf("#update") === 0 || temErroNoFormulario;
+
+        mostrarVisao(abrirNasAtualizacoes ? "atualizacoes" : VISAO_PADRAO);
+    }
+
+    // -- Visualizador de fotos ------------------------------------------------
+    //
+    // Sao no maximo tres fotos (o limite do registro), e e isso que decide a
+    // forma: uma imagem, um contador, duas setas e um fechar. Nenhuma
+    // biblioteca, nenhum carrossel — com tres itens, "1 de 3" ja diz tudo o que
+    // ha para saber sobre onde a pessoa esta.
+
+    var SVG_X =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+        '<path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+
+    var visor = null;
+
+    function montarVisor() {
+        if (visor) {
+            return visor;
+        }
+
+        var $v = $(
+            '<div class="ocorrencia-visor" role="dialog" aria-modal="true" aria-label="Foto da ocorrência" hidden>' +
+                '<div class="ocorrencia-visor__barra">' +
+                    '<p class="ocorrencia-visor__contagem" aria-live="polite"></p>' +
+                    '<button type="button" class="ocorrencia-visor__fechar" aria-label="Fechar">' + SVG_X + "</button>" +
+                "</div>" +
+                '<div class="ocorrencia-visor__palco">' +
+                    '<button type="button" class="ocorrencia-visor__seta ocorrencia-visor__seta--anterior" aria-label="Foto anterior">' +
+                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+                        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+                        '<path d="m15 18-6-6 6-6"/></svg>' +
+                    "</button>" +
+                    '<img alt="">' +
+                    '<button type="button" class="ocorrencia-visor__seta ocorrencia-visor__seta--proxima" aria-label="Próxima foto">' +
+                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+                        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+                        '<path d="m9 18 6-6-6-6"/></svg>' +
+                    "</button>" +
+                "</div>" +
+                '<div class="ocorrencia-visor__miniaturas"></div>' +
+            "</div>"
+        ).appendTo(document.body);
+
+        visor = {
+            $raiz: $v,
+            $img: $v.find("img"),
+            $contagem: $v.find(".ocorrencia-visor__contagem"),
+            $anterior: $v.find(".ocorrencia-visor__seta--anterior"),
+            $proxima: $v.find(".ocorrencia-visor__seta--proxima"),
+            $miniaturas: $v.find(".ocorrencia-visor__miniaturas"),
+            fotos: [],
+            indice: 0,
+            devolverFoco: null
+        };
+
+        $v.find(".ocorrencia-visor__fechar").on("click", fecharVisor);
+        visor.$anterior.on("click", function () { irParaFoto(visor.indice - 1); });
+        visor.$proxima.on("click", function () { irParaFoto(visor.indice + 1); });
+
+        // Clicar no fundo fecha; clicar na foto, nas setas ou nas miniaturas nao.
+        $v.on("click", function (e) {
+            if (e.target === this || $(e.target).hasClass("ocorrencia-visor__palco")) {
+                fecharVisor();
+            }
+        });
+
+        $(document).on("keydown", function (e) {
+            if (!visor || visor.$raiz[0].hidden) {
+                return;
+            }
+            if (e.key === "Escape") {
+                fecharVisor();
+            } else if (e.key === "ArrowLeft") {
+                irParaFoto(visor.indice - 1);
+            } else if (e.key === "ArrowRight") {
+                irParaFoto(visor.indice + 1);
+            }
+        });
+
+        return visor;
+    }
+
+    function irParaFoto(indice) {
+        var v = visor;
+        if (!v || !v.fotos.length) {
+            return;
+        }
+
+        // Nao circula: com tres fotos, voltar da ultima para a primeira sem
+        // aviso confunde mais do que ajuda. As setas somem nas pontas.
+        indice = Math.max(0, Math.min(indice, v.fotos.length - 1));
+        v.indice = indice;
+
+        var foto = v.fotos[indice];
+        v.$img.attr("src", foto.grande);
+        v.$img.attr("alt", "Foto " + (indice + 1) + " de " + v.fotos.length + " desta ocorrência");
+        v.$contagem.text(indice + 1 + " de " + v.fotos.length);
+
+        v.$anterior.prop("hidden", indice === 0);
+        v.$proxima.prop("hidden", indice === v.fotos.length - 1);
+
+        v.$miniaturas.find("button").each(function (i) {
+            $(this).attr("aria-current", i === indice ? "true" : "false");
+        });
+    }
+
+    function abrirVisor(fotos, indice, devolverFoco) {
+        var v = montarVisor();
+        v.fotos = fotos;
+        v.devolverFoco = devolverFoco || null;
+
+        // As miniaturas so fazem sentido havendo para onde ir.
+        v.$miniaturas.empty().prop("hidden", fotos.length < 2);
+        if (fotos.length > 1) {
+            $.each(fotos, function (i, foto) {
+                $('<button type="button" class="ocorrencia-visor__miniatura"></button>')
+                    .attr("aria-label", "Ver foto " + (i + 1))
+                    .append($("<img alt=\"\">").attr("src", foto.pequena))
+                    .on("click", function () { irParaFoto(i); })
+                    .appendTo(v.$miniaturas);
+            });
+        }
+
+        v.$raiz.prop("hidden", false);
+        // O fundo nao rola enquanto a camada esta aberta.
+        $("body").addClass("ocorrencia-visor-aberto");
+        irParaFoto(indice);
+        v.$raiz.find(".ocorrencia-visor__fechar")[0].focus();
+    }
+
+    function fecharVisor() {
+        if (!visor) {
+            return;
+        }
+        visor.$raiz.prop("hidden", true);
+        $("body").removeClass("ocorrencia-visor-aberto");
+        if (visor.devolverFoco && visor.devolverFoco.focus) {
+            visor.devolverFoco.focus();
+        }
+    }
+
+    function ligarVisorDeFotos() {
+        var $links = $(".js-ocorrencia-foto");
+        if (!$links.length) {
+            return;
+        }
+
+        var fotos = $links
+            .map(function () {
+                return {
+                    grande: $(this).attr("href"),
+                    pequena: $(this).find("img").attr("src")
+                };
+            })
+            .get();
+
+        $links.on("click", function (e) {
+            e.preventDefault();
+            abrirVisor(fotos, $links.index(this), this);
+        });
+    }
+
+    // -- Enviar atualizacao ---------------------------------------------------
+    //
+    // O mesmo resguardo do envio da ocorrencia: o formulario posta para
+    // /report/update e a resposta leva tempo. Sem isto, dois cliques publicam
+    // duas atualizacoes iguais.
+    function ligarEnvioDaAtualizacao() {
+        var form = document.getElementById("form_update_form");
+        if (!form) {
+            return;
+        }
+
+        // O "Continuar" que leva a identificacao e a acao principal desta
+        // tela, e no registro a acao principal e verde. O upstream lhe da o
+        // `btn` neutro porque na composicao dele ela divide a linha com outras
+        // coisas; aqui ela esta sozinha.
+        //
+        // A classe entra por script, e nao no template, porque o proprio botao
+        // so existe com script: ele nasce com `hidden-nojs`. Copiar
+        // report/form/user.html inteiro para acrescentar uma classe seria
+        // trazer cinquenta linhas do upstream para dentro do cobrand.
+        $(form).find(".js-new-report-user-show").addClass("btn--primary");
+
+        var enviando = false;
+
+        $(form).on("submit", function (e) {
+            if (enviando) {
+                e.preventDefault();
+                return;
+            }
+
+            // A validacao do proprio formulario pode recusar; so tranca quando
+            // ele de fato vai sair.
+            if ($(form).find(".form-error:visible").length) {
+                return;
+            }
+
+            enviando = true;
+            var $botao = $(form).find('[type="submit"]').last();
+            $botao.prop("disabled", true).attr("aria-busy", "true");
+            var texto = $botao.is("input") ? $botao.val() : $botao.text();
+            $botao.data("texto-original", texto);
+            if ($botao.is("input")) {
+                $botao.val("Enviando…");
+            } else {
+                $botao.text("Enviando…");
+            }
+        });
+    }
+
     $(function () {
+        ligarAbasDaOcorrencia();
+        ligarVisorDeFotos();
+        ligarEnvioDaAtualizacao();
         updateStepCounter();
         atualizarStepper();
         ajustarFaixa();

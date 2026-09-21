@@ -2509,4 +2509,143 @@ subtest 'o cartao da faixa continua ligado ao pino do mapa' => sub {
     };
 };
 
+subtest 'a pagina da ocorrencia diz o estado, e nao inventa uma esteira' => sub {
+    # O que este subteste guarda nao e aparencia: sao as tres decisoes da
+    # composicao nova que so um teste percebe se alguem desfizer.
+    #
+    #   1. o estado ATUAL aparece — antes nao aparecia em lugar nenhum
+    #   2. ele sai de `problem.state`, e nao de uma sequencia desenhada
+    #   3. "Denunciar abuso" e "Receber atualizacoes" saem da composicao, e as
+    #      ROTAS delas continuam de pe
+
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(body_id => $body->id,
+            category => 'Buraco na via', email => 'buraco@catanduva.sp.gov.br');
+
+        my $usuario = $mech->create_user_ok('detalhe@example.org', name => 'Quem Registrou');
+        my ($ocorrencia) = $mech->create_problems_for_body(1, $body->id,
+            'Ocorrencia para a pagina de detalhe', {
+                user => $usuario, cobrand => 'catanduva',
+                category => 'Buraco na via',
+                latitude => -21.1383, longitude => -48.9736,
+            });
+
+        $ocorrencia->update({ state => 'investigating' });
+
+        $mech->get_ok('/report/' . $ocorrencia->id);
+        my $html = $mech->content;
+
+        # -- O estado atual, no cabecalho ------------------------------------
+        like $html, qr/ocorrencia-estado__pilula/,
+            'a pilula de estado existe';
+        like $html, qr/c-badge--progress/,
+            'e ela usa o grupo que o cobrand decidiu para "investigating"';
+        # O ROTULO em si nao e afirmado aqui, e de proposito: quem garante que
+        # ele sai em portugues e o subteste "the citizen path does not speak
+        # English", que roda com o catalogo carregado. Aqui interessa que a
+        # pilula tenha conteudo — uma pilula vazia passaria pelas duas
+        # verificacoes de classe acima sem dizer nada a ninguem.
+        like $html, qr/ocorrencia-estado__pilula"[^>]*>\s*\S+/s,
+            'e a pilula nao esta vazia';
+
+        # Trocar o estado troca a pilula. E o que prova que ela le o dado, e
+        # nao um texto fixo.
+        $ocorrencia->update({ state => 'fixed - council' });
+        $mech->get_ok('/report/' . $ocorrencia->id);
+        like $mech->content, qr/c-badge--resolved/,
+            'e outro estado pinta outro grupo';
+        $ocorrencia->update({ state => 'investigating' });
+
+        # -- As duas visoes --------------------------------------------------
+        $mech->get_ok('/report/' . $ocorrencia->id);
+        $html = $mech->content;
+
+        like $html, qr/id="ocorrencia-detalhes"/, 'a visao de detalhes esta no documento';
+        like $html, qr/id="ocorrencia-atualizacoes"/, 'a de atualizacoes tambem';
+
+        # As duas vivem no MESMO documento: sem script nada fica inalcancavel.
+        # Se um dia virarem rotas, este teste avisa.
+        like $html, qr/ocorrencia-abas/, 'com as abas que trocam entre elas';
+
+        # -- O historico, e o que ele NAO e ----------------------------------
+        $mech->content_contains('Ocorrência registrada',
+            'o historico abre pelo registro, que e um evento com data real');
+        $mech->content_contains('Nenhuma atualização publicada até o momento.',
+            'e diz que nao ha mais nada, em vez de inventar eventos');
+
+        # Nenhuma fase desenhada. Estes sao os rotulos de uma esteira que o
+        # sistema nao tem - ver docs/VOCABULARIO_DE_ESTADOS.md.
+        $mech->content_lacks('Aguardando atendimento',
+            'nenhuma fase inventada aparece no historico');
+
+        # -- O que sai da composicao, e o que fica de pe ----------------------
+        unlike $html, qr/key-tool-report-abuse/,
+            '"Denunciar abuso" nao aparece nesta pagina';
+        unlike $html, qr/key-tool-report-updates/,
+            '"Receber atualizacoes" tambem nao';
+
+        # E as rotas continuam existindo: tirar da tela nao e tirar do sistema.
+        $mech->get_ok('/contact?id=' . $ocorrencia->id);
+        $mech->get_ok('/alert/subscribe?id=' . $ocorrencia->id);
+
+        # -- A caixa que muda o estado ---------------------------------------
+        $mech->get_ok('/report/' . $ocorrencia->id);
+        $mech->content_contains('Este problema foi solucionado',
+            'a caixa de solucionado continua na pagina');
+        like $mech->content, qr/name="fixed"/,
+            'com o nome de campo que o Report::Update le';
+    };
+};
+
+subtest 'o endereco complementar sai do geocode, ou nao sai' => sub {
+    # `endereco_complementar` completa o `short_address`: um da a rua, o outro o
+    # bairro, a cidade e a UF. Os dois leem o geocode gravado no registro, e os
+    # dois precisam devolver vazio quando ele nao tem o que precisam - a pagina
+    # esconde a linha em vez de imprimir um vao.
+    my $cobrand = FixMyStreet::Cobrand::Catanduva->new;
+
+    package OcorrenciaComGeocode {
+        sub new { my ($c, $g) = @_; return bless { g => $g }, $c }
+        sub geocode { return $_[0]->{g} }
+    }
+
+    my $completo = OcorrenciaComGeocode->new({
+        address => {
+            suburb => 'Jardim Brasil', city => 'Catanduva', state => 'São Paulo',
+        },
+    });
+    is $cobrand->endereco_complementar($completo), 'Jardim Brasil, Catanduva - SP',
+        'bairro, cidade e a UF abreviada';
+
+    my $sem_bairro = OcorrenciaComGeocode->new({
+        address => { city => 'Catanduva', state => 'São Paulo' },
+    });
+    is $cobrand->endereco_complementar($sem_bairro), 'Catanduva - SP',
+        'sem bairro, nao sobra virgula solta';
+
+    # Nominatim nem sempre chama o bairro de `suburb`.
+    my $outro_nome = OcorrenciaComGeocode->new({
+        address => { neighbourhood => 'Centro', city => 'Catanduva', state => 'São Paulo' },
+    });
+    is $cobrand->endereco_complementar($outro_nome), 'Centro, Catanduva - SP',
+        'e `neighbourhood` serve tanto quanto `suburb`';
+
+    # Um estado fora da tabela passa inteiro, em vez de sair mutilado.
+    my $fora_da_tabela = OcorrenciaComGeocode->new({
+        address => { city => 'Lisboa', state => 'Lisboa' },
+    });
+    is $cobrand->endereco_complementar($fora_da_tabela), 'Lisboa - Lisboa',
+        'o que nao esta na tabela de UFs nao e abreviado';
+
+    is $cobrand->endereco_complementar(OcorrenciaComGeocode->new(undef)), '',
+        'sem geocode, vazio';
+    is $cobrand->endereco_complementar(undef), '',
+        'e sem ocorrencia nenhuma, vazio tambem';
+};
+
 done_testing();

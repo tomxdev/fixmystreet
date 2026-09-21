@@ -1,0 +1,52 @@
+[%# "Este problema foi solucionado" — e a volta atras dela.
+
+    Copia de templates/web/base/report/update/form_state_checkbox.html.
+
+    AS CONDICOES SAO AS MESMAS, linha por linha, e isso e o ponto: quem pode
+    marcar, quando a caixa vira "ainda nao foi resolvido", e quando ela nao
+    aparece continua sendo decidido pelo upstream. O que muda e o texto e a
+    forma.
+
+    O QUE A CAIXA FAZ, conferido em Report/Update.pm:
+
+      name="fixed"   -> $update->mark_fixed(1)
+                    -> $problem->state('fixed - user')
+      name="reopen"  -> so vale para quem registrou ($params{reopen} = 0 para
+                       qualquer outra pessoa) -> $problem->state('confirmed')
+
+    Ou seja: ela muda o estado da ocorrencia, e nao so publica um texto. Por
+    isso o apoio diz "Marque se voce verificou" — e uma afirmacao sobre o mundo,
+    nao uma opiniao.
+
+    O `reopen` nao foi renomeado nem escondido: quem registrou e ve a propria
+    ocorrencia como resolvida precisa poder dizer que nao esta.
+%]
+[% RETURN IF c.cobrand.body_disallows_state_change(problem) %]
+
+[% IF (problem.is_fixed OR problem.is_closed) AND ((c.user_exists AND c.user.id == problem.user_id) OR alert_to_reporter) %]
+
+    [% RETURN IF c.cobrand.reopening_disallowed(problem) ~%]
+
+    <div class="ocorrencia-solucionado">
+        <input type="checkbox" name="reopen" id="form_reopen" value="1"[% ' checked' IF (update.mark_open || c.req.params.reopen) %]>
+        <label class="ocorrencia-solucionado__rotulo" for="form_reopen">
+            [% IF problem.is_closed %]Este problema ainda está acontecendo[% ELSE %]Este problema não foi resolvido[% END %]
+        </label>
+        <p class="ocorrencia-solucionado__apoio">
+            Marque se você verificou que o problema continua.
+        </p>
+    </div>
+
+[% ELSIF !problem.is_fixed AND has_fixed_state %]
+
+    <div class="ocorrencia-solucionado">
+        <input type="checkbox" name="fixed" id="form_fixed" value="1"[% ' checked' IF update.mark_fixed %]>
+        <label class="ocorrencia-solucionado__rotulo" for="form_fixed">
+            Este problema foi solucionado
+        </label>
+        <p class="ocorrencia-solucionado__apoio">
+            Marque se você verificou que o problema foi resolvido.
+        </p>
+    </div>
+
+[% END %]

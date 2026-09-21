@@ -4019,6 +4019,43 @@ html.mobile .mappage--sent {
 //
 // A pagina do passo nao tem classe propria no upstream — so
 // `data-page-name="photo"` —, e e por ela que tudo aqui casa.
+//
+// SO QUE HA DUAS AREAS DE ENVIO, e nao uma.
+//
+// `report/form/photo_upload.html` tambem e incluido pelo formulario de
+// atualizacao da pagina da ocorrencia, dentro de `#update_form`. E o mesmo
+// template, o mesmo limite de tres e o mesmo componente — mas a composicao
+// abaixo (coluna centrada, altura de 96, respiro de 6) so alcancava o passo do
+// registro. Resultado, medido: la a caixa tinha 103px de altura com o icone
+// centrado; aqui, 148px com o icone encostado na esquerda.
+//
+// A variavel existe para que as duas nao voltem a divergir: quem mexer no
+// escopo mexe nos dois lugares de uma vez. O par dela no JavaScript e
+// `AREAS_DE_UPLOAD`, em catanduva-map.js.
+//
+// O bloco logo abaixo NAO usa a variavel de proposito: ele espaca os filhos
+// diretos do passo, e o formulario de atualizacao tem filhos proprios, com
+// espacamento proprio.
+$areas-de-foto: '.map-panel [data-page-name="photo"]', '.map-panel #update_form';
+
+// A lista e percorrida, e nao interpolada inteira.
+//
+// `#{$lista} .dropzone` nao faz o que parece: a interpolacao e textual, entao
+// o ` .dropzone` gruda so no ULTIMO item e o primeiro sai sozinho no seletor.
+// Foi o que aconteceu — `.map-panel [data-page-name="photo"]` recebeu o
+// `display: flex` e a borda tracejada da area de envio, passou por cima do
+// `display: none` do assistente e o passo de fotos ficou visivel em todas as
+// etapas. O Cypress pegou: `.js-reporting-page--active:visible` deixou de
+// existir.
+//
+// Aqui o sufixo e pendurado em cada area, que e o que se queria dizer.
+@function area-de-foto($sufixo) {
+    $saida: ();
+    @each $area in $areas-de-foto {
+        $saida: append($saida, unquote("#{$area} #{$sufixo}"), comma);
+    }
+    @return $saida;
+}
 
 .map-panel [data-page-name="photo"] {
     > * + * {
@@ -4096,7 +4133,7 @@ html.mobile .mappage--sent {
 // mensagem nesse estado — como as miniaturas saem daqui para a galeria, isso
 // deixaria um retangulo vazio no lugar da area de upload.
 
-.map-panel [data-page-name="photo"] .dropzone {
+#{area-de-foto(".dropzone")} {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -4146,7 +4183,7 @@ html.mobile .mappage--sent {
     // imagem, nome de arquivo e barra de progresso para dizer uma linha.
 }
 
-.map-panel [data-page-name="photo"] .dz-button {
+#{area-de-foto(".dz-button")} {
     display: flex;
     flex-direction: column;
     align-items: center;

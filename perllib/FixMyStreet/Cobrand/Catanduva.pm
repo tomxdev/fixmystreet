@@ -432,6 +432,82 @@ sub short_address {
     return $parts->{number} ? "$rua, $parts->{number}" : $rua;
 }
 
+=head2 endereco_complementar
+
+The neighbourhood, town and state of a report, as one line: "Jardim Brasil,
+Catanduva - SP".
+
+Companion to C<short_address>, which gives street and number. Both read the
+C<geocode> saved when the report was created - never text anyone typed - so
+either can come back empty, and the caller is expected to drop the line rather
+than print a gap.
+
+The state is abbreviated because that is how a Brazilian address is written.
+The table below is the twenty-seven federal units; it is reference data, not a
+guess, and a state that is not in it falls through unabbreviated rather than
+being mangled.
+
+=cut
+
+my %UF = (
+    'Acre' => 'AC', 'Alagoas' => 'AL', 'Amapá' => 'AP', 'Amazonas' => 'AM',
+    'Bahia' => 'BA', 'Ceará' => 'CE', 'Distrito Federal' => 'DF',
+    'Espírito Santo' => 'ES', 'Goiás' => 'GO', 'Maranhão' => 'MA',
+    'Mato Grosso' => 'MT', 'Mato Grosso do Sul' => 'MS', 'Minas Gerais' => 'MG',
+    'Pará' => 'PA', 'Paraíba' => 'PB', 'Paraná' => 'PR', 'Pernambuco' => 'PE',
+    'Piauí' => 'PI', 'Rio de Janeiro' => 'RJ', 'Rio Grande do Norte' => 'RN',
+    'Rio Grande do Sul' => 'RS', 'Rondônia' => 'RO', 'Roraima' => 'RR',
+    'Santa Catarina' => 'SC', 'São Paulo' => 'SP', 'Sergipe' => 'SE',
+    'Tocantins' => 'TO',
+);
+
+sub endereco_complementar {
+    my ($self, $problem) = @_;
+
+    my $geocode = $problem && eval { $problem->geocode } or return '';
+    my $endereco = eval { $geocode->{address} } or return '';
+
+    # Nominatim calls the neighbourhood different things depending on what it
+    # found; take the first that came back rather than insisting on one.
+    my $bairro = $endereco->{suburb}
+        || $endereco->{neighbourhood}
+        || $endereco->{city_district}
+        || '';
+
+    my $cidade = $endereco->{city} || $endereco->{town} || $endereco->{municipality} || '';
+    my $estado = $endereco->{state} || '';
+    $estado = $UF{$estado} || $estado;
+
+    my $lugar = join ' - ', grep { $_ ne '' } ($cidade, $estado);
+
+    return join ', ', grep { $_ ne '' } ($bairro, $lugar);
+}
+
+=head2 atualizacao_da_equipe
+
+True when an update was published by someone speaking for the council.
+
+The question is asked here, once, because the occurrence page needs to label
+updates by origin and the alternative - guessing from the text - would be a
+label that lies the first time a resident writes "the council came today".
+
+Same three signals C<FixMyStreet::DB::Result::Comment::meta_line> uses, and
+deliberately so: two places answering "is this staff?" differently would show
+one answer in the timeline and another in the byline underneath it.
+
+=cut
+
+sub atualizacao_da_equipe {
+    my ($self, $update) = @_;
+    return 0 unless $update;
+
+    return 1 if $update->get_extra_metadata('is_superuser');
+    return 1 if $update->get_extra_metadata('is_body_user');
+
+    my $user = eval { $update->user } or return 0;
+    return $user->from_body ? 1 : 0;
+}
+
 =head2 report_new_munge_before_insert
 
 Settles C<problem.postcode> just before the row is written, when the coordinates

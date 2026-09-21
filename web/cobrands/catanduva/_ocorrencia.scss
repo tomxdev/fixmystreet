@@ -1,0 +1,759 @@
+// ---------------------------------------------------------------------------
+// Pagina da ocorrencia — Detalhes e Atualizacoes
+// ---------------------------------------------------------------------------
+//
+// A tela que mostra UMA ocorrencia, dentro da mesma composicao do resto do
+// fluxo: painel flutuante a esquerda, mapa atras.
+//
+// A geometria (onde o painel fica, que largura tem, ate onde vai) NAO esta
+// aqui: ela vive em layout.scss, junto com a das outras telas de mapa, porque o
+// _layout.scss do upstream posiciona #map_box e #map_sidebar em absoluto e
+// carrega depois deste arquivo. Aqui esta so o conteudo do painel.
+
+.mappage--ocorrencia {
+    // Nao ha faixa inferior nesta pagina: a lista de ocorrencias proximas
+    // pertence ao /around. Sem zerar o token, o mapa pararia 230px antes do fim
+    // da janela por causa de uma faixa que nao existe — o mesmo que
+    // `mappage--form` ja faz.
+    --map-strip-height: 0px;
+}
+
+// -- O que sai de vista ------------------------------------------------------
+//
+// `banner.html` emite duas especies de tarja.
+//
+// A de ESTADO — "unknown", "progress", "fixed", "closed" — diz o que a pilula
+// do cabecalho ja diz, tres centimetros abaixo. Duas afirmacoes do mesmo fato,
+// uma embaixo da outra, e exatamente o que esta composicao veio desfazer.
+//
+// A do MOD-005 — "hidden" — diz outra coisa, e so ela diz: que a ocorrencia foi
+// retirada pela moderacao, e por onde contestar. Essa fica.
+//
+// A regra esconde a especie e devolve a excecao, em vez de listar os quatro ids
+// de estado: assim uma tarja de estado nova no upstream nasce escondida, que e
+// o comportamento certo, em vez de aparecer duplicada ate alguem reparar.
+.mappage--ocorrencia {
+    .banner {
+        display: none;
+    }
+
+    .banner--hidden {
+        display: block;
+    }
+}
+
+// -- Voltar ao mapa ----------------------------------------------------------
+
+.ocorrencia-voltar {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+    color: var(--c-text-body);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+
+    &:hover {
+        color: var(--c-primary);
+        text-decoration: none;
+    }
+
+    &:focus-visible {
+        @include foco-visivel;
+    }
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+// -- Cabecalho ---------------------------------------------------------------
+
+.ocorrencia-cabecalho {
+    margin-bottom: var(--space-4);
+}
+
+.ocorrencia-titulo {
+    margin: 0 0 var(--space-2);
+    color: var(--c-text);
+    font-size: var(--fs-h2);
+    font-weight: var(--fw-black);
+    line-height: var(--lh-heading);
+    letter-spacing: var(--ls-heading);
+
+    // Titulo longo quebra; nao encolhe, nao corta, nao empurra o painel.
+    overflow-wrap: anywhere;
+}
+
+// Duas linhas: quem, e quando. O vao entre elas e menor do que o de fora, para
+// que leiam como um bloco so.
+.ocorrencia-autoria {
+    margin: 0 0 var(--space-3);
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-snug);
+
+    span {
+        display: block;
+    }
+}
+
+.ocorrencia-estado {
+    margin: 0;
+}
+
+// -- Abas --------------------------------------------------------------------
+//
+// Duas, e so duas. A linha inferior cinza atravessa as duas; a ativa recebe a
+// da marca por cima.
+.ocorrencia-abas {
+    display: flex;
+    gap: var(--space-5);
+    margin-bottom: var(--space-4);
+    border-bottom: 1px solid var(--c-border);
+}
+
+.ocorrencia-abas__aba {
+    padding: var(--space-2) 0;
+    margin-bottom: -1px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    cursor: pointer;
+
+    &:hover {
+        color: var(--c-text);
+    }
+
+    &:focus-visible {
+        @include foco-visivel;
+    }
+
+    &[aria-selected="true"] {
+        border-bottom-color: var(--c-primary);
+        color: var(--c-primary);
+    }
+}
+
+// Sem script as duas visoes ficam na pagina, uma depois da outra, com um
+// filete entre elas para que nao leiam como uma coisa so.
+.no-js .ocorrencia-visao--atualizacoes {
+    margin-top: var(--space-6);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--c-border);
+}
+
+// -- Fatos: categoria e lugar ------------------------------------------------
+//
+// A APARENCIA NAO ESTA AQUI. Os dois cartoes usam `map-endereco*`, o componente
+// que o passo "Detalhes publicos" do registro ja usava para o endereco —
+// moldura, icone verde, tamanho do rotulo e peso do valor tem uma definicao so,
+// em _map.scss. Antes esta tela tinha a sua propria, parecida mas nao igual, e
+// duas telas do mesmo fluxo mostravam o mesmo tipo de informacao de dois
+// jeitos.
+//
+// UM CARTAO, DUAS LINHAS — e nao dois cartoes.
+//
+// Categoria e endereco sao dois fatos sobre a mesma ocorrencia; empilhados em
+// molduras separadas eles liam como duas coisas sem relacao, e a repeticao da
+// borda pesava mais do que a informacao dentro dela.
+//
+// A moldura, portanto, e uma so: `.ocorrencia-fatos` carrega o `map-endereco`
+// (borda, fundo, raio, recuo) e vira coluna; cada `.ocorrencia-fato` e uma
+// linha com o icone e o texto, com a mesma tipografia do cartao do registro.
+// O que se altera do componente e a direcao — e so ela.
+.ocorrencia-fatos {
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+
+    // O recuo do cartao do registro e 8 em cima e embaixo, e la ele envolve UMA
+    // linha: o que sobra dos 57px de altura minima faz o respiro. Com duas
+    // linhas dentro, o mesmo 8 deixava o ritmo em 9 / 12 / 9 — a primeira linha
+    // mais perto do topo do que do vizinho de baixo, que e exatamente o que se
+    // ve. Medido.
+    //
+    // 12 em volta iguala o recuo ao vao entre as linhas: 13 / 12 / 13 com a
+    // moldura. O olho le um bloco, e nao um texto empurrado para cima.
+    padding: var(--space-3);
+
+    // A altura minima era para a linha unica do registro. Aqui o conteudo ja
+    // passa dela, e mante-la so esconderia um erro de conta no dia em que uma
+    // das linhas sumir.
+    min-height: 0;
+}
+
+// Cada linha centra o seu icone com o seu texto.
+//
+// `flex-start` vinha do cartao do registro, onde o icone acompanha um bloco de
+// tres linhas e ficar no topo faz sentido. Aqui as linhas tem alturas
+// diferentes — duas na categoria, tres no endereco — e o icone preso no topo
+// parecia sobrar de cada uma delas.
+.ocorrencia-fato {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+}
+
+// O `margin-top` que empurrava o icone para baixo existia para compensar o
+// alinhamento pelo topo. Centrado, ele desalinha.
+.ocorrencia-fato .map-endereco__icone {
+    margin-top: 0;
+}
+
+// Endereco longo quebra dentro do cartao em vez de alarga-lo.
+.ocorrencia-fato .map-endereco__nome,
+.ocorrencia-fato .map-endereco__linha {
+    overflow-wrap: anywhere;
+}
+
+// -- Descricao ---------------------------------------------------------------
+
+.ocorrencia-descricao {
+    margin-bottom: var(--space-4);
+    color: var(--c-text-body);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-body);
+    overflow-wrap: anywhere;
+
+    p {
+        margin: 0 0 var(--space-2);
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+}
+
+// -- Titulo de secao ---------------------------------------------------------
+
+.ocorrencia-secao__titulo {
+    margin: 0 0 var(--space-2);
+    color: var(--c-text);
+    font-size: var(--fs-base);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-heading);
+}
+
+// -- Fotos -------------------------------------------------------------------
+//
+// Tres no maximo, entao grade de tres colunas e nao carrossel. Com uma ou duas
+// fotos as celulas vazias simplesmente nao existem, e as que ha ficam do
+// tamanho de sempre — uma foto unica esticada na largura do painel pareceria
+// outra coisa.
+.ocorrencia-fotos {
+    margin-bottom: var(--space-4);
+}
+
+.ocorrencia-fotos__contagem {
+    color: var(--c-text-muted);
+    font-weight: var(--fw-regular);
+}
+
+.ocorrencia-fotos__grade {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-2);
+    margin: 0 0 var(--space-2);
+    padding: 0;
+    list-style: none;
+}
+
+.ocorrencia-fotos__item {
+    margin: 0;
+}
+
+.ocorrencia-fotos__link {
+    display: block;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    background: var(--c-surface-alt);
+
+    &:focus-visible {
+        @include foco-visivel;
+    }
+
+    img {
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        object-fit: cover;
+        display: block;
+    }
+}
+
+.ocorrencia-fotos__limite {
+    margin: 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+}
+
+// -- Encaminhamento e protocolo ----------------------------------------------
+
+.ocorrencia-envio {
+    margin-bottom: var(--space-4);
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+
+    p {
+        margin: 0 0 var(--space-1);
+    }
+}
+
+// -- "Ver atualizacoes" ------------------------------------------------------
+
+.ocorrencia-ver-atualizacoes {
+    display: block;
+    width: 100%;
+    margin-top: var(--space-4);
+}
+
+// -- Historico ---------------------------------------------------------------
+//
+// A linha do tempo e um `ol`: os eventos tem ordem, e essa ordem e informacao.
+//
+// O fio vertical e um `::before` do item, e nao uma borda do `ol`: assim ele
+// para no ultimo ponto em vez de descer ate o fim da lista.
+.ocorrencia-linha {
+    margin: 0 0 var(--space-5);
+    padding: 0;
+    list-style: none;
+}
+
+.ocorrencia-linha__item {
+    position: relative;
+    padding: 0 0 var(--space-4) var(--space-6);
+
+    // O `ol` continua sendo um `ol` — a ordem dos eventos e informacao, e um
+    // leitor de tela deve anuncia-la. O que sai e o numero desenhado: ao lado
+    // do ponto da linha do tempo ele seria um segundo marcador dizendo a mesma
+    // coisa. `list-style` precisa vir tambem no item porque a folha do
+    // upstream o repoe em `#side-report ol li`.
+    list-style: none;
+
+    &:last-child {
+        padding-bottom: 0;
+    }
+
+    // O fio entre este ponto e o proximo.
+    &:not(:last-child)::before {
+        content: "";
+        position: absolute;
+        left: 5px;
+        top: 18px;
+        bottom: 0;
+        width: 2px;
+        background: var(--c-border);
+    }
+}
+
+.ocorrencia-linha__ponto {
+    position: absolute;
+    left: 0;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--c-primary);
+}
+
+.ocorrencia-linha__titulo {
+    margin: 0;
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-heading);
+}
+
+.ocorrencia-linha__quando {
+    margin: 0 0 var(--space-1);
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+}
+
+.ocorrencia-linha__texto {
+    color: var(--c-text-body);
+    font-size: var(--fs-sm);
+    line-height: var(--lh-body);
+    overflow-wrap: anywhere;
+
+    p {
+        margin: 0 0 var(--space-2);
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+}
+
+.ocorrencia-linha__estado {
+    margin: var(--space-1) 0 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+}
+
+// -- Avisos ------------------------------------------------------------------
+//
+// Nem todo texto desta aba e conteudo da ocorrencia.
+//
+// "Nenhuma atualizacao publicada ate o momento" e "as atualizacoes nao sao
+// enviadas a prefeitura" sao informacao SOBRE a lista e SOBRE o formulario —
+// quem fala ali e a pagina. Soltos, com a cor de texto secundario, os dois liam
+// como mais um item: o primeiro parecia um evento a mais no historico, e o
+// segundo, legenda de campo.
+//
+// A moldura e a do `map-step__aviso`, o componente de aviso do sistema, que o
+// passo de identificacao ja usa para a nota de privacidade. Nao ha CSS de
+// aparencia aqui: fundo, raio, icone e tamanho de letra vem de la. O que esta
+// abaixo e so o espacamento, que e o que muda de um lugar para o outro.
+.ocorrencia-aviso {
+    // O componente nasce com `margin-top` porque no fluxo ele fecha o passo.
+    // Aqui ele abre uma secao, ou separa duas — entao o respiro vem por fora,
+    // de quem o usa.
+    margin-top: 0;
+
+    // O link da politica de privacidade dentro do aviso continua sendo um link.
+    a {
+        color: var(--c-primary);
+        text-decoration: underline;
+    }
+}
+
+.ocorrencia-historico__vazio {
+    margin-bottom: var(--space-5);
+}
+
+// -- Adicionar uma atualizacao -----------------------------------------------
+//
+// O formulario e o do upstream, inteiro. O que muda e a pele: os campos passam
+// a ser os mesmos do resto do fluxo, pelos mixins que ja existem.
+.ocorrencia-nova {
+    #update_form h2 {
+        // O titulo da secao ja esta acima; o do upstream diria a mesma coisa
+        // de novo.
+        display: none;
+    }
+
+    label {
+        @include rotulo-do-fluxo;
+    }
+
+    textarea.form-control,
+    input[type="text"].form-control,
+    input[type="email"].form-control,
+    input[type="password"].form-control {
+        @include campo-do-fluxo;
+    }
+
+    // O mesmo respiro interno do `#form_detail` do passo de detalhes: 8 em
+    // cima e embaixo, 12 dos lados. O `campo-do-fluxo` zera o vertical porque
+    // serve a campos de uma linha, em que a altura fixa ja centraliza o texto;
+    // numa area de texto isso encosta a primeira linha na borda.
+    textarea.form-control {
+        padding: var(--space-2) var(--space-3);
+        min-height: 6.5rem;
+        resize: vertical;
+    }
+
+    .btn--primary {
+        display: block;
+        width: 100%;
+    }
+
+    // A nota do upstream agora vem com a moldura de aviso (ver o override de
+    // report/updates-sidebar-notes.html); o que sobra aqui e o respiro entre
+    // ela e o primeiro campo.
+    .general-notes {
+        margin-bottom: var(--space-4);
+    }
+
+    // A area de envio de fotos NAO e redimensionada aqui.
+    //
+    // Uma versao anterior a encolhia para 96px por achar que ela dominava o
+    // formulario. O resultado foi uma terceira aparencia para o mesmo
+    // componente: nem a do registro, nem a do upstream. `.map-panel .dropzone`
+    // ja lhe da a superficie do sistema, e catanduva-map.js agora a veste
+    // tambem aqui (ver AREAS_DE_UPLOAD) — icone de camera, botao "Clique para
+    // enviar" e a linha de formatos aceitos, igual ao passo de fotos.
+    //
+    // Quem envia foto numa atualizacao esta fazendo a mesma coisa que quem
+    // envia no registro; a tela nao tem por que parecer outra.
+
+    // O "Continuar" do upstream vem dentro de uma tarja cinza que, na
+    // composicao dele, separa a previa do que foi escrito. Aqui nao ha previa:
+    // sobra a tarja.
+    // `html.js &` na frente nao e enfeite: a regra do upstream e
+    // `html.js .form-section-preview` — (0,2,1) —, e uma classe sozinha aqui
+    // dentro perderia dela sempre. Foi o que aconteceu na primeira tentativa.
+    html.js & {
+        .form-section-preview,
+        .form-section-preview--next {
+            padding: 0;
+            background: none;
+            border: 0;
+        }
+    }
+}
+
+// A caixa "Este problema foi solucionado", com a mesma grade das outras caixas
+// do fluxo: controle na primeira coluna, rotulo e apoio na segunda.
+.ocorrencia-solucionado {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: var(--space-3);
+    row-gap: 0;
+    align-items: start;
+    margin: var(--space-3) 0;
+
+    input[type="checkbox"] {
+        grid-row: 1 / span 2;
+        margin: 0;
+        width: 20px;
+        height: 20px;
+    }
+}
+
+.ocorrencia-solucionado__rotulo {
+    margin: 0;
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
+}
+
+.ocorrencia-solucionado__apoio {
+    margin: 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+}
+
+// -- Visualizador de fotos ---------------------------------------------------
+//
+// Uma camada sobre a pagina inteira, e nao um "lightbox" de biblioteca: sao no
+// maximo tres fotos, e o que isso pede e uma imagem, um contador, duas setas e
+// um fechar.
+.ocorrencia-visor {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    background: #000;
+
+    &[hidden] {
+        display: none;
+    }
+}
+
+.ocorrencia-visor__barra {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    flex: 0 0 auto;
+    padding: var(--space-3) var(--space-4);
+    color: #fff;
+}
+
+.ocorrencia-visor__contagem {
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+}
+
+.ocorrencia-visor__fechar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.14);
+    }
+
+    &:focus-visible {
+        outline: 3px solid #fff;
+        outline-offset: 2px;
+    }
+
+    svg {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+.ocorrencia-visor__palco {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0 var(--space-4);
+
+    img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+}
+
+.ocorrencia-visor__seta {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--c-text);
+    cursor: pointer;
+
+    &:hover {
+        background: #fff;
+    }
+
+    &:focus-visible {
+        outline: 3px solid #fff;
+        outline-offset: 2px;
+    }
+
+    // Com uma foto so nao ha para onde ir, e duas pastilhas sobre ela seriam
+    // dois botoes que nao fazem nada.
+    &[hidden] {
+        display: none;
+    }
+
+    svg {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+.ocorrencia-visor__seta--anterior {
+    left: var(--space-3);
+}
+
+.ocorrencia-visor__seta--proxima {
+    right: var(--space-3);
+}
+
+// As miniaturas so aparecem quando ha mais de uma foto.
+.ocorrencia-visor__miniaturas {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-2);
+    flex: 0 0 auto;
+    padding: var(--space-4);
+
+    &[hidden] {
+        display: none;
+    }
+}
+
+.ocorrencia-visor__miniatura {
+    width: 72px;
+    height: 54px;
+    padding: 0;
+    overflow: hidden;
+    border: 2px solid transparent;
+    border-radius: var(--radius-md);
+    background: none;
+    cursor: pointer;
+
+    &[aria-current="true"] {
+        border-color: var(--c-primary);
+    }
+
+    &:focus-visible {
+        outline: 3px solid #fff;
+        outline-offset: 2px;
+    }
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+}
+
+// -- Celular -----------------------------------------------------------------
+
+@media (max-width: 47.99em) {
+    .ocorrencia-titulo {
+        font-size: var(--fs-h3);
+    }
+
+    // Tres fotos lado a lado num painel de 358px dariam 110px cada — ainda da
+    // para ver o que e, e e melhor do que rolar na horizontal por tres itens.
+    .ocorrencia-fotos__grade {
+        gap: var(--space-1);
+    }
+
+    .ocorrencia-visor__miniatura {
+        width: 64px;
+        height: 48px;
+    }
+}
+
+// Com a camada aberta, o que esta atras nao rola.
+//
+// Sem isto o gesto de rolar sobre a foto move a pagina por baixo, e a pessoa
+// fecha a camada num lugar diferente daquele de onde saiu. A classe e posta por
+// catanduva-map.js ao abrir, e tirada ao fechar.
+body.ocorrencia-visor-aberto {
+    overflow: hidden;
+}
+
+// As fotos de uma atualizacao, quando houver.
+//
+// O markup e o `report/photo.html` do upstream (`.update-img-set` /
+// `.update-img`), incluido sem alteracao para que a porta de aprovacao continue
+// sendo a dele. O que falta la e so o tamanho: solto, a imagem sai na largura
+// natural do arquivo e estoura o painel.
+.ocorrencia-linha .update-img-set {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: var(--space-2) 0 0;
+}
+
+.ocorrencia-linha .update-img {
+    margin: var(--space-2) 0 0;
+
+    img {
+        display: block;
+        width: 96px;
+        height: 72px;
+        max-width: 100%;
+        object-fit: cover;
+        border-radius: var(--radius-md);
+    }
+
+    // O "zoom" do upstream e um rotulo para o lightbox dele, que esta pagina
+    // nao carrega.
+    span {
+        display: none;
+    }
+}

@@ -1,0 +1,158 @@
+[%# Visao "Atualizacoes" — o historico, e o campo para acrescentar um evento.
+
+    HISTORICO, E NAO ESTEIRA DE FASES. Cada ponto aqui e um evento que
+    aconteceu: o registro, e cada atualizacao publicada. Nao ha "Em analise ->
+    Aguardando atendimento -> Resolvida" desenhado, porque o sistema nao tem
+    essa maquina — os estados sao escolhas da equipe, reversiveis, e estao
+    descritos em docs/VOCABULARIO_DE_ESTADOS.md. O estado de AGORA e a pilula do
+    cabecalho.
+
+    A lista vem inteira da stash `updates`, montada por
+    Report::load_updates — que ja junta comentarios e questionarios, ordena por
+    `confirmed` e aplica as regras de visibilidade do upstream. Nada e
+    reconsultado nem reordenado aqui.
+%]
+
+<section class="ocorrencia-historico" aria-labelledby="ocorrencia-historico-titulo">
+    <h2 class="ocorrencia-secao__titulo visuallyhidden" id="ocorrencia-historico-titulo">
+        Histórico desta ocorrência
+    </h2>
+
+    <ol class="ocorrencia-linha">
+
+        [%# O registro e um evento real, com data real: e o `confirmed` da
+            propria ocorrencia. Nao e uma atualizacao inventada — e o unico
+            ponto do historico que nao vem da tabela de comentarios, e por isso
+            ele nao afirma nada alem do que aconteceu. %]
+        <li class="ocorrencia-linha__item ocorrencia-linha__item--registro">
+            <span class="ocorrencia-linha__ponto" aria-hidden="true"></span>
+            <div class="ocorrencia-linha__corpo">
+                <h3 class="ocorrencia-linha__titulo">Ocorrência registrada</h3>
+                <p class="ocorrencia-linha__quando">[% prettify_dt(problem.confirmed) %]</p>
+                [% IF problem.whensent %]
+                <p class="ocorrencia-linha__texto">
+                    Encaminhada para [% problem.body_names.join(', ') | html %].
+                </p>
+                [% END %]
+            </div>
+        </li>
+
+        [% SET houve_atualizacao = 0 %]
+        [% FOREACH update IN updates %]
+            [%# As mesmas exclusoes do `report/updates.html` do upstream: o que
+                ele esconde, esconde por um motivo, e nao cabe a esta tela
+                revisar. %]
+            [% NEXT IF update.problem_state == 'hidden' OR update.problem_state == 'unconfirmed' %]
+            [% NEXT IF update.get_extra_metadata('triage_report') == 1
+                       AND ( NOT c.user OR ( NOT c.user.from_body AND NOT c.user.is_superuser ) ) %]
+            [% SET houve_atualizacao = 1 %]
+
+            [%# De quem e a atualizacao.
+
+                `atualizacao_da_equipe` repete a pergunta que o `meta_line` do
+                upstream faz — `user.from_body`, `is_body_user` ou
+                `is_superuser` — num so lugar, para que a tela nao adivinhe pelo
+                conteudo do texto. Anonima continua anonima. %]
+            [% SET da_equipe = c.cobrand.atualizacao_da_equipe(update) %]
+        <li class="ocorrencia-linha__item[% ' ocorrencia-linha__item--equipe' IF da_equipe %]">
+            <span class="ocorrencia-linha__ponto" aria-hidden="true"></span>
+            <div class="ocorrencia-linha__corpo">
+                <h3 class="ocorrencia-linha__titulo">
+                    [%- IF da_equipe -%]
+                        Atualização da prefeitura
+                    [%- ELSIF update.anonymous OR NOT update.name -%]
+                        Atualização
+                    [%- ELSE -%]
+                        Atualização de [% update.name | html %]
+                    [%- END -%]
+                </h3>
+                <p class="ocorrencia-linha__quando">[% prettify_dt(update.confirmed) %]</p>
+
+                [% IF update.text %]
+                <div class="ocorrencia-linha__texto">
+                    [% update.text | staff_html_markup(update.extra) %]
+                </div>
+                [% END %]
+
+                [%# As fotos da atualizacao.
+
+                    O mesmo include do `report/update.html` do upstream, com o
+                    mesmo `object=update`: assim a porta de aprovacao
+                    (`allow_photo_display`, o MOD-002) continua sendo a dele, e
+                    nao uma copia que pode divergir.
+
+                    A primeira versao desta linha do tempo nao o tinha — e isso
+                    era perda: a pagina antiga mostrava foto de atualizacao, e
+                    esta deixaria de mostrar.
+
+                    Na pratica elas ainda nao aparecem para o publico, e o
+                    motivo esta em docs/PROBLEMAS_CONHECIDOS.md: nada no piloto
+                    marca `publish_photo` num comentario. O include fica porque
+                    o dia em que houver aprovacao de foto de atualizacao, ela
+                    aparece aqui sem ninguem precisar lembrar desta tela. %]
+                [% INCLUDE 'report/photo.html' object=update %]
+
+                [%# Mudanca de estado que veio junto da atualizacao.
+
+                    A guarda e a mesma do `_update_state.html` do upstream, e
+                    pelo mesmo motivo: sem ela, uma sequencia "fixed - user"
+                    seguida de "fixed - council" anuncia a mesma mudanca duas
+                    vezes. O que NAO vem de la e a linha de autoria — o titulo
+                    deste item ja diz de quem e a atualizacao, e repeti-la
+                    embaixo era a duplicacao que esta composicao veio desfazer. %]
+                [% SET estado_do_evento = update.problem_state_processed %]
+                [% IF ( estado_do_evento AND estado_do_evento != global.last_state
+                        AND NOT (global.last_state == "" AND estado_do_evento == 'confirmed') )
+                      OR update.mark_fixed OR update.mark_open %]
+                <p class="ocorrencia-linha__estado">
+                    [% loc('State changed to:') %] [% update.problem_state_display %]
+                </p>
+                [%- global.last_state = estado_do_evento %]
+                [%- IF estado_do_evento == "" AND update.mark_fixed %][% global.last_state = 'fixed - user' %][% END %]
+                [%- IF estado_do_evento == "" AND update.mark_open %][% global.last_state = 'confirmed' %][% END %]
+                [% END %]
+            </div>
+        </li>
+        [% END %]
+    </ol>
+
+    [%# "Ainda nao ha nada" e informacao SOBRE a lista, e nao um item dela.
+
+        Como paragrafo solto logo abaixo do ultimo evento, ele lia como mais um
+        evento — o que e exatamente o contrario do que diz. Na moldura de aviso
+        do sistema (a mesma do `map-step__aviso`, com o icone) fica claro que
+        quem fala ali e a pagina, e nao a ocorrencia. %]
+    [% UNLESS houve_atualizacao %]
+    <div class="map-step__aviso ocorrencia-aviso ocorrencia-historico__vazio">
+        <span class="map-step__aviso-icone" aria-hidden="true">
+            [% INCLUDE '_ui-icon.html' icon = 'info' %]
+        </span>
+        <span class="map-step__aviso-texto">Nenhuma atualização publicada até o momento.</span>
+    </div>
+    [% END %]
+</section>
+
+[%# Acrescentar uma atualizacao.
+
+    O formulario e o do upstream, inteiro: `update-form-wrapper.html` e quem
+    decide se ele pode aparecer (categoria com atualizacoes desligadas,
+    ocorrencia nao publica, pessoa sem conta) e quem monta os campos de
+    identificacao de quem ainda nao entrou. Reescrever isso aqui seria refazer
+    regra de negocio para mudar aparencia — a aparencia vem do CSS.
+
+    Os dois ramos abaixo sao os do `display.html` do upstream, preservados:
+    ocorrencia duplicada e ocorrencia de ruido nao recebem atualizacao. %]
+<section class="ocorrencia-nova" aria-labelledby="ocorrencia-nova-titulo">
+    <h2 class="ocorrencia-secao__titulo" id="ocorrencia-nova-titulo">Adicionar uma atualização</h2>
+
+    [% IF problem.duplicate_of %]
+        [% INCLUDE 'report/duplicate-no-updates.html' %]
+    [% ELSIF problem.cobrand_data == 'noise' %]
+        <p>[% loc('This report is now closed to updates from the public.') %]</p>
+    [% ELSIF shown_form %]
+        [%# Quem acabou de entrar na conta volta com o que escreveu. %]
+        [% INCLUDE 'report/update-form.html' %]
+    [% ELSE %]
+        [% PROCESS 'report/update-form-wrapper.html' %]
+    [% END %]
+</section>

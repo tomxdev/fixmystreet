@@ -1,0 +1,175 @@
+[%# Visao "Detalhes" da ocorrencia.
+
+    Categoria, lugar, descricao e fotos — nesta ordem, que e a da referencia:
+    o que e, onde e, o que aconteceu, e como se parece.
+
+    SEM CARTOES DENTRO DE CARTOES. O painel ja e uma superficie; as secoes aqui
+    se separam por tipografia, icone e vao, e nao por mais uma moldura cada.
+%]
+
+[%# Categoria e lugar, no mesmo cartao que o passo "Detalhes publicos" usa para
+    o endereco.
+
+    As classes sao as dele — `map-endereco*`, de
+    report/new/form_public_councils_text.html —, e isso e o ponto: moldura,
+    icone, tamanho do rotulo e peso do valor tem UMA definicao, em _map.scss.
+    Duas telas mostrando o mesmo tipo de informacao com duas aparencias era o
+    que havia aqui antes.
+
+    A referencia desta pagina (tela_detalhes_atualizacoes.png) desenha as duas
+    linhas sem moldura e sem rotulo. A moldura veio depois, por decisao de quem
+    conduz: ela e a forma que o sistema ja tinha para "um fato sobre a
+    ocorrencia", e o registro ja a usa para o endereco. %]
+
+[%# Categoria.
+
+    A referencia desenha duas linhas — um grupo ("Vias publicas") e a categoria
+    ("Buraco na via"). O piloto NAO tem grupos de categoria: a coluna `extra`
+    dos contatos esta vazia para todas as quatro, conferido no banco. Inventar
+    um agrupamento seria inventar taxonomia, entao fica a linha que existe — e
+    por isso este cartao nao tem a linha de apoio.
+
+    O icone vem de `category_icon`, o mesmo que os cartoes da faixa usam. %]
+[% SET rua = c.cobrand.short_address(problem) %]
+[% SET complemento = c.cobrand.endereco_complementar(problem) %]
+
+[% IF problem.category OR rua OR complemento %]
+<div class="map-endereco ocorrencia-fatos">
+
+[% IF problem.category %]
+    <span class="ocorrencia-fato">
+        <span class="map-endereco__icone" aria-hidden="true">
+            [% INCLUDE '_ui-icon.html' icon = c.cobrand.category_icon(problem.category) %]
+        </span>
+        <span class="map-endereco__corpo">
+            <span class="map-endereco__rotulo">Categoria</span>
+            <strong class="map-endereco__nome">[% problem.category | html %]</strong>
+        </span>
+    </span>
+[% END %]
+
+[%# Lugar.
+
+    `short_address` da rua e numero; `endereco_complementar` da bairro, cidade e
+    UF — os dois saem do `geocode` gravado no momento do registro, e nao de
+    texto digitado. Quando o geocode nao trouxe o que precisam, eles devolvem
+    vazio e a linha correspondente nao aparece.
+
+    O rotulo e o mesmo do passo de detalhes, "Endereco da ocorrencia", porque e
+    a mesma coisa: o endereco desta ocorrencia. Dois nomes para o mesmo dado em
+    duas telas do mesmo fluxo seria o UI-011 de novo. %]
+[% IF rua OR complemento %]
+    <span class="ocorrencia-fato">
+        <span class="map-endereco__icone" aria-hidden="true">
+            [% INCLUDE '_ui-icon.html' icon = 'pin-solid' %]
+        </span>
+        <span class="map-endereco__corpo">
+            <span class="map-endereco__rotulo">Endereço da ocorrência</span>
+            [% IF rua %]<strong class="map-endereco__nome">[% rua | html %]</strong>[% END %]
+            [% IF complemento %]<span class="map-endereco__linha">[% complemento | html %]</span>[% END %]
+        </span>
+    </span>
+[% END %]
+
+</div>
+[% END %]
+
+[%# Descricao.
+
+    `add_links | html_para` e o mesmo par que o `_main.html` do upstream usa:
+    transforma URLs em links e quebra em paragrafos, escapando o resto. Trocar
+    por `html` puro perderia os paragrafos de quem escreveu em varias linhas. %]
+[% IF problem.detail %]
+<div class="ocorrencia-descricao">
+    [% problem.detail | add_links | html_para %]
+</div>
+[% END %]
+
+[%# Fotos.
+
+    NO MAXIMO TRES, e sem "+N": o limite e o mesmo do registro
+    (`data-max-photos="3"` em report/form/photo_upload.html). O `slice` nao e
+    enfeite — se uma ocorrencia antiga tiver mais do que tres, a galeria mostra
+    tres e nao inventa um carrossel para o resto.
+
+    Só entram as aprovadas. A foto so e publicada depois de moderada (MOD-002) e
+    ate la o proprio controlador /photo recusa servir os bytes; mostrar a
+    moldura de uma foto que nao carrega seria pior do que nao mostrar nada.
+
+    NAO HA "Adicionar foto" AQUI, e a referencia desenha um. O motivo e
+    funcional: nao existe caminho para acrescentar foto a uma ocorrencia ja
+    registrada. O campo de foto desta pagina pertence ao formulario de
+    ATUALIZACAO, e o que ele anexa vai para o comentario
+    (`$update->photo($fileid)`, em Report/Update.pm), nunca para a ocorrencia. A
+    janela de correcao de quem registrou so sabe REMOVER foto. Desenhar o botao
+    aqui prometeria uma acao que nao existe. Registrado em
+    docs/ui/map/MAP_OCCURRENCE_DETAIL_FLOW.md. %]
+[% SET fotos = [] %]
+[% FOREACH foto IN problem.photos %]
+    [% NEXT UNLESS c.cobrand.allow_photo_display(problem, foto.idx) %]
+    [% NEXT IF fotos.size >= 3 %]
+    [% fotos.push(foto) %]
+[% END %]
+
+[% IF fotos.size %]
+<section class="ocorrencia-fotos" aria-labelledby="ocorrencia-fotos-titulo">
+    <h2 class="ocorrencia-secao__titulo" id="ocorrencia-fotos-titulo">
+        Fotos <span class="ocorrencia-fotos__contagem">([% fotos.size %] de 3)</span>
+    </h2>
+
+    <ul class="ocorrencia-fotos__grade js-ocorrencia-fotos">
+        [% FOREACH foto IN fotos %]
+        <li class="ocorrencia-fotos__item">
+            [%# O href e a foto inteira: sem script o clique abre a imagem, que
+                continua sendo ver a foto. Com script, catanduva-map.js
+                intercepta e abre o visualizador. %]
+            <a class="ocorrencia-fotos__link js-ocorrencia-foto"
+               href="[% foto.url_full %]"
+               data-indice="[% loop.index %]"
+               aria-label="Ver foto [% loop.count %] de [% fotos.size %] em tamanho maior">
+                <img src="[% foto.url_fp %]" alt="" loading="lazy">
+            </a>
+        </li>
+        [% END %]
+    </ul>
+
+    <p class="ocorrencia-fotos__limite">Máximo de 3 fotos por ocorrência.</p>
+</section>
+[% END %]
+
+[%# O que o upstream e o piloto dizem sobre o encaminhamento.
+
+    `_main_sent_info` e a linha "Enviada para ... N minutos depois";
+    `_cobrand_ref`, dentro do `_main_after`, e o protocolo CTD-AAAA-NNNN. As
+    duas viviam no `_main.html`, que esta composicao nao usa no caminho publico
+    — e sem elas a pessoa perderia o numero que cita ao falar com a prefeitura.
+
+    A linha de moderacao tambem vem de la, com a diferenca que o piloto ja
+    tinha: quando quem alterou e quem escreveu, a frase nao diz "moderada por um
+    administrador". Ver o cabecalho de report/_main.html. %]
+<div class="ocorrencia-envio">
+    [% INCLUDE 'report/_main_sent_info.html' %]
+
+    [% mlog = problem.latest_moderation_log_entry(); IF mlog %]
+        [% IF mlog.user_id AND problem.user_id AND mlog.user_id == problem.user_id %]
+        <p>Corrigida por quem registrou em [% prettify_dt(mlog.whenedited) %].</p>
+        [% ELSE %]
+        <p>[% tprintf(loc('Moderated by %s at %s'), mlog.admin_user, prettify_dt(mlog.whenedited)) %]</p>
+        [% END %]
+    [% END %]
+</div>
+
+[%# A janela de correcao de quem registrou (F5), com o protocolo dentro.
+
+    No upstream ela e PROCESSada pelo fim do `_main.html`. Aqui ela fecha a
+    visao de detalhes, que e onde estao o titulo e a descricao que ela edita. %]
+[% PROCESS 'report/_main_after.html' %]
+
+[%# "Ver atualizacoes" e a acao principal desta visao, como na referencia.
+
+    `hidden-nojs`: sem script as duas visoes ja estao uma debaixo da outra, e um
+    botao que leva ao que ja esta visivel nao serve para nada. %]
+<button type="button" class="btn btn--primary ocorrencia-ver-atualizacoes hidden-nojs js-ocorrencia-ir"
+        data-visao="atualizacoes">
+    Ver atualizações
+</button>
