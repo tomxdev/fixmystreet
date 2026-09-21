@@ -24,8 +24,24 @@
 
     [%# `fora` marca as que vieram de around_map: elas estao proximas, mas do
         lado de fora do enquadramento do mapa. E por esta classe que o contador
-        do titulo sabe o que nao contar. %]
-    <li class="item-list__item map-card[% ' map-card--fora' IF fora %]" data-report-id="[% problem.id | html %]">
+        do titulo sabe o que nao contar.
+
+        `item-list--reports__item` nao e enfeite herdado: e o seletor que
+        map-OpenLayers.js usa para ligar o cartao ao pino —
+
+            $('#js-reports-list').on('mouseenter focusin',
+                                     '.item-list--reports__item', ...)
+                -> fixmystreet.maps.markers_highlight(id)
+
+        Quando os cartoes desta faixa foram redesenhados, so
+        `item-list__item` veio junto, e o realce do pino parou calado: passar o
+        mouse (ou o foco) por um cartao deixou de dizer qual pino e o dele.
+        Conferido no navegador, antes e depois.
+
+        A pele que a classe carrega em `_base.scss` nao atrapalha: o unico
+        ponto em que ela fala do mesmo que nos — o recuo do link — perde para
+        `.map-card .map-card__link`, que tem uma classe a mais. %]
+    <li class="item-list__item item-list--reports__item map-card[% ' map-card--fora' IF fora %]" data-report-id="[% problem.id | html %]">
         <a class="map-card__link" href="[% c.cobrand.relative_url_for_report(problem) %][% problem.url %]">
             [%# A foto so aparece depois de aprovada (MOD-002); o controlador de
                 fotos recusa servir o que o cobrand nao exibe. %]
