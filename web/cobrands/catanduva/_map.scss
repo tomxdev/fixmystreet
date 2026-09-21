@@ -4225,6 +4225,24 @@ html.mobile .mappage--sent {
 // O campo de arquivo de verdade, por cima do controle: e nele que o clique cai,
 // e e o navegador que abre o seletor. Invisivel, mas presente, do tamanho do
 // controle e com o cursor certo.
+//
+// ESTE `position: relative` E O QUE FAZ "do tamanho do controle" SER VERDADE.
+//
+// O campo e `absolute; inset: 0`, e sem um ancestral posicionado ele resolve
+// contra o `#map_sidebar` — vira uma folha invisivel do tamanho do painel
+// inteiro, por cima de tudo. Medido na pagina da ocorrencia: 423x720 cobrindo
+// as abas, de modo que clicar em "Detalhes" com a aba de atualizacoes aberta
+// abria o seletor de arquivos em vez de trocar de aba.
+//
+// No fluxo de registro o defeito existia igual e nao aparecia: ali o passo de
+// fotos ocupa o painel sozinho, e nao ha nada para a folha cobrir.
+//
+// Arrastar e soltar continua valendo na area inteira: quem escuta o `drop` e o
+// proprio Dropzone, no `.dropzone`, e nao este campo.
+.map-panel .dz-message {
+    position: relative;
+}
+
 .map-panel .map-foto__campo {
     position: absolute;
     inset: 0;
