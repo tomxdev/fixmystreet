@@ -508,7 +508,7 @@ Reavaliar só se aparecer demanda de contestação por quem não tem conta.
 | Item | Fazer |
 |---|---|
 | `1.1` sem imagem de compartilhamento própria | **RESOLVIDO.** A imagem existe e tem fonte versionada — ver abaixo |
-| `1.2` alertas de vulnerabilidade do GitHub desligados | **BLOQUEADO.** Depende de quem tem a conta — ver abaixo |
+| `1.2` alertas de vulnerabilidade do GitHub desligados | **RESOLVIDO.** Estavam ligados; o que fica desligado é outra coisa, e de propósito — ver abaixo |
 
 ### `1.1`, feito — e por que a imagem tem código-fonte
 
@@ -541,19 +541,38 @@ script do piloto é sem extensão — e **não** o bit de execução, que estava
 inconsistente entre o índice do git e a árvore e portanto mentia. Os sete
 scripts foram uniformizados em `100755` no índice.
 
-### `1.2`, bloqueado — precisa de quem tem a conta
+### `1.2`, fechada — os alertas já estavam ligados
 
-Ligar os alertas de vulnerabilidade é um `PUT` em
-`repos/tomxdev/fixmystreet/vulnerability-alerts`. O estado atual é
-`dependabot_security_updates: disabled`, e o endpoint de alertas responde 404.
-
-A chamada foi **recusada pelo classificador de permissão** desta sessão: é uma
-mudança de configuração do repositório remoto, e não cabe contornar. Quem tem a
-conta liga em Settings → Code security, ou roda:
+Conferido em 21/09/2026:
 
 ```
-gh api -X PUT repos/tomxdev/fixmystreet/vulnerability-alerts
+GET repos/tomxdev/fixmystreet/vulnerability-alerts  ->  204 No Content
 ```
+
+204 é "ligados". O objetivo do item era **enxergar** dependência vulnerável, e
+isso está de pé. A leitura anterior, de 404, não descreve mais o repositório — e
+o `PUT` que este plano mandava fazer seria um *no-op*.
+
+O que continua desligado é **outra coisa**: as correções automáticas
+(`automated-security-fixes`, hoje `{"enabled":false,"paused":false}`), que além
+de avisar abrem PR subindo a versão. E ficam desligadas de propósito.
+
+**Por quê.** Os 41 alertas abertos — 1 crítico, 7 altos, 19 médios, 14 baixos —
+apontam todos para o mesmo arquivo: `docs/Gemfile.lock`, que é o site de
+documentação em Jekyll do upstream (`gem 'github-pages'`), e cujo último commit
+é de lá. Nenhum é do runtime do piloto: nada do `cpanfile`, nada do JavaScript
+do cobrand, nada do que roda em produção. O piloto não constrói nem publica
+`docs/` — o único lugar onde esse caminho aparece nos workflows é o filtro que
+**pula** a suíte quando a mudança é só de documentação.
+
+Ligar as correções automáticas hoje abriria PR atrás de PR contra `main`,
+mexendo num *lockfile* que o fork não mantém e que vai conflitar em cada
+sincronização com o upstream. Barulho em fila de segurança é pior que silêncio:
+ensina a ignorar a fila.
+
+**Revisitar quando** aparecer alerta fora de `docs/`. Aí a conta muda, e o certo
+passa a ser um `.github/dependabot.yml` que restrinja o Dependabot ao que é do
+piloto.
 
 **Pronto quando:** nenhuma cadeia em inglês no caminho do cidadão, e a lista de
 problemas conhecidos só tem coisa que ainda é problema.
@@ -746,7 +765,7 @@ em seguida. Mas não para depois — é a fase que impede o retrabalho.
 | **3** A rede de testes | **concluída** | 3.1 a 3.5 |
 | **4** O que a pessoa pede | **concluída** | `F5`, `F12`, 4.3, 4.4 |
 | **5** Telas que ficaram para trás | **concluída** | `F6`, `F10`, celular, e a 5.4 decidida |
-| **6** Vocabulário e dívida | **6.1, 6.2, 6.4, 6.5, 6.6 e 6.7 concluídas** | falta o catálogo (6.3), que é contínuo, e a `1.2`, que depende de quem tem a conta |
+| **6** Vocabulário e dívida | **6.1, 6.2, 6.4, 6.5, 6.6 e 6.7 concluídas** | falta só o catálogo (6.3), que é contínuo |
 | **7** Evolução | a fazer | contínua |
 
 **Os treze achados da auditoria estão fechados.** `F1` a `F13`: os críticos nas
@@ -755,8 +774,9 @@ fases 1 e 2, os de vocabulário e correção na 4, os de tela na 5, os de texto 
 
 O que resta da fase 6 não vem da auditoria. A 6.6 fechou: `2.2` e `2.5`
 corrigidos, `2.1` verificado e guardado por uma checagem nova, `2.3` decidido
-(não oferecer), `2.4` resolvido, e `2.6` é a 7.4. Da 6.7 só ficou a `1.2`, que
-não é trabalho de código — é um botão na conta do GitHub. Segue aberto só o
+(não oferecer), `2.4` resolvido, e `2.6` é a 7.4. A 6.7 fechou inteira: a `1.1`
+tem imagem com fonte versionada, e a `1.2` já estava ligada — o que restou dela
+foi uma decisão registrada, e não um botão por apertar. Segue aberto só o
 catálogo pt-BR (6.3), que é contínuo por natureza.
 
 **6.4 saiu de ordem de propósito.** É a única da fase 6 que fica mais cara a cada

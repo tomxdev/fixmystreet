@@ -117,7 +117,7 @@ entra aqui no dia em que `INF-002` definir o provedor.
 |---|---|
 | Segredos fora do Git | ✅ `conf/general.yml` ignorado — verificado |
 | Varredura de segredos no repositório | ✅ Ligada, com proteção de push |
-| Alertas de vulnerabilidade | ❓ **Desligados** — ver `SEC-004` |
+| Alertas de vulnerabilidade | ✅ Ligados; as correções automáticas ficam desligadas de propósito — ver `PROBLEMAS_CONHECIDOS.md` 1.2 |
 | HTTPS obrigatório e HSTS | ⏳ Depende de `INF-003` |
 | 2FA administrativo | ⏳ `SEC-003`; o upstream já oferece o mecanismo |
 | Backup com restauração testada | ⏳ `INF-007` e `SEC-005` |

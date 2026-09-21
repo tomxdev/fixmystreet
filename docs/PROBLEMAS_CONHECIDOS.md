@@ -33,15 +33,18 @@ redescoberto do zero custa uma tarde.
 | **Por que a bancada mora em `bin/` e não em `web/`** | Dentro de `web/` ela seria servida como arquivo estático, e o piloto teria uma página solta em pé, sem rota, sem cabeçalho e sem tradução. O passo a passo para regerar está no cabeçalho dela |
 | **Validado** | Subteste em `t/cobrand/catanduva.t`: o arquivo existe, é JPEG, mede 1200×630 — lido do próprio arquivo, que é o que as meta tags anunciam — e a home aponta para `cobrands/catanduva/`, não para `cobrands/fixmystreet/`. Conferido que ele falha com a imagem fora do lugar |
 
-### 1.2 Alertas de vulnerabilidade do GitHub desligados
+### 1.2 Alertas de vulnerabilidade do GitHub — RESOLVIDO: estão ligados
 
 | | |
 |---|---|
 | **Onde** | Repositório `tomxdev/fixmystreet` |
-| **O que acontece** | `dependabot_security_updates: disabled`; a API de *vulnerability-alerts* responde 404 |
-| **Impacto** | Nenhum aviso automático de dependência vulnerável |
+| **O que se registrou** | Que estavam desligados, porque a API de *vulnerability-alerts* teria respondido 404 |
+| **O que é** | `GET repos/tomxdev/fixmystreet/vulnerability-alerts` responde **204 No Content** — ligados. Conferido em 21/09/2026, com `admin` no repositório |
+| **O que segue desligado, de propósito** | As **correções automáticas** — `automated-security-fixes`, hoje `{"enabled":false,"paused":false}` — que além de avisar abrem PR subindo a versão |
+| **Por que ficam desligadas** | Os 41 alertas abertos (1 crítico, 7 altos, 19 médios, 14 baixos) apontam **todos** para o mesmo arquivo: `docs/Gemfile.lock`, o site de documentação em Jekyll do upstream (`gem 'github-pages'`). Nenhum é do runtime do piloto — nada do `cpanfile`, nada do JavaScript do cobrand — e o piloto não constrói nem publica `docs/` |
+| **O que se evita** | PR atrás de PR contra `main` mexendo num *lockfile* que o fork não mantém e que conflita a cada sincronização com o upstream. Barulho em fila de segurança é pior que silêncio: ensina a ignorar a fila |
+| **Revisitar quando** | Aparecer alerta **fora** de `docs/`. Aí a conta muda, e o certo passa a ser um `.github/dependabot.yml` que restrinja o Dependabot ao que é do piloto |
 | **Observação** | A varredura de **segredos** está ligada, com proteção de push |
-| **Resolver** | `gh api -X PUT repos/tomxdev/fixmystreet/vulnerability-alerts` — cinco segundos, mas muda configuração da conta, então é do responsável |
 
 ### 1.3 Catálogo pt-BR incompleto
 

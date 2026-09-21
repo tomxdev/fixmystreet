@@ -473,11 +473,11 @@ decidindo, quando a `v7.0` sair, sincronizar cedo em vez de acumular.
 três perguntas que importam — saiu release nova, quanto se acumulou, as dependências
 andaram. Um processo que custa um comando é um processo que acontece.
 
-❓ **Ação pendente com você — 5 segundos.** Os alertas de vulnerabilidade do GitHub estão
-**desligados** neste fork (a varredura de segredos, essa está ligada, com proteção de push).
-Não liguei porque muda configuração do seu repositório e passa a gerar alertas na sua conta:
-
-    gh api -X PUT repos/tomxdev/fixmystreet/vulnerability-alerts
+✅ **Não há ação pendente aqui.** Conferido em 21/09/2026: os alertas de vulnerabilidade
+respondem **204**, ou seja, estão ligados (e a varredura de segredos também, com proteção de
+push). O que segue desligado é outra coisa — as correções automáticas — e de propósito: os 41
+alertas abertos apontam todos para `docs/Gemfile.lock`, o site de documentação do upstream, que
+o piloto não constrói nem publica. Ver `PROBLEMAS_CONHECIDOS.md` 1.2.
 
 ⚠️ **Limite desta revisão.** A busca por commits de segurança é por palavra no assunto —
 achou dois, nenhum deles correção de vulnerabilidade. Não é auditoria: correção que não
