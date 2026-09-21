@@ -611,20 +611,57 @@ body.mappage--catanduva {
     // horizontal, então nada fica inalcançável.
     .map-strip {
         position: absolute;
-        // Comeca depois do painel, e nao debaixo dele: o painel agora vai ate o
-        // fim da janela. A faixa mantem a altura inteira e perde largura — o
-        // carrossel continua rolando na horizontal.
-        left: calc(
-            var(--map-panel-width) + var(--map-panel-inset) + var(--space-3)
+
+        // A esquerda deixa de ser uma constante.
+        //
+        // Ela era `largura do painel + recuo + folga`, sempre — e o painel nao
+        // tem altura fixa: ele mede o que o conteudo do passo pede, ate o teto
+        // da janela. Numa tela alta o painel termina bem acima da faixa, e a
+        // conta continuava reservando a largura dele. Medido em 1920x1080: o
+        // painel acaba em y=746, a faixa comeca em y=842 — nao ha conflito
+        // nenhum, e mesmo assim sobravam 452px de mapa vazio a esquerda da
+        // faixa, onde ela caberia.
+        //
+        // Quem decide agora e a geometria real: catanduva-map.js compara o
+        // retangulo do painel com o da faixa e escreve `--map-strip-left`.
+        // Havendo cruzamento vertical, a faixa comeca depois do painel; nao
+        // havendo, ela comeca onde o mapa comeca.
+        //
+        // O valor de reserva e a conta antiga, e de proposito: sem script a
+        // pagina volta a ser o que era, e nao uma faixa por cima do painel.
+        left: var(
+            --map-strip-left,
+            calc(var(--map-panel-width) + var(--map-panel-inset) + var(--space-3))
         );
         right: var(--map-panel-inset);
         bottom: var(--map-panel-inset);
         height: var(--map-strip-height);
+
+        // `left` acompanha a altura durante a transicao: enquanto a faixa
+        // encolhe, ela pode deixar de cruzar o painel e ganhar a largura da
+        // esquerda. Sem animar as duas juntas, a largura daria um salto no fim.
+        transition: height var(--dur-faixa) var(--ease),
+            left var(--dur-faixa) var(--ease);
         border: 1px solid var(--c-border);
         border-radius: var(--radius-xl);
         box-shadow: var(--shadow-lg);
         overflow: hidden;
         z-index: 2;
+    }
+
+    // Recolhida, a faixa e o seu cabecalho. O mapa recupera o resto.
+    //
+    // Mesma especificidade da regra acima (0,2,1) e depois dela no arquivo —
+    // e por isso que ela vence, e e por isso que as duas moram juntas.
+    .map-strip--recolhida {
+        height: var(--map-strip-barra);
+    }
+
+    // Sem ocorrencias, a altura e a do que ha para mostrar: a barra e uma linha
+    // de texto. Reservar a faixa inteira para dizer "nenhuma" seria cobrir o
+    // mapa com o vazio.
+    .map-strip--vazia {
+        height: auto;
     }
 
 }
@@ -683,8 +720,9 @@ body.mappage--sent {
     // dois; o resto da moldura flutuante (raio, sombra, recuos) vem da regra
     // geral acima.
     .map-strip {
-        left: calc(
-            var(--map-panel-width) + var(--map-panel-inset) + var(--space-3)
+        left: var(
+            --map-strip-left,
+            calc(var(--map-panel-width) + var(--map-panel-inset) + var(--space-3))
         );
     }
 

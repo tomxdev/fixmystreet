@@ -831,8 +831,427 @@
             atualizarContagemFaixa();
             atualizarSetasDaFaixa();
             blindarMiniaturas();
+            // O filtro pode ter zerado a faixa, e uma faixa vazia tem outra
+            // altura — e outra altura pode deixar de cruzar o painel.
+            agendarAjusteDaFaixa();
         }).observe(alvo, { childList: true, subtree: true });
     }
+
+    // -----------------------------------------------------------------------
+    // A faixa cabe onde couber: recolher, expandir, e achar a propria largura
+    // -----------------------------------------------------------------------
+    //
+    // Dois problemas diferentes, resolvidos pelo mesmo punhado de medidas.
+    //
+    // 1. LARGURA. A faixa comecava sempre depois do painel, porque o CSS
+    //    reservava a largura dele. Mas o painel mede o que o conteudo do passo
+    //    pede: numa tela alta ele termina muito acima da faixa. Medido em
+    //    1920x1080 antes desta mudanca — painel ate y=746, faixa a partir de
+    //    y=842, nenhum cruzamento, e 452px de mapa vazio a esquerda da faixa.
+    //
+    // 2. ALTURA. A faixa ocupa 230px do rodape. Numa janela baixa isso deixa o
+    //    mapa — que e o conteudo principal desta pagina — como uma tira. Ai ela
+    //    se recolhe sozinha, e a barra continua ali para quem quiser abri-la.
+    //
+    // As duas decisoes saem de retangulos lidos na hora, e nao de breakpoints:
+    // o painel muda de altura por conta propria (filtros, mensagens de erro,
+    // troca de passo), e um breakpoint nao ve nada disso.
+    //
+    // O que o CSS resolve, o CSS resolve: a faixa continua posicionada por
+    // `left/right/bottom` e animada por `transition`. O script so escreve
+    // `--map-strip-left` e troca duas classes.
+
+    var FAIXA_CHAVE = "catanduva:faixa";
+
+    // O desenho nasce apontando para cima; o CSS o gira quando expandida.
+    var SVG_CHEVRON =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+        '<path d="m6 15 6-6 6 6"/></svg>';
+
+    // O que a pessoa escolheu. So muda por clique.
+    //
+    // sessionStorage, e nao localStorage: a escolha vale para esta visita. Quem
+    // recolheu a faixa para ver o mapa hoje nao esta decidindo como quer a
+    // pagina daqui a um mes — e a decisao automatica ja cobre o caso em que a
+    // tela nao comporta a faixa aberta.
+    function preferidaGuardada() {
+        try {
+            return window.sessionStorage.getItem(FAIXA_CHAVE);
+        } catch (e) {
+            return null; // navegacao privada, ou armazenamento bloqueado
+        }
+    }
+
+    // Sem armazenamento — navegacao privada, ou cookies bloqueados — a escolha
+    // vale para esta pagina, e so. E menos do que se queria, e nao e motivo para
+    // o botao parar de funcionar: quem manda no estado e `faixaPreferida`, que
+    // esta na memoria; o armazenamento so o faz atravessar uma navegacao.
+    function guardarPreferida(valor) {
+        try {
+            window.sessionStorage.setItem(FAIXA_CHAVE, valor);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    var faixaPreferida = preferidaGuardada() === "recolhida" ? "recolhida" : "expandida";
+
+    // Quando a pessoa expande uma faixa que o script tinha recolhido sozinho,
+    // ela esta dizendo "eu sei que esta apertado, abre assim mesmo". A decisao
+    // automatica sai de cena ate a geometria mudar de opiniao — e volta quando
+    // mudar, que e o que atende a "reducao drastica de resolucao".
+    var autoDispensado = false;
+    var ultimoVeredito = null;
+
+    function emPixels(valor) {
+        valor = $.trim(valor || "");
+        if (/rem$/.test(valor)) {
+            var raiz = parseFloat(
+                window.getComputedStyle(document.documentElement).fontSize
+            );
+            return parseFloat(valor) * (raiz || 16);
+        }
+        return parseFloat(valor) || 0;
+    }
+
+    function tokenEmPixels(nome) {
+        return emPixels(
+            window.getComputedStyle(document.body).getPropertyValue(nome)
+        );
+    }
+
+    // -- As medidas -----------------------------------------------------------
+    //
+    // Tudo em coordenadas de viewport: a faixa e absoluta e o bloco que a contem
+    // e o <body>, que comeca em x=0 — conferido no DOM, nao suposto.
+    function medidasDaFaixa() {
+        var s = $strip()[0];
+        if (!s) {
+            return null;
+        }
+
+        var painel = document.getElementById("map_sidebar");
+        var caixaDoMapa = document.getElementById("map_box");
+        var estilo = window.getComputedStyle(s);
+
+        // No modo mapa-cheio a faixa e `fixed` e atravessa a janela: nao ha
+        // painel ao lado para respeitar. Perguntar ao layout, e nao a largura da
+        // janela, e o que mantem esta decisao junto do CSS que a produz.
+        var modoCamada = estilo.position === "fixed";
+
+        var bordas =
+            parseFloat(estilo.borderTopWidth) + parseFloat(estilo.borderBottomWidth);
+
+        return {
+            faixa: s.getBoundingClientRect(),
+            painel: painel ? painel.getBoundingClientRect() : null,
+            painelVisivel: !!(painel && painel.offsetParent !== null),
+            mapa: caixaDoMapa ? caixaDoMapa.getBoundingClientRect() : null,
+            modoCamada: modoCamada,
+            recuo: tokenEmPixels("--map-panel-inset"),
+            folga: tokenEmPixels("--space-3"),
+            alturaExpandida: tokenEmPixels("--map-strip-height") + bordas,
+            alturaBarra: tokenEmPixels("--map-strip-barra") + bordas
+        };
+    }
+
+    // -- Cabe a faixa aberta? -------------------------------------------------
+    //
+    // Duas perguntas, e as duas sobre o espaco que sobra — nunca sobre a largura
+    // da janela isolada, que e o que faz 1920x600 passar por "desktop grande".
+    //
+    // ALTURA: o mapa e o conteudo principal desta pagina. A referencia
+    // (tela_mapa_expandir.png) mostra a faixa ocupando cerca de um terco da area
+    // abaixo do cabecalho — entao a regra e que ao mapa sobre pelo menos uma vez
+    // e meia o que a faixa toma. Em 1440x900 sobram 500px para o mapa contra 357
+    // exigidos; em 1280x720 sobram 320 contra os mesmos 357, e ela se recolhe.
+    //
+    // LARGURA: uma fila que nao mostra dois cartoes nao e uma fila — e um cartao
+    // com um pedaco de outro. A largura de um cartao sai do proprio CSS.
+    function faixaAbertaCabe(m) {
+        if (!m || !m.mapa) {
+            return true;
+        }
+
+        var alturaDaFaixa = m.alturaExpandida + m.recuo;
+        var sobraParaOMapa = m.mapa.height - alturaDaFaixa;
+        if (sobraParaOMapa < alturaDaFaixa * 1.5) {
+            return false;
+        }
+
+        var cartao = $strip().find(".map-card")[0];
+        if (cartao) {
+            var largura = cartao.getBoundingClientRect().width + m.folga;
+            var disponivel = m.faixa.width;
+            if (disponivel < largura * 2) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // -- A esquerda da faixa --------------------------------------------------
+    //
+    // Havendo cruzamento vertical com o painel, a faixa comeca depois dele.
+    // Nao havendo, ela comeca onde o mapa comeca. E so isso — e nao da para
+    // escrever em CSS, porque comparar dois retangulos nao e uma pergunta que o
+    // CSS saiba fazer.
+    function calcularEsquerda(m) {
+        if (m.modoCamada || !m.painel || !m.painelVisivel || !m.painel.width) {
+            return null; // a faixa atravessa: o CSS de reserva ja diz isso
+        }
+
+        var cruzam = m.faixa.top < m.painel.bottom && m.faixa.bottom > m.painel.top;
+        var inicioDoMapa = (m.mapa ? m.mapa.left : 0) + m.recuo;
+
+        return cruzam ? m.painel.right + m.folga : inicioDoMapa;
+    }
+
+    // -- Aplicar --------------------------------------------------------------
+
+    var ultimoTamanhoDoMapa = null;
+    var jaAssentou = false;
+
+    function ajustarFaixaAoEspaco() {
+        var $s = $strip();
+        if (!$s.length) {
+            return;
+        }
+
+        // A primeira colocacao nao anima.
+        //
+        // A faixa nasce com o valor de reserva do CSS — a coluna do painel
+        // reservada — e o script pode mudar isso no mesmo instante. Com a
+        // transicao ligada, quem abre a pagina numa tela alta veria a faixa
+        // deslizar 452px da direita para a esquerda ao carregar: um movimento
+        // que nao corresponde a nada que a pessoa fez.
+        //
+        // A leitura de `offsetHeight` no meio nao e supersticao: e ela que
+        // obriga o navegador a recalcular o estilo com a transicao ainda
+        // desligada, antes de devolve-la.
+        if (!jaAssentou) {
+            jaAssentou = true;
+            var s = $s[0];
+            var transicao = s.style.transition;
+            s.style.transition = "none";
+            ajustarFaixaAoEspaco();
+            /* jshint expr: true */
+            s.offsetHeight;
+            s.style.transition = transicao;
+            return;
+        }
+
+        var m = medidasDaFaixa();
+        if (!m) {
+            return;
+        }
+
+        // Vazia nao e recolhida: nao ha carrossel para esconder, e o botao de
+        // recolher some. A altura vira a do que ha para mostrar.
+        var vazia = !$s.find(".map-card").length;
+        $s.toggleClass("map-strip--vazia", vazia);
+
+        var cabe = faixaAbertaCabe(m);
+
+        // O veredito automatico mudou? Entao a dispensa que a pessoa deu vale
+        // para a situacao anterior, e nao para esta.
+        if (ultimoVeredito !== null && ultimoVeredito !== cabe) {
+            autoDispensado = false;
+        }
+        ultimoVeredito = cabe;
+
+        // No modo mapa-cheio a faixa e uma camada sobre o mapa, e nao uma regiao
+        // ao lado dele: ali ela nasce recolhida, e abre a pedido.
+        var padraoRecolhido = m.modoCamada && preferidaGuardada() === null;
+
+        var efetiva;
+        if (vazia) {
+            efetiva = "expandida";
+        } else if (faixaPreferida === "recolhida" || padraoRecolhido) {
+            efetiva = "recolhida";
+        } else if (!cabe && !autoDispensado) {
+            efetiva = "recolhida";
+        } else {
+            efetiva = "expandida";
+        }
+
+        var automatica = efetiva === "recolhida" && faixaPreferida === "expandida";
+
+        $s.toggleClass("map-strip--recolhida", efetiva === "recolhida")
+            .toggleClass("map-strip--auto", automatica);
+
+        atualizarBotaoDaFaixa(efetiva);
+
+        var esquerda = calcularEsquerda(m);
+        if (esquerda === null) {
+            document.body.style.removeProperty("--map-strip-left");
+        } else {
+            document.body.style.setProperty(
+                "--map-strip-left",
+                Math.round(esquerda) + "px"
+            );
+        }
+
+        atualizarSetasDaFaixa();
+        avisarOMapa();
+    }
+
+    // O mapa so precisa ser avisado quando a caixa DELE muda — e ela nao muda
+    // quando a faixa recolhe, porque a faixa flutua por cima. Avisar a cada
+    // clique seria pedir ao OpenLayers para refazer a projecao a toa.
+    //
+    // A biblioteca aqui e OpenLayers 2.14 (conferido: `fixmystreet.map` com
+    // `updateSize`), e nao Leaflet nem MapLibre.
+    function avisarOMapa() {
+        var caixa = document.getElementById("map_box");
+        if (!caixa || !fixmystreet.map || !fixmystreet.map.updateSize) {
+            return;
+        }
+
+        var agora = caixa.clientWidth + "x" + caixa.clientHeight;
+        if (agora === ultimoTamanhoDoMapa) {
+            return;
+        }
+
+        ultimoTamanhoDoMapa = agora;
+        fixmystreet.map.updateSize();
+    }
+
+    function atualizarBotaoDaFaixa(efetiva) {
+        var $b = $strip().find(".map-strip__toggle");
+        if (!$b.length) {
+            return;
+        }
+
+        var expandida = efetiva === "expandida";
+        $b.attr("aria-expanded", expandida ? "true" : "false");
+        $b.find(".map-strip__toggle-texto").text(expandida ? "Recolher" : "Expandir");
+    }
+
+    function ligarBotaoDaFaixa() {
+        var $s = $strip();
+        if (!$s.length || $s.find(".map-strip__toggle").length) {
+            return;
+        }
+
+        var $lista = $s.find(".map-strip__list");
+        if (!$lista.length) {
+            return;
+        }
+
+        // `aria-controls` precisa de um id. O da pagina de mapa ja tem um
+        // (#js-reports-list, que o /ajax troca); o da confirmacao nao.
+        var alvo = $lista[0];
+        if (!alvo.id) {
+            alvo.id = "map-strip-lista";
+        }
+
+        var $b = $(
+            '<button type="button" class="map-strip__toggle">' +
+                SVG_CHEVRON +
+                '<span class="map-strip__toggle-texto">Recolher</span>' +
+                "</button>"
+        )
+            .attr("aria-expanded", "true")
+            .attr("aria-controls", alvo.id);
+
+        // Sem `click` proprio para teclado: um <button> ja responde a Enter e a
+        // Espaco, e duplicar isso com keydown so cria o risco de disparar duas
+        // vezes.
+        $b.on("click", function () {
+            var estavaExpandida = $b.attr("aria-expanded") === "true";
+
+            faixaPreferida = estavaExpandida ? "recolhida" : "expandida";
+            guardarPreferida(faixaPreferida);
+
+            // Expandir o que o script tinha recolhido e uma decisao sobre esta
+            // tela: vale ate a geometria mudar de opiniao.
+            autoDispensado = !estavaExpandida;
+
+            ajustarFaixaAoEspaco();
+        });
+
+        $s.find(".map-strip__head").append($b);
+    }
+
+    // Um unico agendamento para todas as fontes de mudanca: janela, painel,
+    // faixa e troca de lista. Sem isso, um resize dispara a conta dezenas de
+    // vezes por segundo.
+    var agendado = false;
+
+    function agendarAjusteDaFaixa() {
+        if (agendado) {
+            return;
+        }
+        agendado = true;
+        window.requestAnimationFrame(function () {
+            agendado = false;
+            ajustarFaixaAoEspaco();
+        });
+    }
+
+    // -- O Espaco volta a acionar os botoes da faixa --------------------------
+    //
+    // Enter e Espaco sao as duas formas de acionar um <button> pelo teclado, e
+    // nesta pagina o Espaco nunca chegava la.
+    //
+    // `OpenLayers.Control.KeyboardDefaultsFMS` (web/js/map-OpenLayers.js) escuta
+    // keydown no `document` para mover o mapa pelo teclado, e para as teclas que
+    // trata chama `OpenLayers.Event.stop`, que cancela a acao padrao do elemento
+    // focado. A isencao dele cobre INPUT, TEXTAREA e SELECT — BUTTON nao esta na
+    // lista. Com o foco no botao de recolher, Espaco largava um pino e navegava
+    // para /report/new; medido, nao deduzido.
+    //
+    // Barrar a propagacao devolve a tecla a quem tem o foco, e so a ele: o mapa
+    // continua respondendo ao Espaco quando o foco esta nele.
+    //
+    // O ouvinte vai na PROPRIA faixa, e nao no `document`. Delegar no document
+    // nao resolveria: o do OpenLayers tambem esta la e foi registrado antes, e
+    // quando o evento chegasse ao nosso a acao padrao ja teria sido cancelada.
+    // Na faixa, que e ancestral dos botoes e descendente do document, o nosso
+    // corre primeiro.
+    //
+    // E do cobrand, e nao um remendo no core, porque so os botoes desta faixa
+    // estao no escopo deste trabalho — o mesmo problema vale para os outros
+    // botoes da pagina, e isso fica registrado em docs/PROBLEMAS_CONHECIDOS.md.
+    function devolverOEspacoAosBotoes() {
+        $strip().on("keydown", "button", function (e) {
+            if (e.key === " " || e.key === "Spacebar" || e.which === 32) {
+                e.stopPropagation();
+            }
+        });
+    }
+
+    function observarGeometriaDaFaixa() {
+        ligarBotaoDaFaixa();
+        devolverOEspacoAosBotoes();
+        ajustarFaixaAoEspaco();
+
+        $(window).on("resize orientationchange", agendarAjusteDaFaixa);
+
+        // O painel muda de altura sozinho — filtros que abrem, mensagens de
+        // erro, troca de passo, fonte que termina de carregar. Nada disso gera
+        // evento, e um breakpoint nao ve nada disso.
+        if (typeof window.ResizeObserver === "undefined") {
+            return;
+        }
+
+        var observador = new window.ResizeObserver(agendarAjusteDaFaixa);
+
+        var painel = document.getElementById("map_sidebar");
+        if (painel) {
+            observador.observe(painel);
+        }
+
+        var s = $strip()[0];
+        if (s) {
+            observador.observe(s);
+        }
+    }
+
 
     function lerItem($li) {
         // Tudo o que o cartão mostra sai do que o servidor já renderizou neste
@@ -2644,6 +3063,12 @@
                 $("body").addClass("map-has-strip");
 
                 atualizarSetasDaFaixa();
+
+                // A faixa desta tela nasce vazia e escondida: so agora ela tem
+                // cartoes, altura e um lugar na geometria da pagina. O
+                // observador da lista cobre a faixa do mapa, que e outro
+                // elemento — este caminho precisa avisar por conta propria.
+                agendarAjusteDaFaixa();
             });
     }
 
@@ -3137,6 +3562,7 @@
         ligarSetasDaFaixa();
         blindarMiniaturas();
         observarListaDaFaixa();
+        observarGeometriaDaFaixa();
         corrigirAnuncio();
         ligarLocalizacao();
         ligarEsperaDaBusca();

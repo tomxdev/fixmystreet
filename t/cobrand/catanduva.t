@@ -2460,4 +2460,53 @@ subtest 'o passo "Nos conte sobre voce" pede o que precisa, e diz o porque' => s
     };
 };
 
+subtest 'o cartao da faixa continua ligado ao pino do mapa' => sub {
+    # Nao e teste de aparencia: e a classe que faz o realce funcionar.
+    #
+    # `map-OpenLayers.js` liga cartao e pino assim:
+    #
+    #     $('#js-reports-list').on('mouseenter focusin',
+    #                              '.item-list--reports__item', ...)
+    #         -> fixmystreet.maps.markers_highlight(id)
+    #
+    # Quando os cartoes desta faixa foram redesenhados, so `item-list__item`
+    # veio junto de `templates/web/base/report/_item.html`. O realce parou
+    # calado - passar o mouse ou o foco por um cartao deixou de dizer qual pino
+    # e o dele - e nada quebrou, que e como isto sobreviveu.
+    #
+    # O `data-report-id` entra junto porque e o outro fio entre os dois: e dele
+    # que sai o id que o upstream procura.
+
+    FixMyStreet::override_config {
+        ALLOWED_COBRANDS => ['catanduva'],
+        MAPIT_URL => 'http://mapit.uk/',
+    }, sub {
+        my $body = $mech->create_body_ok(900001, 'Prefeitura de Catanduva',
+            { cobrand => 'catanduva' });
+        $mech->create_contact_ok(body_id => $body->id,
+            category => 'Buraco na via', email => 'buraco@catanduva.sp.gov.br');
+
+        my $usuario = $mech->create_user_ok('faixa@example.org', name => 'Quem Olha');
+        my ($ocorrencia) = $mech->create_problems_for_body(1, $body->id,
+            'Ocorrencia da faixa', {
+                user => $usuario, cobrand => 'catanduva',
+                category => 'Buraco na via',
+                latitude => -21.1383, longitude => -48.9736,
+            });
+
+        $mech->get_ok('/around?latitude=-21.1383&longitude=-48.9736&zoom=4');
+        my $html = $mech->content;
+
+        like $html, qr/class="[^"]*\bitem-list--reports__item\b[^"]*\bmap-card\b/,
+            'o <li> do cartao carrega a classe que o realce do pino procura';
+        like $html, qr/data-report-id="\Q@{[ $ocorrencia->id ]}\E"/,
+            'e o id da ocorrencia, que e o outro fio entre cartao e pino';
+
+        # A faixa continua sendo a regiao que o /ajax troca: o id do contentor e
+        # o que o upstream usa para substituir a lista a cada filtro.
+        like $html, qr/id="js-reports-list"/,
+            'e o contentor que o /ajax substitui continua com o id dele';
+    };
+};
+
 done_testing();

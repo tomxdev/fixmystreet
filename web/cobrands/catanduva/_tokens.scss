@@ -146,11 +146,18 @@
     // -- Movimento ---------------------------------------------------------
     --ease: cubic-bezier(0.4, 0, 0.2, 1);
     --dur: 0.16s;
+
+    // A faixa inferior abre e fecha uma superficie de 230px de altura. Nos 0.16s
+    // do resto do sistema isso le como um salto: o olho nao acompanha de onde o
+    // conteudo veio. 0.22s e o bastante para acompanhar sem que a espera apareca
+    // — e continua dentro do que se espera de uma transicao de interface.
+    --dur-faixa: 0.22s;
 }
 
 // Quem pediu menos movimento nao recebe nenhum.
 @media (prefers-reduced-motion: reduce) {
     :root {
         --dur: 0.001s;
+        --dur-faixa: 0.001s;
     }
 }
